@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+import React, { useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
 
 /**
  * Branding Pioneers – Codex (Monthly Tactical System, MVP+)
@@ -18,10 +18,10 @@ import { createClient } from "@supabase/supabase-js";
 
 /***********************
  * Supabase Integration *
- ***********************/ 
-const SUPABASE_URL = import.meta?.env?.VITE_SUPABASE_URL || "";
-const SUPABASE_ANON = import.meta?.env?.VITE_SUPABASE_ANON_KEY || "";
-const ADMIN_TOKEN = import.meta?.env?.VITE_ADMIN_ACCESS_TOKEN || ""; // simple gate for #admin
+ ***********************/
+const SUPABASE_URL = import.meta?.env?.VITE_SUPABASE_URL || '';
+const SUPABASE_ANON = import.meta?.env?.VITE_SUPABASE_ANON_KEY || '';
+const ADMIN_TOKEN = import.meta?.env?.VITE_ADMIN_ACCESS_TOKEN || ''; // simple gate for #admin
 
 const supabase = SUPABASE_URL && SUPABASE_ANON ? createClient(SUPABASE_URL, SUPABASE_ANON) : null;
 
