@@ -1,5 +1,7 @@
 # Branding Pioneers – Codex (Monthly Tactical MVP)
 
+[![Netlify Status](https://api.netlify.com/api/v1/badges/dfcaf2a4-e2a5-4e74-a3e2-eb5423ad8267/deploy-status)](https://app.netlify.com/projects/bptm/deploys)
+
 Vite + React + Tailwind app with localStorage fallback and optional Supabase storage.
 Manager dashboard is gated via `VITE_ADMIN_ACCESS_TOKEN` and lives at `/#admin`.
 
@@ -67,30 +69,30 @@ git push -u origin main
   - `VITE_SUPABASE_ANON_KEY`
   - `VITE_ADMIN_ACCESS_TOKEN` (choose a strong string; required for `/#admin`)
 
-**Manager Dashboard:** `https://<your-site>/#admin` → will prompt for the token.
+Manager Dashboard: `https://<your-site>.netlify.app/#admin` → will prompt for the token.
 
 ---
 
 ## 5) Quick QA checklist
-- [ ] Add at least one **Client** in the KPIs section.
-- [ ] Attach **Report URLs** (dashboard/drive/figma/etc.).
-- [ ] Add **Learning entries** until you reach **6 hours**.
-- [ ] Add at least one **Meeting** note link in Relationship.
+- [ ] Add at least one Client in the KPIs section.
+- [ ] Attach Report URLs (dashboard/drive/figma/etc.).
+- [ ] Add Learning entries until you reach 6 hours.
+- [ ] Add at least one Meeting note link in Relationship.
 - [ ] Submit → If Supabase is configured, data is stored server-side; else saved locally.
-- [ ] Check Admin dashboard (`/#admin`), change the month dropdown, and **Export JSON**.
+- [ ] Check Admin dashboard (`/#admin`), change the month dropdown, and Export JSON.
 
 ---
 
 ## 6) Common gotchas
-- **Token gate**: If `VITE_ADMIN_ACCESS_TOKEN` is empty, dashboard opens without prompt.
-- **Supabase insert error**: Usually missing `pgcrypto` or wrong env vars. See SQL above.
-- **SPA routing**: `netlify.toml` contains a fallback so deep links work.
+• **Token gate**: If `VITE_ADMIN_ACCESS_TOKEN` is empty, dashboard opens without prompt.  
+• **Supabase insert error**: Usually missing `pgcrypto` or wrong env vars. See SQL above.  
+• **SPA routing**: `netlify.toml` contains a fallback so deep links work.
 
 ---
 
 ## 7) Customize branding
-- Replace the inline favicon in `index.html`.
-- Replace the header image source with your BP logo.
-- Add colors via Tailwind in `tailwind.config.js` if desired.
+• Replace the inline favicon in `index.html`.  
+• Replace the header image source with your BP logo.  
+• Add colors via Tailwind in `tailwind.config.js` if desired.
 
 Enjoy! 🚀
