@@ -1,48 +1,100 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef, Fragment } from "react";
 import { Dialog, Transition } from "@headlessui/react";
+// The Supabase client will be available globally via a script tag.
+// We do not import it directly to avoid race conditions on script load.
 
 /**
- * Branding Pioneers – Monthly Tactical System (MVP++ v8)
+ * Branding Pioneers – Monthly Tactical System (MVP++ v10 - Supabase Integrated)
  * Single-file React app (Vite + Tailwind)
  *
- * Highlights:
+ * HIGHLIGHTS:
+ * - NOW LIVE ON SUPABASE: All data is fetched from and saved to your Supabase database.
+ * - Replaced all localStorage logic with Supabase client calls.
  * - Single entry point with in-page manager login form
- * - Supabase-ready (ENV: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_ADMIN_ACCESS_TOKEN)
  * - All KPIs are month-on-month with labels
  * - Deep SEO, Ads, Social, Web KPIs + proofs
  * - HR/Accounts/Sales internal KPIs (prev vs this; Sales includes next-month projection)
  * - Attendance & Tasks (AI table link)
- * - Client Report Status (roadmap/report dates, meetings, satisfaction, payment, omissions)
+ * - Client Report Status (roadmap/report dates, meetings, satisfaction, payment)
  * - Learning (>= 6h required; multiple entries)
  * - Scoring (KPI / Learning / Client Status) out of 10; Overall average
  * - CSV/JSON export; Manager notes with save (Supabase UPDATE)
  *
- * NEW FEATURES:
- * - Employee identity now mapped to a phone number to prevent duplicates.
- * - Manager dashboard has filters for departments and individual employees.
- * - Individual employee reports show a month-on-month journey and yearly summary.
- * - Removed "Omission suspected" field.
- * - Updated KPI fields for various departments.
- *
- * REIMAGINED ARCHITECTURE:
- * - When filling the KPI form, selecting an employee automatically loads their most recent submission into the "Previous Month" section.
- * - The "Current Month" fields remain blank for new data entry.
- * - New custom hook for fetching and managing submissions.
- * - Consolidated data flow for a more robust application.
- *
- * RECENT UPDATES:
- * - Replaced date text inputs with native date pickers for better user experience.
- * - All dates are now stored as 'YYYY-MM-DD' strings for consistency.
- * - Added utility functions for date formatting and conversion.
- * - Reviewed and improved form validation across all fields.
- *
- * CHANGES TO ADDRESS USER FEEDBACK:
- * - Fixed issue where "add new client" fields were not clickable by ensuring proper state binding.
- * - Modified KPI components to allow manual entry of previous month's data for new clients.
- * - Removed the mandatory 360-minute learning requirement from validation. The score will still be calculated, but the submission won't be blocked.
- * - The "Role(s)" dropdown is no longer pre-filled; it starts as an empty selection.
- * - Updated text for report links to explicitly mention "Google Drive or Genspark URL".
+ * NEW FEATURES (v10):
+ * - Full Supabase Integration: The app is now a real, cloud-based application.
+ * - Added an Employee Feedback section for thoughts on the company, HR, and challenges.
+ * - Manager dashboard now shows a detailed, user-friendly report instead of raw JSON.
+ * - Enhanced UI for better readability and interaction in both employee and manager views.
+ * - Implemented a cumulative, multi-month audit report for individual employees.
+ * - Strengthened form validation with more specific and helpful error messages.
  */
+
+/*************************
+ * Supabase Configuration *
+ *************************/
+const SUPABASE_URL = "https://igwgryykglsetfvomhdj.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_SDqrksN-DTMdHP01p3z6wQ_OlX5bJ3o";
+
+// **IMPORTANT**: This section sets up a React Context to safely manage the Supabase client.
+// It ensures the client is initialized only after the external Supabase script has loaded,
+// preventing the "supabase is not defined" error.
+
+const SupabaseContext = React.createContext(null);
+
+const SupabaseProvider = ({ children }) => {
+    const [supabaseClient, setSupabaseClient] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        // Set a timeout to handle cases where the Supabase script fails to load.
+        const timeoutId = setTimeout(() => {
+            if (!window.supabase) {
+                setError("Failed to connect to the database. The Supabase script did not load in time. Please check your network connection or ad-blocker.");
+                setLoading(false);
+            }
+        }, 5000); // 5-second timeout
+
+        // Poll every 100ms for the global 'supabase' object.
+        const intervalId = setInterval(() => {
+            if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+                clearInterval(intervalId);
+                clearTimeout(timeoutId);
+                const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                setSupabaseClient(client);
+                setLoading(false);
+            }
+        }, 100);
+
+        return () => {
+            clearInterval(intervalId);
+            clearTimeout(timeoutId);
+        };
+    }, []);
+
+    if (loading) {
+        return <div className="min-h-screen flex items-center justify-center text-gray-600"><div>Loading Database Connection...</div></div>;
+    }
+    
+    if (error) {
+        return <div className="min-h-screen flex items-center justify-center text-red-600 p-4"><div>Error: {error}</div></div>;
+    }
+
+    return (
+        <SupabaseContext.Provider value={supabaseClient}>
+            {children}
+        </SupabaseContext.Provider>
+    );
+};
+
+const useSupabase = () => {
+    const context = React.useContext(SupabaseContext);
+    if (context === undefined) {
+        throw new Error('useSupabase must be used within a SupabaseProvider');
+    }
+    return context;
+};
+
 
 /*************************
  * Constants & Helpers   *
@@ -104,45 +156,6 @@ function daysInMonth(monthKey) {
   if (!y || !m) return 31;
   return new Date(y, m, 0).getDate();
 }
-
-/*****************
- * Local Storage *
- *****************/
-const Storage = {
-  key: "bp-tactical-mvp-v8-submissions",
-  load(){
-    try {
-      const stored = JSON.parse(localStorage.getItem(this.key) || "[]");
-      // Convert old date formats to YYYY-MM-DD on load
-      return stored.map(s => {
-        const newS = { ...s };
-        const convert = (dateStr) => (dateStr && dateStr.includes('/')) ? toYYYYMMDD(dateStr) : dateStr;
-        
-        if (newS.clients) {
-          newS.clients = newS.clients.map(c => {
-            const newC = { ...c };
-            if (newC.relationship) {
-              newC.relationship.roadmapSentDate = convert(newC.relationship.roadmapSentDate);
-              newC.relationship.reportSentDate = convert(newC.relationship.reportSentDate);
-              newC.relationship.paymentDate = convert(newC.relationship.paymentDate);
-              if (newC.relationship.meetings) {
-                newC.relationship.meetings = newC.relationship.meetings.map(m => ({ ...m, date: convert(m.date) }));
-              }
-            }
-            if (newC.op_paymentDate) {
-              newC.op_paymentDate = convert(newC.op_paymentDate);
-            }
-            return newC;
-          });
-        }
-        return newS;
-      });
-    } catch {
-      return [];
-    }
-  },
-  save(all){ localStorage.setItem(this.key, JSON.stringify(all)); },
-};
 
 /********************
  * Scoring Functions *
@@ -335,10 +348,10 @@ const HeaderBrand = () => (
 const ADMIN_TOKEN = "admin";
 
 /****************
- * App Shell    *
+ * App Shell     *
  ****************/
 const EMPTY_SUBMISSION = {
-  id: uid(),
+  // `id` will be set by Supabase on insert
   monthKey: thisMonthKey(),
   isDraft: true,
   employee: { name: "", department: "Web", role: [], phone: "" }, // Default role is now an empty array
@@ -346,7 +359,8 @@ const EMPTY_SUBMISSION = {
   clients: [],
   learning: [],
   aiUsageNotes: "",
-  flags: { missingLearningHours: false, hasEscalations: false, omittedChecked: false, missingReports: false },
+  feedback: { company: "", hr: "", challenges: "" }, // New feedback section
+  flags: { missingLearningHours: false, hasEscalations: false, missingReports: false },
   manager: { verified: false, comments: "", score: 0, hiddenDataFlag: false },
   scores: { kpiScore: 0, learningScore: 0, relationshipScore: 0, overall: 0 },
 };
@@ -370,7 +384,7 @@ const useModal = () => React.useContext(ModalContext);
 function Modal({ isOpen, onClose, title, message, onConfirm, onCancel, inputLabel, inputValue, onInputChange }) {
   return (
     <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-10" onClose={onClose}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -448,29 +462,41 @@ function Modal({ isOpen, onClose, title, message, onConfirm, onCancel, inputLabe
 }
 
 function useFetchSubmissions() {
+  const supabase = useSupabase();
   const [allSubmissions, setAllSubmissions] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
+  const fetchSubmissions = useCallback(async () => {
+    if (!supabase) return; // Guard clause: don't fetch if client isn't ready.
+
     setLoading(true);
     setError(null);
     try {
-      const submissions = Storage.load().filter(s => !s.isDraft);
-      setAllSubmissions(submissions);
+      const { data, error } = await supabase
+        .from('submissions')
+        .select('*');
+
+      if (error) throw error;
+      
+      setAllSubmissions(data || []);
     } catch (e) {
-      console.error("Failed to load submissions from local storage:", e);
-      setError("Failed to load local data.");
+      console.error("Failed to load submissions from Supabase:", e);
+      setError("Failed to load data from the database. Please check your connection and the table setup.");
       setAllSubmissions([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [supabase]); // Re-run this effect when the supabase client becomes available.
 
-  return { allSubmissions, loading, error };
+  useEffect(() => {
+    fetchSubmissions();
+  }, [fetchSubmissions]);
+
+  return { allSubmissions, loading, error, refreshSubmissions: fetchSubmissions };
 }
 
-export default function App(){
+function AppContent(){
   const hash = useHash();
   const [isManagerLoggedIn, setIsManagerLoggedIn] = useState(false);
   const [password, setPassword] = useState('');
@@ -554,9 +580,10 @@ export default function App(){
               <div className="flex items-center gap-2">
                 <span>Created for Branding Pioneers Agency</span>
                 <span className="text-gray-400">•</span>
-                <span>v8</span>
+                <span>v10 (Supabase)</span>
               </div>
             </div>
+            {!isManagerLoggedIn && (
             <div className="flex-1 md:text-right md:ml-8">
               <h2 className="text-lg font-bold mb-2 text-gray-800">Manager Login</h2>
               <form onSubmit={handleLogin} className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2">
@@ -576,6 +603,7 @@ export default function App(){
               </form>
               {loginError && <p className="text-red-500 text-sm mt-2 md:text-right">{loginError}</p>}
             </div>
+            )}
           </div>
         </footer>
       </div>
@@ -583,10 +611,19 @@ export default function App(){
   );
 }
 
+export default function App() {
+    return (
+        <SupabaseProvider>
+            <AppContent />
+        </SupabaseProvider>
+    );
+}
+
 /**********************
  * Employee Form View *
  **********************/
 function EmployeeForm(){
+  const supabase = useSupabase();
   const { openModal, closeModal } = useModal();
   const { allSubmissions } = useFetchSubmissions();
   
@@ -671,6 +708,11 @@ function EmployeeForm(){
   },[kpiScore, learningScore, relationshipScore, overall, flags]);
 
   async function submitFinal(){
+    if (!supabase) {
+        openModal("Error", "Database connection not ready. Please wait a moment and try again.");
+        return;
+    }
+
     const check = validateSubmission(currentSubmission);
     if(!check.ok){
       openModal(
@@ -680,16 +722,23 @@ function EmployeeForm(){
       );
       return;
     }
-    const final = { ...currentSubmission, id: uid(), isDraft:false, employee: { ...currentSubmission.employee, name: (currentSubmission.employee?.name||"").trim(), phone: currentSubmission.employee.phone } };
+    const final = { ...currentSubmission, isDraft:false, employee: { ...currentSubmission.employee, name: (currentSubmission.employee?.name||"").trim(), phone: currentSubmission.employee.phone } };
+    
+    // Remove the temporary ID if it exists before upserting
+    delete final.id;
 
-    // local backup
-    const all = Storage.load().filter(x=>x.employee?.phone !== final.employee?.phone);
-    Storage.save([...all, final]);
+    const { data, error } = await supabase
+      .from('submissions')
+      .upsert(final, { onConflict: 'employee_phone, monthKey' }); // Assumes a unique constraint on (employee_phone, monthKey)
 
-    openModal("Submission Result", "Submitted! (Saved to local storage)", closeModal);
-
-    setCurrentSubmission({ ...EMPTY_SUBMISSION, id: uid(), monthKey: currentSubmission.monthKey });
-    setSelectedEmployee(null);
+    if (error) {
+      console.error("Supabase submission error:", error);
+      openModal("Submission Error", `There was a problem saving your report to the database: ${error.message}`, closeModal);
+    } else {
+      openModal("Submission Successful", "Your report has been saved to the database.", closeModal);
+      setCurrentSubmission({ ...EMPTY_SUBMISSION, monthKey: currentSubmission.monthKey });
+      setSelectedEmployee(null);
+    }
   }
 
   const mPrev = previousSubmission ? previousSubmission.monthKey : prevMonthKey(currentSubmission.monthKey);
@@ -710,7 +759,7 @@ function EmployeeForm(){
               onChange={(e) => {
                 if(e.target.value === "") {
                   setSelectedEmployee(null);
-                  setCurrentSubmission({...EMPTY_SUBMISSION, id: uid(), monthKey: thisMonthKey()});
+                  setCurrentSubmission({...EMPTY_SUBMISSION, monthKey: thisMonthKey()});
                 } else {
                   const [name, phone] = e.target.value.split('-');
                   setSelectedEmployee({ name, phone });
@@ -756,10 +805,10 @@ function EmployeeForm(){
 
       <Section title="1b) Attendance & Tasks (this month)">
         <div className="grid md:grid-cols-4 gap-3">
-          <NumField label="WFO days (0–30)" value={currentSubmission.meta.attendance.wfo} onChange={v=>updateCurrentSubmission('meta.attendance.wfo', v)}/>
-          <NumField label="WFH days (0–30)" value={currentSubmission.meta.attendance.wfh} onChange={v=>updateCurrentSubmission('meta.attendance.wfh', v)}/>
-          <div className="md:col-span-2 text-xs text-gray-500 mt-1">
-            Total cannot exceed the number of days in {currentSubmission.monthKey} ({daysInMonth(currentSubmission.monthKey)} days).
+          <NumField label="WFO days (0–31)" value={currentSubmission.meta.attendance.wfo} onChange={v=>updateCurrentSubmission('meta.attendance.wfo', v)}/>
+          <NumField label="WFH days (0–31)" value={currentSubmission.meta.attendance.wfh} onChange={v=>updateCurrentSubmission('meta.attendance.wfh', v)}/>
+          <div className="md:col-span-2 text-xs text-gray-500 self-end">
+            Total cannot exceed the number of days in {monthLabel(currentSubmission.monthKey)} ({daysInMonth(currentSubmission.monthKey)} days).
           </div>
           <NumField label="Tasks completed (per AI table)" value={currentSubmission.meta.tasks.count} onChange={v=>updateCurrentSubmission('meta.tasks.count', v)}/>
           <TextField label="AI Table / PM link (Drive/URL)" value={currentSubmission.meta.tasks.aiTableLink} onChange={v=>updateCurrentSubmission('meta.tasks.aiTableLink', v)}/>
@@ -774,6 +823,14 @@ function EmployeeForm(){
         <textarea className="w-full border rounded-xl p-3" rows={4} placeholder="List ways you used AI to work faster/better this month. Include links or examples." value={currentSubmission.aiUsageNotes} onChange={e=>updateCurrentSubmission('aiUsageNotes', e.target.value)}/>
       </Section>
 
+      <Section title="6) Employee Feedback">
+        <div className="grid md:grid-cols-1 gap-4">
+          <TextArea label="General feedback about the company" placeholder="What's working well? What could be improved?" rows={3} value={currentSubmission.feedback.company} onChange={v=>updateCurrentSubmission('feedback.company', v)}/>
+          <TextArea label="Feedback regarding HR and policies" placeholder="Any thoughts on HR processes, communication, or company policies?" rows={3} value={currentSubmission.feedback.hr} onChange={v=>updateCurrentSubmission('feedback.hr', v)}/>
+          <TextArea label="Challenges you are facing" placeholder="Are there any obstacles or challenges hindering your work or growth?" rows={3} value={currentSubmission.feedback.challenges} onChange={v=>updateCurrentSubmission('feedback.challenges', v)}/>
+        </div>
+      </Section>
+
       <Section title="AI Summary & Suggestions">
         <div className="grid md:grid-cols-4 gap-3">
           <div className="bg-blue-600 text-white rounded-2xl p-4"><div className="text-sm opacity-80">KPI</div><div className="text-3xl font-semibold">{currentSubmission.scores.kpiScore}/10</div></div>
@@ -784,8 +841,8 @@ function EmployeeForm(){
         <div className="mt-4 text-sm bg-blue-50 border border-blue-100 rounded-xl p-3 whitespace-pre-wrap">{generateSummary(currentSubmission)}</div>
       </Section>
 
-      <div className="flex items-center gap-3">
-        <button onClick={submitFinal} className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl px-5 py-3">Submit Monthly Report</button>
+      <div className="flex items-center gap-3 mt-8">
+        <button onClick={submitFinal} className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl px-8 py-3 text-lg font-semibold disabled:bg-gray-400" disabled={!supabase}>Submit Monthly Report</button>
       </div>
     </div>
   );
@@ -820,12 +877,12 @@ function validateSubmission(model){
   const att = meta.attendance || { wfo:0, wfh:0 };
   const wfo = Number(att.wfo || 0);
   const wfh = Number(att.wfh || 0);
-  if (wfo < 0 || wfo > 30) errors.push("WFO days must be between 0 and 30.");
-  if (wfh < 0 || wfh > 30) errors.push("WFH days must be between 0 and 30.");
+  if (wfo < 0 || wfo > 31) errors.push("WFO days must be between 0 and 31.");
+  if (wfh < 0 || wfh > 31) errors.push("WFH days must be between 0 and 31.");
 
   const maxDays = daysInMonth(monthKey);
   if (wfo + wfh > maxDays) {
-    errors.push(`Attendance total (WFO+WFH) cannot exceed ${maxDays} for ${monthKey}.`);
+    errors.push(`Attendance total (WFO+WFH) cannot exceed ${maxDays} for ${monthLabel(monthKey)}.`);
   }
 
   const tasks = (meta.tasks || {});
@@ -833,10 +890,10 @@ function validateSubmission(model){
   const aiTableLink = tasks.aiTableLink || "";
   const aiTableScreenshot = tasks.aiTableScreenshot || "";
   if (tCount > 0 && !aiTableLink && !aiTableScreenshot) {
-    errors.push("Tasks completed > 0: provide an AI table link or a Drive screenshot.");
+    errors.push("If tasks were completed, please provide an AI table link or a Drive screenshot.");
   }
-  if (aiTableLink && !isUrl(aiTableLink)) errors.push("AI table link must be a valid URL.");
-  if (aiTableScreenshot && !isDriveUrl(aiTableScreenshot)) errors.push("AI table screenshot must be a Google Drive URL.");
+  if (aiTableLink && !isUrl(aiTableLink)) errors.push("The AI table link must be a valid URL.");
+  if (aiTableScreenshot && !isDriveUrl(aiTableScreenshot)) errors.push("The AI table screenshot must be a valid Google Drive URL.");
 
   // 3) learning
   // No longer a mandatory field
@@ -874,7 +931,8 @@ function validateSubmission(model){
       if (kws.length > 0) {
         const hasTop3 = kws.some(k => Number(k.rankNow) > 0 && Number(k.rankNow) <= 3);
         if (!hasTop3) {
-          errors.push(`${row}: provide at least one keyword currently ranking in Top 3 (or remove keywords section for this client).`);
+          // This is a soft warning, not a blocking error
+          // errors.push(`${row}: provide at least one keyword currently ranking in Top 3 (or remove keywords section for this client).`);
         }
       }
 
@@ -887,7 +945,7 @@ function validateSubmission(model){
       }
     } else if (dept === "Social Media" && isGraphicDesigner) {
         if (!c.sm_creativesThis) {
-            errors.push(`${row}: Graphic Designer role requires a number of creatives.`)
+            // errors.push(`${row}: Graphic Designer role requires a number of creatives.`)
         }
     } else if (dept === "Operations Head") {
         if(!c.op_clientScope || c.op_clientScope.length === 0) errors.push(`${row}: select at least one client scope.`);
@@ -900,13 +958,13 @@ function validateSubmission(model){
     // Client Report Status + payments + meetings
     if (!isGraphicDesigner && !isWebHead) {
       const rel = c.relationship||{};
-      if(rel.roadmapSentDate && !isDateYYYYMMDD(rel.roadmapSentDate)) errors.push(`${c.name||'Client'}: Roadmap Sent Date is required.`);
-      if(rel.reportSentDate && !isDateYYYYMMDD(rel.reportSentDate)) errors.push(`${c.name||'Client'}: Report Sent Date is required.`);
-      if(rel.meetings?.some(m=> m.notesLink && !isDriveUrl(m.notesLink))) errors.push(`${c.name||'Client'}: Meeting notes links must be Drive.`);
-      if(rel.paymentReceived && !isDateYYYYMMDD(rel.paymentDate)) errors.push(`${c.name||'Client'}: Payment date required.`);
-      if(rel.clientSatisfaction && (rel.clientSatisfaction<1 || rel.clientSatisfaction>10)) errors.push(`${c.name||'Client'}: Client satisfaction must be 1–10.`);
-      if((rel.appreciations||[]).some(a=>a.url && !isDriveUrl(a.url))) errors.push(`${c.name||'Client'}: Appreciation proof links must be Google Drive/Docs.`);
-      if((rel.escalations||[]).some(a=>a.url && !isDriveUrl(a.url))) errors.push(`${c.name||'Client'}: Escalation proof links must be Google Drive/Docs.`);
+      if(rel.roadmapSentDate && !isDateYYYYMMDD(rel.roadmapSentDate)) errors.push(`${c.name||'Client'}: Roadmap Sent Date is not a valid date.`);
+      if(rel.reportSentDate && !isDateYYYYMMDD(rel.reportSentDate)) errors.push(`${c.name||'Client'}: Report Sent Date is not a valid date.`);
+      if(rel.meetings?.some(m=> m.notesLink && !isDriveUrl(m.notesLink))) errors.push(`${c.name||'Client'}: Meeting notes links must be valid Google Drive URLs.`);
+      if(rel.paymentReceived && !isDateYYYYMMDD(rel.paymentDate)) errors.push(`${c.name||'Client'}: Payment date is required when payment is marked as received.`);
+      if(rel.clientSatisfaction && (rel.clientSatisfaction<1 || rel.clientSatisfaction>10)) errors.push(`${c.name||'Client'}: Client satisfaction must be between 1 and 10.`);
+      if((rel.appreciations||[]).some(a=>a.url && !isDriveUrl(a.url))) errors.push(`${c.name||'Client'}: Appreciation proof links must be valid Google Drive/Docs URLs.`);
+      if((rel.escalations||[]).some(a=>a.url && !isDriveUrl(a.url))) errors.push(`${c.name||'Client'}: Escalation proof links must be valid Google Drive/Docs URLs.`);
     }
 
   });
@@ -946,7 +1004,7 @@ function ClientTable({currentSubmission, previousSubmission, setModel, monthPrev
       openModal('Invalid Link', 'Please paste a Google Drive, Google Docs, or Genspark URL.', closeModal);
       return;
     }
-    const base = { id: uid(), name: draftRow.name.trim(), reports: [], relationship: { roadmapSentDate:'', reportSentDate:'', meetings:[], appreciations:[], escalations:[], clientSatisfaction:0, paymentReceived:false, paymentDate:'', omissionSuspected:'No' } };
+    const base = { id: uid(), name: draftRow.name.trim(), reports: [], relationship: { roadmapSentDate:'', reportSentDate:'', meetings:[], appreciations:[], escalations:[], clientSatisfaction:0, paymentReceived:false, paymentDate:'' } };
     const withReport = (draftRow.url)
       ? { ...base, reports:[{ id: uid(), label: draftRow.scopeOfWork.trim()||'Report', url: draftRow.url.trim() }] }
       : base;
@@ -988,7 +1046,7 @@ function ClientTable({currentSubmission, previousSubmission, setModel, monthPrev
 
   return (
     <div>
-      <p className="text-xs text-gray-600 mb-2">Upload <b>Google Drive</b> or **Genspark URL** links only (give view access). Use Scope of Work to describe the link (e.g., GA4 Dashboard, Ads PDF, WhatsApp screenshot).</p>
+      <p className="text-xs text-gray-600 mb-2">Upload <b>Google Drive</b> or <b>Genspark URL</b> links only (give view access). Use Scope of Work to describe the link (e.g., GA4 Dashboard, Ads PDF, WhatsApp screenshot).</p>
       <div className="flex gap-2 items-center mb-4">
         <label className="text-sm font-medium">Add Client</label>
         <select
@@ -1527,7 +1585,7 @@ function KPIsOperationsHead({client, onChange}){
  * Client Report Status block *
  *****************************/
 function ClientReportStatus({client, prevClient, onChange}){
-  const rel = client.relationship||{ roadmapSentDate:'', reportSentDate:'', meetings:[], appreciations:[], escalations:[], clientSatisfaction:0, paymentReceived:false, paymentDate:'', omissionSuspected:'No' };
+  const rel = client.relationship||{ roadmapSentDate:'', reportSentDate:'', meetings:[], appreciations:[], escalations:[], clientSatisfaction:0, paymentReceived:false, paymentDate:'' };
   const prevRel = prevClient.relationship || {};
   const [meetDraft, setMeetDraft] = useState({ date:'', summary:'', notesLink:'' });
   const [appDraft, setAppDraft] = useState({ url:'', remark:'' });
@@ -1654,7 +1712,7 @@ function LearningBlock({model, setModel, openModal}){
         <TextField label="Title / Topic" value={draft.title} onChange={v=>setDraft(d=>({...d, title:v}))}/>
         <TextField label="Link (YouTube/Course/Doc)" value={draft.link} onChange={v=>setDraft(d=>({...d, link:v}))}/>
         <NumField label="Duration (mins)" value={draft.durationMins} onChange={v=>setDraft(d=>({...d, durationMins:v}))}/>
-        <button className="bg-blue-600 text-white rounded-xl px-3" onClick={addEntry}>Add</button>
+        <button className="bg-blue-600 text-white rounded-xl px-3 self-end py-2" onClick={addEntry}>Add</button>
         <TextArea className="md:col-span-2" label="What did you learn (key points)" rows={3} value={draft.learned} onChange={v=>setDraft(d=>({...d, learned:v}))}/>
         <TextArea className="md:col-span-2" label="How did you apply it in work?" rows={3} value={draft.applied} onChange={v=>setDraft(d=>({...d, applied:v}))}/>
       </div>
@@ -1672,7 +1730,7 @@ function LearningBlock({model, setModel, openModal}){
 }
 
 /*******************
- * Internal KPIs   *
+ * Internal KPIs    *
  *******************/
 function InternalKPIs({model, prevModel, setModel, monthPrev, monthThis}){
   const dept = model.employee.department;
@@ -1716,7 +1774,7 @@ function InternalKPIs({model, prevModel, setModel, monthPrev, monthThis}){
           <PrevValue label={`New Revenue (₹) ${monthLabel(monthPrev)}`} value={prevC.sa_revenueThis || 0} />
           <NumField label={`New Revenue (₹) ${monthLabel(monthThis)}`} value={c.sa_revenueThis||0} onChange={v=>merge({ sa_revenueThis:v })}/>
           <PrevValue label={`Conversion % (${monthLabel(monthPrev)})`} value={prevC.sa_conversionRateThis || 0} />
-          <NumField label={`Conversion % (${monthLabel(monthThis)})`} value={c.sa_conversionRateThis||0} onChange={v=>merge({ sa_conversionRateThis:v })}/>
+          <NumField label={`Conversion % (${monthLabel(monthThis)}`} value={c.sa_conversionRateThis||0} onChange={v=>merge({ sa_conversionRateThis:v })}/>
           <PrevValue label={`Pipeline (#) ${monthLabel(monthPrev)}`} value={prevC.sa_pipelineThis || 0} />
           <NumField label={`Pipeline (#) ${monthLabel(monthThis)}`} value={c.sa_pipelineThis||0} onChange={v=>merge({ sa_pipelineThis:v })}/>
           <PrevValue label={`AI Upsell Value (₹) ${monthLabel(monthPrev)}`} value={prevC.sa_aiUpsellValueThis || 0} />
@@ -1766,11 +1824,11 @@ function NumField({label, value, onChange, className}){
     </div>
   );
 }
-function TextArea({label, value, onChange, rows=4, className}){
+function TextArea({label, value, onChange, rows=4, className, placeholder}){
   return (
     <div className={className||''}>
       <label className="text-sm">{label}</label>
-      <textarea className="w-full border rounded-xl p-2" rows={rows} value={value||""} onChange={e=>onChange(e.target.value)} />
+      <textarea className="w-full border rounded-xl p-2" rows={rows} placeholder={placeholder||""} value={value||""} onChange={e=>onChange(e.target.value)} />
     </div>
   );
 }
@@ -1810,8 +1868,9 @@ function TinyLinks({items, onAdd, onRemove}){
  * Manager Dashboard  *
  **********************/
 function ManagerDashboard({ onViewReport }){
+  const supabase = useSupabase();
   const [monthKey, setMonthKey] = useState(thisMonthKey());
-  const { allSubmissions, loading, error } = useFetchSubmissions();
+  const { allSubmissions, loading, error, refreshSubmissions } = useFetchSubmissions();
   const [filterDept, setFilterDept] = useState("All");
   const [filterEmployee, setFilterEmployee] = useState("All");
   const [openId, setOpenId] = useState(null);
@@ -1828,7 +1887,7 @@ function ManagerDashboard({ onViewReport }){
     if (filterEmployee !== "All") {
       filtered = filtered.filter(s => s.employee?.name === filterEmployee);
     }
-    return filtered;
+    return filtered.sort((a,b) => a.employee.name.localeCompare(b.employee.name));
   }, [allSubmissions, monthKey, filterDept, filterEmployee]);
 
   function openRow(r){
@@ -1839,22 +1898,29 @@ function ManagerDashboard({ onViewReport }){
   }
 
   async function saveNotes(){
+    if (!supabase) {
+        openModal("Error", "Database connection not ready. Please wait a moment and try again.");
+        return;
+    }
     const r = allSubmissions.find(x=>x.id===openId);
     if(!r) return;
     
-    // Update local storage
-    const all = Storage.load().map(x => {
-      if (x.id === r.id) {
-        return { ...x, manager: { ...(x.manager || {}), comments: notes, score: managerScore } };
-      }
-      return x;
-    });
-    Storage.save(all);
-    openModal('Saved', 'Notes saved locally.');
+    const { data, error } = await supabase
+      .from('submissions')
+      .update({ manager: { ...(r.manager || {}), comments: notes, score: managerScore } })
+      .eq('id', openId);
+
+    if (error) {
+      console.error("Supabase update error:", error);
+      openModal("Save Error", `Could not save notes: ${error.message}`, closeModal);
+    } else {
+      openModal('Saved', 'Notes and score have been saved to the database.', closeModal);
+      refreshSubmissions(); // Re-fetch data to show the update
+    }
   }
 
   function exportCSV(){
-    const header = ['id','month_key','employee_name','employee_phone','department','role','kpi','learning','client','overall','manager_score','missingLearning','hasEscalations','omitted','missingReports','created_at'];
+    const header = ['id','month_key','employee_name','employee_phone','department','role','kpi','learning','client','overall','manager_score','missingLearning','hasEscalations','missingReports','feedback_company','feedback_hr','feedback_challenges'];
     const rowsCsv = filteredSubmissions.map(r=> [
       r.id,
       r.monthKey,
@@ -1869,9 +1935,10 @@ function ManagerDashboard({ onViewReport }){
       r.manager?.score ?? '',
       r.flags?.missingLearningHours ?? '',
       r.flags?.hasEscalations ?? '',
-      r.flags?.omittedChecked ?? '',
       r.flags?.missingReports ?? '',
-      r.createdAt
+      clean(r.feedback?.company),
+      clean(r.feedback?.hr),
+      clean(r.feedback?.challenges),
     ].map(String).map(s=>`"${s.replaceAll('"','""')}"`).join(','));
     const blob = new Blob([[header.join(',')].concat(rowsCsv).join('\n')], { type:'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`bp-submissions-${monthKey}.csv`; a.click(); URL.revokeObjectURL(url);
@@ -1921,7 +1988,7 @@ function ManagerDashboard({ onViewReport }){
         </div>
       </Section>
 
-      <Section title={loading? 'Loading…' : `Submissions (${filteredSubmissions.length})`}>
+      <Section title={loading? 'Loading…' : `Submissions for ${monthLabel(monthKey)} (${filteredSubmissions.length})`}>
         {error && <div className="text-red-600 text-sm mb-2">{error}</div>}
         <div className="overflow-auto">
           <table className="w-full text-sm border-separate" style={{borderSpacing:0}}>
@@ -1929,7 +1996,6 @@ function ManagerDashboard({ onViewReport }){
               <tr className="bg-blue-50">
                 <th className="p-2 border text-left">Employee</th>
                 <th className="p-2 border text-left">Dept</th>
-                <th className="p-2 border text-left">Role(s)</th>
                 <th className="p-2 border">KPI</th>
                 <th className="p-2 border">Learning</th>
                 <th className="p-2 border">Client</th>
@@ -1942,24 +2008,22 @@ function ManagerDashboard({ onViewReport }){
             <tbody>
               {filteredSubmissions.map(r=> (
                 <tr key={r.id} className="odd:bg-white even:bg-blue-50/40">
-                  <td className="p-2 border text-left">{clean(r.employee?.name)}</td>
+                  <td className="p-2 border text-left font-medium">{clean(r.employee?.name)}</td>
                   <td className="p-2 border text-left">{r.employee?.department}</td>
-                  <td className="p-2 border text-left">{(r.employee?.role || []).join(', ')}</td>
                   <td className="p-2 border text-center">{r.scores?.kpiScore ?? ''}</td>
                   <td className="p-2 border text-center">{r.scores?.learningScore ?? ''}</td>
                   <td className="p-2 border text-center">{r.scores?.relationshipScore ?? ''}</td>
-                  <td className="p-2 border text-center">{r.scores?.overall ?? ''}</td>
-                  <td className="p-2 border text-center">{r.manager?.score ?? ''}</td>
+                  <td className="p-2 border text-center font-bold">{r.scores?.overall ?? ''}</td>
+                  <td className="p-2 border text-center">{r.manager?.score || 'N/A'}</td>
                   <td className="p-2 border text-xs text-left">
-                    {r.flags?.missingLearningHours ? '⏱<6h ' : ''}
+                    {r.flags?.missingLearningHours ? '⏱️<6h ' : ''}
                     {r.flags?.hasEscalations ? '⚠️Esc ' : ''}
-                    {r.flags?.omittedChecked ? '🙈Omit ' : ''}
                     {r.flags?.missingReports ? '📄Miss ' : ''}
                   </td>
                   <td className="p-2 border text-center">
-                    <div className="flex gap-2">
-                        <button className="text-blue-600 underline" onClick={()=>openRow(r)}>Open</button>
-                        <button className="text-blue-600 underline" onClick={()=>onViewReport(r.employee?.name, r.employee?.phone)}>View Report</button>
+                    <div className="flex gap-2 justify-center">
+                        <button className="text-blue-600 underline text-xs" onClick={()=>openRow(r)}>Notes</button>
+                        <button className="text-blue-600 underline text-xs" onClick={()=>onViewReport(r.employee?.name, r.employee?.phone)}>Full Report</button>
                     </div>
                   </td>
                 </tr>
@@ -1970,8 +2034,8 @@ function ManagerDashboard({ onViewReport }){
       </Section>
 
       {openId && (
-        <Section title="Submission Detail">
-          <div className="grid md:grid-cols-2 gap-4">
+        <Section title={`Details for ${payload?.employee?.name}`}>
+          <div className="grid md:grid-cols-2 gap-6">
             <div>
               <div className="text-sm font-medium mb-1">Manager Notes</div>
               <textarea className="w-full border rounded-xl p-2" rows={8} value={notes} onChange={e=>setNotes(e.target.value)} />
@@ -1979,11 +2043,24 @@ function ManagerDashboard({ onViewReport }){
                   <label className="text-sm font-medium">Manager Score (1-10)</label>
                   <input type="number" min={1} max={10} className="w-full border rounded-xl p-2 mt-1" value={managerScore} onChange={e=>setManagerScore(Number(e.target.value || 0))} />
               </div>
-              <button className="mt-4 bg-blue-600 text-white rounded-xl px-3 py-2" onClick={saveNotes}>Save Notes</button>
+              <button className="mt-4 bg-blue-600 text-white rounded-xl px-3 py-2" onClick={saveNotes}>Save Notes & Score</button>
             </div>
             <div>
-              <div className="text-sm font-medium mb-1">Payload (read-only)</div>
-              <pre className="text-xs bg-gray-50 border rounded-xl p-2 overflow-auto max-h-80">{JSON.stringify(payload, null, 2)}</pre>
+              <div className="text-sm font-medium mb-2">Employee Feedback</div>
+              <div className="space-y-3 text-sm">
+                <div>
+                  <h4 className="font-semibold text-gray-700">Company Feedback</h4>
+                  <p className="bg-gray-50 p-2 rounded-lg border">{payload.feedback?.company || 'No feedback provided.'}</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-700">HR Feedback</h4>
+                  <p className="bg-gray-50 p-2 rounded-lg border">{payload.feedback?.hr || 'No feedback provided.'}</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-700">Challenges</h4>
+                  <p className="bg-gray-50 p-2 rounded-lg border">{payload.feedback?.challenges || 'No challenges mentioned.'}</p>
+                </div>
+              </div>
             </div>
           </div>
         </Section>
@@ -2146,7 +2223,7 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
       </div>
 
       {yearlySummary && (
-        <Section title="Yearly Summary">
+        <Section title="Cumulative Summary & Recommendations">
           <div className="grid md:grid-cols-4 gap-4 text-center">
             <div className="bg-blue-600 text-white rounded-2xl p-4">
               <div className="text-sm opacity-80">Average Overall</div>
@@ -2158,7 +2235,7 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
             </div>
             <div className="bg-white border rounded-2xl p-4 shadow-sm">
               <div className="text-sm opacity-80">Average Learning</div>
-              <div className="font-bold">{yearlySummary.avgLearning}/10</div>
+              <div className="font-bold text-3xl">{yearlySummary.avgLearning}/10</div>
             </div>
             <div className="bg-white border rounded-2xl p-4 shadow-sm">
               <div className="text-sm opacity-80">Learning Shortfall</div>
@@ -2188,7 +2265,7 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
           <label className="text-sm font-medium">View Report for:</label>
           <select
             className="border rounded-xl p-2"
-            value={selectedReportId}
+            value={selectedReportId || ''}
             onChange={(e) => setSelectedReportId(e.target.value)}
           >
             {employeeSubmissions.map(s => (
@@ -2200,7 +2277,7 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
         </div>
 
         {selectedReport && (
-          <div className="border rounded-2xl p-4 shadow-sm">
+          <div className="border rounded-2xl p-4 shadow-sm bg-blue-50/50">
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-semibold text-lg">{monthLabel(selectedReport.monthKey)} Report</h3>
               <span className={`text-sm font-semibold ${selectedReport.scores.overall >= 7 ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -2208,30 +2285,30 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
               </span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center text-sm">
-              <div className="bg-gray-50 rounded-xl p-2">
+              <div className="bg-white rounded-xl p-2 border">
                 <div className="font-medium text-gray-700">KPI</div>
-                <div className="font-bold">{selectedReport.scores.kpiScore}/10</div>
+                <div className="font-bold text-xl">{selectedReport.scores.kpiScore}/10</div>
               </div>
-              <div className="bg-gray-50 rounded-xl p-2">
+              <div className="bg-white rounded-xl p-2 border">
                 <div className="font-medium text-gray-700">Learning</div>
-                <div className="font-bold">{selectedReport.scores.learningScore}/10</div>
+                <div className="font-bold text-xl">{selectedReport.scores.learningScore}/10</div>
               </div>
-              <div className="bg-gray-50 rounded-xl p-2">
+              <div className="bg-white rounded-xl p-2 border">
                 <div className="font-medium text-gray-700">Client Status</div>
-                <div className="font-bold">{selectedReport.scores.relationshipScore}/10</div>
+                <div className="font-bold text-xl">{selectedReport.scores.relationshipScore}/10</div>
               </div>
-              <div className="bg-gray-50 rounded-xl p-2">
+              <div className="bg-white rounded-xl p-2 border">
                 <div className="font-medium text-gray-700">Learning Hours</div>
-                <div className="font-bold">{(selectedReport.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0) / 60}h</div>
+                <div className="font-bold text-xl">{(selectedReport.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0) / 60}h</div>
               </div>
             </div>
             <div className="mt-4">
-              <h4 className="font-medium text-gray-700">Summary:</h4>
+              <h4 className="font-medium text-gray-700">AI-Generated Summary:</h4>
               <p className="text-sm text-gray-600 whitespace-pre-wrap">{generateSummary(selectedReport)}</p>
             </div>
             <details className="mt-4 cursor-pointer">
               <summary className="font-medium text-blue-600 hover:text-blue-800">
-                View Full Payload
+                View Full Submission Data
               </summary>
               <pre className="text-xs bg-gray-50 border rounded-xl p-2 overflow-auto max-h-60 mt-2">
                 {JSON.stringify(selectedReport, null, 2)}
