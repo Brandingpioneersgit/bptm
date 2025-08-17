@@ -339,6 +339,251 @@ function generateSummary(model){
 /****************
  * Theming Bits  *
  ****************/
+// Celebration Component
+const CelebrationEffect = ({ show }) => {
+  if (!show) return null;
+  
+  return (
+    <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+      <div className="celebration-container">
+        {[...Array(50)].map((_, i) => (
+          <div
+            key={i}
+            className="confetti"
+            style={{
+              left: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 3}s`,
+              backgroundColor: ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3'][Math.floor(Math.random() * 6)]
+            }}
+          />
+        ))}
+      </div>
+      <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center z-50">
+        <div className="bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 p-1 rounded-2xl animate-pulse">
+          <div className="bg-white rounded-2xl p-8 shadow-2xl animate-bounce">
+            <div className="text-6xl mb-4 animate-spin">🎉</div>
+            <div className="text-3xl font-bold bg-gradient-to-r from-green-500 to-blue-600 bg-clip-text text-transparent mb-2">
+              Excellent Work!
+            </div>
+            <div className="text-lg text-gray-600 mb-2">Overall Score: {overall}/10</div>
+            <div className="text-sm text-green-600 font-semibold">🌟 Outstanding Performance! 🌟</div>
+          </div>
+        </div>
+      </div>
+      <style jsx>{`
+        .celebration-container {
+          position: relative;
+          width: 100%;
+          height: 100%;
+        }
+        .confetti {
+          position: absolute;
+          width: 10px;
+          height: 10px;
+          animation: confetti-fall 3s linear infinite;
+        }
+        @keyframes confetti-fall {
+          0% {
+            transform: translateY(-100vh) rotate(0deg);
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(100vh) rotate(720deg);
+            opacity: 0;
+          }
+        }
+      `}</style>
+    </div>
+  );
+};
+
+// Simple Performance Chart Component
+const PerformanceChart = ({ data, title }) => {
+  if (!data || data.length === 0) return null;
+  
+  const maxScore = Math.max(...data.map(d => d.score), 10);
+  const chartHeight = 200;
+  
+  return (
+    <div className="bg-white rounded-xl p-4 border border-gray-200">
+      <h4 className="font-medium text-gray-800 mb-4">{title}</h4>
+      <div className="relative" style={{ height: chartHeight }}>
+        <svg width="100%" height={chartHeight} className="overflow-visible">
+          {/* Grid lines */}
+          {[0, 2, 4, 6, 8, 10].map(score => (
+            <g key={score}>
+              <line
+                x1="40"
+                y1={chartHeight - (score / 10) * (chartHeight - 40)}
+                x2="100%"
+                y2={chartHeight - (score / 10) * (chartHeight - 40)}
+                stroke="#e5e7eb"
+                strokeWidth="1"
+              />
+              <text
+                x="35"
+                y={chartHeight - (score / 10) * (chartHeight - 40) + 4}
+                fontSize="12"
+                fill="#6b7280"
+                textAnchor="end"
+              >
+                {score}
+              </text>
+            </g>
+          ))}
+          
+          {/* Chart line */}
+          <polyline
+            points={data.map((d, i) => 
+              `${50 + (i * (100 / Math.max(data.length - 1, 1)) * 8)},${chartHeight - (d.score / 10) * (chartHeight - 40)}`
+            ).join(' ')}
+            fill="none"
+            stroke="#3b82f6"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          
+          {/* Data points */}
+          {data.map((d, i) => (
+            <g key={i}>
+              <circle
+                cx={50 + (i * (100 / Math.max(data.length - 1, 1)) * 8)}
+                cy={chartHeight - (d.score / 10) * (chartHeight - 40)}
+                r="4"
+                fill="#3b82f6"
+              />
+              <text
+                x={50 + (i * (100 / Math.max(data.length - 1, 1)) * 8)}
+                y={chartHeight - 10}
+                fontSize="10"
+                fill="#6b7280"
+                textAnchor="middle"
+              >
+                {d.month}
+              </text>
+            </g>
+          ))}
+        </svg>
+      </div>
+    </div>
+  );
+};
+
+// PDF Download Component
+const PDFDownloadButton = ({ data, employeeName }) => {
+  const downloadPDF = () => {
+    // Create a simple HTML content for PDF
+    const htmlContent = `
+      <html>
+        <head>
+          <title>Performance Report - ${employeeName}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .section { margin-bottom: 20px; }
+            .score-card { display: inline-block; margin: 10px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Performance Report</h1>
+            <h2>${employeeName}</h2>
+            <p>Generated on ${new Date().toLocaleDateString()}</p>
+          </div>
+          
+          <div class="section">
+            <h3>Performance Summary</h3>
+            ${data.map(d => `
+              <div class="score-card">
+                <strong>${d.monthKey}</strong><br>
+                Overall Score: ${d.scores?.overall || 'N/A'}/10<br>
+                KPI: ${d.scores?.kpiScore || 'N/A'}/10<br>
+                Learning: ${d.scores?.learningScore || 'N/A'}/10
+              </div>
+            `).join('')}
+          </div>
+          
+          <div class="section">
+            <h3>Detailed Submissions</h3>
+            <table>
+              <tr>
+                <th>Month</th>
+                <th>Department</th>
+                <th>Overall Score</th>
+                <th>KPI Score</th>
+                <th>Learning Score</th>
+                <th>Manager Score</th>
+              </tr>
+              ${data.map(d => `
+                <tr>
+                  <td>${monthLabel(d.monthKey)}</td>
+                  <td>${d.employee?.department || 'N/A'}</td>
+                  <td>${d.scores?.overall || 'N/A'}/10</td>
+                  <td>${d.scores?.kpiScore || 'N/A'}/10</td>
+                  <td>${d.scores?.learningScore || 'N/A'}/10</td>
+                  <td>${d.manager?.score || 'N/A'}/10</td>
+                </tr>
+              `).join('')}
+            </table>
+          </div>
+        </body>
+      </html>
+    `;
+    
+    // Create blob and download
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${employeeName.replace(/\s+/g, '_')}_Performance_Report.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  
+  return (
+    <button
+      onClick={downloadPDF}
+      className="bg-red-600 hover:bg-red-700 text-white rounded-xl px-4 py-2 text-sm font-medium transition-colors duration-200 shadow-sm flex items-center gap-2"
+    >
+      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"/>
+      </svg>
+      Download PDF
+    </button>
+  );
+};
+
+// Information Tooltip Component
+const InfoTooltip = ({ content }) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+  
+  return (
+    <div className="relative inline-block ml-2">
+      <button
+        type="button"
+        className="text-blue-500 hover:text-blue-700 transition-colors duration-200"
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+        onClick={() => setShowTooltip(!showTooltip)}
+      >
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd"/>
+        </svg>
+      </button>
+      {showTooltip && (
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 p-3 bg-gray-900 text-white text-sm rounded-lg shadow-lg z-10">
+          <div className="whitespace-pre-wrap">{content}</div>
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const HeaderBrand = () => (
   <div className="flex items-center gap-3">
     <img 
@@ -717,6 +962,17 @@ function EmployeeForm(){
   const relationshipScore = useMemo(()=>scoreRelationshipFromClients(currentSubmission.clients), [currentSubmission.employee, currentSubmission.clients]);
   const overall = useMemo(()=>overallOutOf10(kpiScore, learningScore, relationshipScore, currentSubmission.manager?.score), [kpiScore,learningScore,relationshipScore, currentSubmission.manager?.score]);
 
+  // Celebration effect for good scores
+  const [showCelebration, setShowCelebration] = useState(false);
+  
+  useEffect(() => {
+    if (overall >= 8) {
+      setShowCelebration(true);
+      const timer = setTimeout(() => setShowCelebration(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [overall]);
+
   const flags = useMemo(()=>{
     const learningMins = (currentSubmission.learning||[]).reduce((s,e)=>s+(e.durationMins||0),0);
     const missingLearningHours = learningMins < 360;
@@ -776,7 +1032,12 @@ function EmployeeForm(){
 
   return (
     <div>
-      <Section title="1) Employee & Report Month">
+      <CelebrationEffect show={showCelebration} />
+      <Section 
+        title="Employee & Report Month" 
+        number="1"
+        info="Select your profile from existing employees or create a new one. Choose the month you're reporting for. This helps track your progress over time and ensures accurate month-over-month comparisons."
+      >
         <div className="grid md:grid-cols-4 gap-3">
           {/* Employee Selection dropdown */}
           <div className="md:col-span-2">
@@ -831,7 +1092,11 @@ function EmployeeForm(){
         </div>
       </Section>
 
-      <Section title="1b) Attendance & Tasks (this month)">
+      <Section 
+        title="Attendance & Tasks (this month)" 
+        number="1b"
+        info="Record your work attendance for the month - both Work From Office (WFO) and Work From Home (WFH) days. Also track the number of tasks completed and provide your AI task management table link with screenshot proof."
+      >
         <div className="grid md:grid-cols-4 gap-3">
           <NumField label="WFO days (0–31)" value={currentSubmission.meta.attendance.wfo} onChange={v=>updateCurrentSubmission('meta.attendance.wfo', v)}/>
           <NumField label="WFH days (0–31)" value={currentSubmission.meta.attendance.wfh} onChange={v=>updateCurrentSubmission('meta.attendance.wfh', v)}/>
@@ -847,11 +1112,19 @@ function EmployeeForm(){
       <DeptClientsBlock currentSubmission={currentSubmission} previousSubmission={previousSubmission} setModel={setCurrentSubmission} monthPrev={mPrev} monthThis={mThis} openModal={openModal} closeModal={closeModal}/>
       <LearningBlock model={currentSubmission} setModel={setCurrentSubmission} openModal={openModal}/>
 
-      <Section title="5) AI Usage (Optional)">
+      <Section 
+        title="AI Usage (Optional)" 
+        number="4"
+        info="Describe how you used AI tools to improve your work efficiency this month. Include specific examples, tools used, and measurable improvements. This helps us understand AI adoption across the team."
+      >
         <textarea className="w-full border rounded-xl p-3" rows={4} placeholder="List ways you used AI to work faster/better this month. Include links or examples." value={currentSubmission.aiUsageNotes} onChange={e=>updateCurrentSubmission('aiUsageNotes', e.target.value)}/>
       </Section>
 
-      <Section title="6) Employee Feedback">
+      <Section 
+        title="Employee Feedback" 
+        number="5"
+        info="Share your honest feedback about the company, HR processes, and any challenges you're facing. This information helps management improve the work environment and address concerns proactively."
+      >
         <div className="grid md:grid-cols-1 gap-4">
           <TextArea label="General feedback about the company" placeholder="What's working well? What could be improved?" rows={3} value={currentSubmission.feedback.company} onChange={v=>updateCurrentSubmission('feedback.company', v)}/>
           <TextArea label="Feedback regarding HR and policies" placeholder="Any thoughts on HR processes, communication, or company policies?" rows={3} value={currentSubmission.feedback.hr} onChange={v=>updateCurrentSubmission('feedback.hr', v)}/>
@@ -859,7 +1132,11 @@ function EmployeeForm(){
         </div>
       </Section>
 
-      <Section title="AI Summary & Suggestions">
+      <Section 
+        title="Performance Summary & Submission" 
+        number="6"
+        info="Review your calculated scores based on KPIs, learning hours, and client relationships. Scores of 8+ trigger celebration effects! Submit as draft to save progress or finalize to complete your monthly report."
+      >
         <div className="grid md:grid-cols-4 gap-3">
           <div className="bg-blue-600 text-white rounded-2xl p-4"><div className="text-sm opacity-80">KPI</div><div className="text-3xl font-semibold">{currentSubmission.scores.kpiScore}/10</div></div>
           <div className="bg-blue-600 text-white rounded-2xl p-4"><div className="text-sm opacity-80">Learning</div><div className="text-3xl font-semibold">{currentSubmission.scores.learningScore}/10</div></div>
@@ -1009,7 +1286,11 @@ function DeptClientsBlock({currentSubmission, previousSubmission, setModel, mont
   const isOpsHead = currentSubmission.employee.department === "Operations Head";
 
   return (
-    <Section title="2) KPIs, Reports & Client Report Status">
+    <Section 
+      title="KPIs, Reports & Client Report Status" 
+      number="2"
+      info="Enter your key performance indicators based on your department. Include client work, deliverables, and performance metrics. Upload proof links (Google Drive URLs) to validate your achievements. This section is crucial for performance evaluation."
+    >
       {(isInternal && !isOpsHead && !isWebHead) ? (
         <InternalKPIs model={currentSubmission} prevModel={previousSubmission} setModel={setModel} monthPrev={monthPrev} monthThis={monthThis} />
       ) : (
@@ -1788,7 +2069,11 @@ function LearningBlock({model, setModel, openModal}){
     setDraft({ title:'', link:'', durationMins:0, learned:'', applied:'' });
   }
   return (
-    <Section title="4) Learning (min 6 hours = 360 mins; proofs required)">
+    <Section 
+      title="Learning (min 6 hours = 360 mins; proofs required)" 
+      number="3"
+      info="Document your learning activities for the month. You must complete at least 6 hours (360 minutes) of learning. Include courses, certifications, workshops, or skill development. Provide proof links to validate your learning efforts."
+    >
       <div className="grid md:grid-cols-4 gap-3">
         <TextField label="Title / Topic" value={draft.title} onChange={v=>setDraft(d=>({...d, title:v}))}/>
         <TextField label="Link (YouTube/Course/Doc)" value={draft.link} onChange={v=>setDraft(d=>({...d, link:v}))}/>
@@ -1881,12 +2166,18 @@ function InternalKPIs({model, prevModel, setModel, monthPrev, monthThis}){
 /********************
  * Shared UI bits    *
  ********************/
-function Section({title, children}){
+function Section({title, children, number, info}){
   return (
     <section className="my-6 sm:my-8">
       <h2 className="text-lg sm:text-xl font-semibold mb-4 flex items-center gap-2 text-gray-800">
-        <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
+        {number && (
+          <span className="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+            {number}
+          </span>
+        )}
+        {!number && <span className="w-2 h-2 bg-blue-600 rounded-full"></span>}
         {title}
+        {info && <InfoTooltip content={info} />}
       </h2>
       <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 shadow-lg shadow-blue-100/50 hover:shadow-xl hover:shadow-blue-100/60 transition-shadow duration-300">
         {children}
@@ -1894,10 +2185,13 @@ function Section({title, children}){
     </section>
   );
 }
-function TextField({label, value, onChange, placeholder, className}){
+function TextField({label, value, onChange, placeholder, className, info}){
   return (
     <div className={className||''}>
-      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+        {label}
+        {info && <InfoTooltip content={info} />}
+      </label>
       <input 
         className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
         placeholder={placeholder||""} 
@@ -1907,10 +2201,13 @@ function TextField({label, value, onChange, placeholder, className}){
     </div>
   );
 }
-function NumField({label, value, onChange, className}){
+function NumField({label, value, onChange, className, info}){
   return (
     <div className={className||''}>
-      <label className="text-sm">{label}</label>
+      <label className="text-sm flex items-center">
+        {label}
+        {info && <InfoTooltip content={info} />}
+      </label>
       <input type="number" className="w-full border rounded-xl p-2" value={Number(value||0)} onChange={e=>onChange(Number(e.target.value||0))} />
     </div>
   );
@@ -1961,9 +2258,14 @@ function TinyLinks({items, onAdd, onRemove}){
 function ManagerDashboard({ onViewReport }){
   const supabase = useSupabase();
   const [monthKey, setMonthKey] = useState(thisMonthKey());
+  const [startMonth, setStartMonth] = useState(thisMonthKey());
+  const [endMonth, setEndMonth] = useState(thisMonthKey());
+  const [timeRangeMode, setTimeRangeMode] = useState('single'); // 'single' or 'range'
   const { allSubmissions, loading, error, refreshSubmissions } = useFetchSubmissions();
   const [filterDept, setFilterDept] = useState("All");
   const [filterEmployee, setFilterEmployee] = useState("All");
+  const [sortBy, setSortBy] = useState("name"); // 'name', 'score', 'department', 'date'
+  const [sortOrder, setSortOrder] = useState("asc"); // 'asc' or 'desc'
   const [openId, setOpenId] = useState(null);
   const [notes, setNotes] = useState("");
   const [payload, setPayload] = useState(null);
@@ -1971,15 +2273,51 @@ function ManagerDashboard({ onViewReport }){
   const { openModal, closeModal } = useModal();
 
   const filteredSubmissions = useMemo(() => {
-    let filtered = allSubmissions.filter(s => s.monthKey === monthKey);
+    let filtered = allSubmissions;
+    
+    // Filter by time range
+    if (timeRangeMode === 'single') {
+      filtered = filtered.filter(s => s.monthKey === monthKey);
+    } else {
+      filtered = filtered.filter(s => s.monthKey >= startMonth && s.monthKey <= endMonth);
+    }
+    
+    // Filter by department
     if (filterDept !== "All") {
       filtered = filtered.filter(s => s.employee?.department === filterDept);
     }
+    
+    // Filter by employee
     if (filterEmployee !== "All") {
       filtered = filtered.filter(s => s.employee?.name === filterEmployee);
     }
-    return filtered.sort((a,b) => a.employee.name.localeCompare(b.employee.name));
-  }, [allSubmissions, monthKey, filterDept, filterEmployee]);
+    
+    // Sort submissions
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'name':
+          comparison = (a.employee?.name || '').localeCompare(b.employee?.name || '');
+          break;
+        case 'score':
+          comparison = (b.scores?.overall || 0) - (a.scores?.overall || 0);
+          break;
+        case 'department':
+          comparison = (a.employee?.department || '').localeCompare(b.employee?.department || '');
+          break;
+        case 'date':
+          comparison = b.monthKey.localeCompare(a.monthKey);
+          break;
+        default:
+          comparison = (a.employee?.name || '').localeCompare(b.employee?.name || '');
+      }
+      
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+    
+    return filtered;
+  }, [allSubmissions, monthKey, startMonth, endMonth, timeRangeMode, filterDept, filterEmployee, sortBy, sortOrder]);
 
   function openRow(r){
     setOpenId(r.id);
@@ -2086,15 +2424,52 @@ function ManagerDashboard({ onViewReport }){
       groups[employeeName].push(submission);
     });
     
-    // Convert to array and sort by employee name
-    return Object.entries(groups)
-      .map(([name, submissions]) => ({
-        employeeName: name,
-        submissions: submissions.sort((a, b) => b.monthKey.localeCompare(a.monthKey)), // Most recent first
-        latestSubmission: submissions.sort((a, b) => b.monthKey.localeCompare(a.monthKey))[0]
-      }))
-      .sort((a, b) => a.employeeName.localeCompare(b.employeeName));
-  }, [filteredSubmissions]);
+    // Convert to array and calculate metrics
+    let groupedArray = Object.entries(groups)
+      .map(([name, submissions]) => {
+        const sortedSubmissions = submissions.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+        const latestSubmission = sortedSubmissions[0];
+        
+        // Calculate average score across all submissions
+        const avgScore = submissions.length > 0 
+          ? submissions.reduce((sum, s) => sum + (s.scores?.overall || 0), 0) / submissions.length 
+          : 0;
+        
+        return {
+          employeeName: name,
+          submissions: sortedSubmissions,
+          latestSubmission,
+          avgScore: Math.round(avgScore * 10) / 10,
+          submissionCount: submissions.length
+        };
+      });
+    
+    // Sort grouped submissions
+    groupedArray.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'name':
+          comparison = a.employeeName.localeCompare(b.employeeName);
+          break;
+        case 'score':
+          comparison = b.avgScore - a.avgScore;
+          break;
+        case 'department':
+          comparison = (a.latestSubmission.employee?.department || '').localeCompare(b.latestSubmission.employee?.department || '');
+          break;
+        case 'entries':
+          comparison = b.submissionCount - a.submissionCount;
+          break;
+        default:
+          comparison = a.employeeName.localeCompare(b.employeeName);
+      }
+      
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+    
+    return groupedArray;
+  }, [filteredSubmissions, sortBy, sortOrder]);
   
   const uniqueDepartments = useMemo(() => {
     const departments = new Set();
@@ -2253,53 +2628,127 @@ function ManagerDashboard({ onViewReport }){
         </div>
       </Section>
 
-      <Section title="🎯 Filters & Export">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Report Month</label>
-            <input 
-              type="month" 
-              className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
-              value={monthKey} 
-              onChange={e=>setMonthKey(e.target.value)} 
-            />
+      <Section title="🎯 Filters, Sorting & Export">
+        <div className="space-y-6">
+          {/* Time Range Selection */}
+          <div className="bg-blue-50 rounded-xl p-4">
+            <h4 className="font-medium text-blue-800 mb-3">📅 Time Range Selection</h4>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mode</label>
+                <select 
+                  className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
+                  value={timeRangeMode} 
+                  onChange={e => setTimeRangeMode(e.target.value)}
+                >
+                  <option value="single">Single Month</option>
+                  <option value="range">Date Range</option>
+                </select>
+              </div>
+              
+              {timeRangeMode === 'single' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Report Month</label>
+                  <input 
+                    type="month" 
+                    className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
+                    value={monthKey} 
+                    onChange={e=>setMonthKey(e.target.value)} 
+                  />
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Start Month</label>
+                    <input 
+                      type="month" 
+                      className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
+                      value={startMonth} 
+                      onChange={e=>setStartMonth(e.target.value)} 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">End Month</label>
+                    <input 
+                      type="month" 
+                      className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
+                      value={endMonth} 
+                      onChange={e=>setEndMonth(e.target.value)} 
+                    />
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Department</label>
-            <select 
-              className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
-              value={filterDept} 
-              onChange={e => setFilterDept(e.target.value)}
-            >
-              <option value="All">All Departments</option>
-              {uniqueDepartments.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Employee</label>
-            <select 
-              className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
-              value={filterEmployee} 
-              onChange={e => setFilterEmployee(e.target.value)}
-            >
-              <option value="All">All Employees</option>
-              {uniqueEmployees.map(e => <option key={e} value={e}>{e}</option>)}
-            </select>
-          </div>
-          <div className="sm:col-span-2 lg:col-span-1">
-            <div className="flex gap-2">
-              <button 
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-3 font-medium transition-colors duration-200 shadow-sm" 
-                onClick={exportCSV}
+
+          {/* Filters and Sorting */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
+              <select 
+                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
+                value={filterDept} 
+                onChange={e => setFilterDept(e.target.value)}
               >
-                Export CSV
-              </button>
-              <button 
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-xl px-4 py-3 font-medium transition-colors duration-200 shadow-sm" 
-                onClick={exportJSON}
+                <option value="All">All Departments</option>
+                {uniqueDepartments.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Employee</label>
+              <select 
+                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
+                value={filterEmployee} 
+                onChange={e => setFilterEmployee(e.target.value)}
               >
-                Export JSON
-              </button>
+                <option value="All">All Employees</option>
+                {uniqueEmployees.map(e => <option key={e} value={e}>{e}</option>)}
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
+              <select 
+                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
+                value={sortBy} 
+                onChange={e => setSortBy(e.target.value)}
+              >
+                <option value="name">Name</option>
+                <option value="score">Average Score</option>
+                <option value="department">Department</option>
+                <option value="entries">Number of Entries</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Order</label>
+              <select 
+                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
+                value={sortOrder} 
+                onChange={e => setSortOrder(e.target.value)}
+              >
+                <option value="asc">Ascending</option>
+                <option value="desc">Descending</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Export</label>
+              <div className="flex gap-2">
+                <button 
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-3 py-3 text-sm font-medium transition-colors duration-200 shadow-sm" 
+                  onClick={exportCSV}
+                >
+                  CSV
+                </button>
+                <button 
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-xl px-3 py-3 text-sm font-medium transition-colors duration-200 shadow-sm" 
+                  onClick={exportJSON}
+                >
+                  JSON
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -2314,10 +2763,9 @@ function ManagerDashboard({ onViewReport }){
               <tr className="bg-gradient-to-r from-blue-50 to-indigo-50">
                 <th className="p-3 border border-gray-200 text-left font-semibold text-gray-700">Employee</th>
                 <th className="p-3 border border-gray-200 text-left font-semibold text-gray-700">Dept</th>
-                <th className="p-3 border border-gray-200 font-semibold text-gray-700">KPI</th>
-                <th className="p-3 border border-gray-200 font-semibold text-gray-700">Learning</th>
-                <th className="p-3 border border-gray-200 font-semibold text-gray-700">Client</th>
-                <th className="p-3 border border-gray-200 font-semibold text-gray-700">Overall</th>
+                <th className="p-3 border border-gray-200 font-semibold text-gray-700">Entries</th>
+                <th className="p-3 border border-gray-200 font-semibold text-gray-700">Avg Score</th>
+                <th className="p-3 border border-gray-200 font-semibold text-gray-700">Latest Score</th>
                 <th className="p-3 border border-gray-200 font-semibold text-gray-700">Manager Score</th>
                 <th className="p-3 border border-gray-200 font-semibold text-gray-700">Flags</th>
                 <th className="p-3 border border-gray-200 font-semibold text-gray-700">Actions</th>
@@ -2330,17 +2778,18 @@ function ManagerDashboard({ onViewReport }){
                   <tr key={`${group.employeeName}-${r.id}`} className="odd:bg-white even:bg-blue-50/40 hover:bg-blue-50/60 transition-colors duration-200">
                     <td className="p-3 border border-gray-200 text-left font-medium">
                       {clean(group.employeeName)}
-                      {group.submissions.length > 1 && (
-                        <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                          {group.submissions.length} reports
-                        </span>
-                      )}
+                      <div className="text-xs text-gray-500 mt-1">
+                        {timeRangeMode === 'range' ? `${group.submissions.length} submissions` : 'Latest submission'}
+                      </div>
                     </td>
                     <td className="p-3 border border-gray-200 text-left">{r.employee?.department}</td>
-                    <td className="p-3 border border-gray-200 text-center font-semibold">{r.scores?.kpiScore ?? ''}</td>
-                    <td className="p-3 border border-gray-200 text-center font-semibold">{r.scores?.learningScore ?? ''}</td>
-                    <td className="p-3 border border-gray-200 text-center font-semibold">{r.scores?.relationshipScore ?? ''}</td>
-                    <td className="p-3 border border-gray-200 text-center font-bold text-lg">{r.scores?.overall ?? ''}</td>
+                    <td className="p-3 border border-gray-200 text-center font-semibold">{group.submissionCount}</td>
+                    <td className="p-3 border border-gray-200 text-center font-bold text-lg">
+                      <span className={`${group.avgScore >= 8 ? 'text-green-600' : group.avgScore >= 6 ? 'text-yellow-600' : 'text-red-600'}`}>
+                        {group.avgScore}/10
+                      </span>
+                    </td>
+                    <td className="p-3 border border-gray-200 text-center font-semibold">{r.scores?.overall ?? 'N/A'}/10</td>
                     <td className="p-3 border border-gray-200 text-center">{r.manager?.score || 'N/A'}</td>
                     <td className="p-3 border border-gray-200 text-xs text-left">
                       {r.flags?.missingLearningHours ? '⏱️<6h ' : ''}
@@ -2351,8 +2800,8 @@ function ManagerDashboard({ onViewReport }){
                       <div className="flex gap-1 justify-center flex-wrap">
                         <button className="text-blue-600 hover:text-blue-800 underline text-xs transition-colors duration-200" onClick={()=>openRow(r)}>Notes</button>
                         <button className="text-blue-600 hover:text-blue-800 underline text-xs transition-colors duration-200" onClick={()=>{
-                          console.log('Clicking Full Report for:', {name: group.employeeName, phone: r.employee?.phone});
-                          onViewReport(group.employeeName, r.employee?.phone || group.employeeName);
+                          console.log('Clicking Full Report for:', {name: group.employeeName, phone: r.employee?.phone, submissions: group.submissions.length});
+                          onViewReport(group.employeeName, r.employee?.phone || 'no-phone');
                         }}>Full Report</button>
                         <button className="text-red-600 hover:text-red-800 underline text-xs transition-colors duration-200" onClick={()=>deleteSubmission(r.id, group.employeeName)}>Delete Latest</button>
                       </div>
@@ -2662,7 +3111,7 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
 
       {yearlySummary && (
         <Section title="Cumulative Summary & Recommendations">
-          <div className="grid md:grid-cols-4 gap-4 text-center">
+          <div className="grid md:grid-cols-4 gap-4 text-center mb-6">
             <div className="bg-blue-600 text-white rounded-2xl p-4">
               <div className="text-sm opacity-80">Average Overall</div>
               <div className="text-3xl font-semibold">{yearlySummary.avgOverall}/10</div>
@@ -2683,17 +3132,32 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
               </div>
             </div>
           </div>
+          
+          {/* Performance Chart */}
+          {employeeSubmissions.length > 1 && (
+            <div className="mb-6">
+              <PerformanceChart 
+                data={employeeSubmissions.map(s => ({
+                  month: monthLabel(s.monthKey),
+                  score: s.scores?.overall || 0
+                }))}
+                title="📈 Performance Trend Over Time"
+              />
+            </div>
+          )}
+          
           <div className="mt-4">
             <h4 className="font-medium text-gray-700">Recommendations:</h4>
             <p className="text-sm text-gray-600 whitespace-pre-wrap">{getImprovementRecommendations()}</p>
           </div>
-          <div className="mt-4 flex gap-2">
+          <div className="mt-4 flex gap-2 flex-wrap">
             <button
               onClick={handleCopyReport}
               className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2 text-sm font-semibold"
             >
               Copy Full Report to Clipboard
             </button>
+            <PDFDownloadButton data={employeeSubmissions} employeeName={employeeName} />
           </div>
         </Section>
       )}
