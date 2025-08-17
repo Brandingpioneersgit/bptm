@@ -341,8 +341,21 @@ function generateSummary(model){
  ****************/
 const HeaderBrand = () => (
   <div className="flex items-center gap-3">
-    <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">BP</div>
-    <div className="font-bold">Branding Pioneers • Monthly Tactical</div>
+    <img 
+      src="https://brandingpioneers.com/assets/logo.png" 
+      alt="Branding Pioneers" 
+      className="w-10 h-10 object-contain"
+      onError={(e) => {
+        // Fallback to initials if logo fails to load
+        e.target.style.display = 'none';
+        e.target.nextSibling.style.display = 'flex';
+      }}
+    />
+    <div className="w-10 h-10 rounded-full bg-blue-600 text-white items-center justify-center font-bold text-sm hidden">BP</div>
+    <div className="font-bold text-gray-800">
+      <div className="text-lg">Branding Pioneers</div>
+      <div className="text-sm text-gray-600 font-normal hidden sm:block">Monthly Tactical System</div>
+    </div>
   </div>
 );
 const ADMIN_TOKEN = "admin";
@@ -557,53 +570,62 @@ function AppContent(){
 
   return (
     <ModalContext.Provider value={{ openModal, closeModal }}>
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white text-gray-900 font-sans">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 text-gray-900 font-sans">
         <Modal {...modalState} />
-        <header className="sticky top-0 bg-white/80 backdrop-blur-md border-b z-20">
-          <div className="max-w-6xl mx-auto p-4 flex items-center justify-between">
+        <header className="sticky top-0 bg-white/90 backdrop-blur-lg border-b border-gray-200 shadow-sm z-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
             <HeaderBrand/>
-            <div className="flex items-center gap-3">
-              {isManagerLoggedIn && <button onClick={handleLogout} className="text-sm px-3 py-1 border rounded-xl bg-gray-100 hover:bg-gray-200">Log Out</button>}
+            <div className="flex items-center gap-2 sm:gap-3">
+              {isManagerLoggedIn && (
+                <button 
+                  onClick={handleLogout} 
+                  className="text-sm px-3 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors duration-200 shadow-sm"
+                >
+                  Log Out
+                </button>
+              )}
             </div>
           </div>
         </header>
-        <main className="max-w-6xl mx-auto p-4">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           {isManagerLoggedIn ? (
             <ManagerSection />
           ) : (
             <EmployeeForm/>
           )}
         </main>
-        <footer className="bg-white/80 backdrop-blur-md border-t mt-auto py-6">
-          <div className="max-w-6xl mx-auto p-4 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500">
-            <div className="mb-2 md:mb-0">
-              <div className="flex items-center gap-2">
-                <span>Created for Branding Pioneers Agency</span>
-                <span className="text-gray-400">•</span>
-                <span>v10 (Supabase)</span>
+        <footer className="bg-white/90 backdrop-blur-lg border-t border-gray-200 mt-auto py-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col lg:flex-row justify-between items-center gap-6">
+              <div className="text-center lg:text-left">
+                <div className="flex items-center justify-center lg:justify-start gap-2 text-sm text-gray-600">
+                  <span>Created for Branding Pioneers Agency</span>
+                  <span className="text-gray-400">•</span>
+                  <span>v10 (Supabase)</span>
+                </div>
               </div>
+              {!isManagerLoggedIn && (
+                <div className="w-full lg:w-auto lg:max-w-md">
+                  <h2 className="text-lg font-bold mb-4 text-gray-800 text-center lg:text-right">Manager Login</h2>
+                  <form onSubmit={handleLogin} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <input
+                      type="password"
+                      className="flex-1 border border-gray-300 rounded-xl p-3 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter manager password"
+                    />
+                    <button
+                      type="submit"
+                      className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6 py-3 text-sm font-semibold transition-colors duration-200 shadow-sm"
+                    >
+                      Log In
+                    </button>
+                  </form>
+                  {loginError && <p className="text-red-500 text-sm mt-3 text-center lg:text-right">{loginError}</p>}
+                </div>
+              )}
             </div>
-            {!isManagerLoggedIn && (
-            <div className="flex-1 md:text-right md:ml-8">
-              <h2 className="text-lg font-bold mb-2 text-gray-800">Manager Login</h2>
-              <form onSubmit={handleLogin} className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2">
-                <input
-                  type="password"
-                  className="flex-grow sm:flex-grow-0 sm:w-48 border rounded-xl p-2 text-sm text-gray-900"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
-                />
-                <button
-                  type="submit"
-                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-5 py-2 text-sm font-semibold"
-                >
-                  Log In
-                </button>
-              </form>
-              {loginError && <p className="text-red-500 text-sm mt-2 md:text-right">{loginError}</p>}
-            </div>
-            )}
           </div>
         </footer>
       </div>
@@ -1802,17 +1824,27 @@ function InternalKPIs({model, prevModel, setModel, monthPrev, monthThis}){
  ********************/
 function Section({title, children}){
   return (
-    <section className="my-6">
-      <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><span className="w-2 h-2 bg-blue-600 rounded-full"></span>{title}</h2>
-      <div className="bg-white border rounded-2xl p-4 shadow-sm">{children}</div>
+    <section className="my-6 sm:my-8">
+      <h2 className="text-lg sm:text-xl font-semibold mb-4 flex items-center gap-2 text-gray-800">
+        <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
+        {title}
+      </h2>
+      <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 shadow-lg shadow-blue-100/50 hover:shadow-xl hover:shadow-blue-100/60 transition-shadow duration-300">
+        {children}
+      </div>
     </section>
   );
 }
 function TextField({label, value, onChange, placeholder, className}){
   return (
     <div className={className||''}>
-      <label className="text-sm">{label}</label>
-      <input className="w-full border rounded-xl p-2" placeholder={placeholder||""} value={value||""} onChange={e=>onChange(e.target.value)} />
+      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+      <input 
+        className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
+        placeholder={placeholder||""} 
+        value={value||""} 
+        onChange={e=>onChange(e.target.value)} 
+      />
     </div>
   );
 }
@@ -1919,6 +1951,34 @@ function ManagerDashboard({ onViewReport }){
     }
   }
 
+  async function deleteSubmission(submissionId, employeeName) {
+    if (!supabase) {
+        openModal("Error", "Database connection not ready. Please wait a moment and try again.");
+        return;
+    }
+
+    openModal(
+      "Confirm Delete", 
+      `Are you sure you want to delete the submission for ${employeeName}? This action cannot be undone.`,
+      async () => {
+        const { error } = await supabase
+          .from('submissions')
+          .delete()
+          .eq('id', submissionId);
+
+        if (error) {
+          console.error("Supabase delete error:", error);
+          openModal("Delete Error", `Could not delete submission: ${error.message}`, closeModal);
+        } else {
+          openModal('Deleted', 'Submission has been deleted successfully.', closeModal);
+          refreshSubmissions(); // Re-fetch data to show the update
+        }
+        closeModal();
+      },
+      closeModal
+    );
+  }
+
   function exportCSV(){
     const header = ['id','month_key','employee_name','employee_phone','department','role','kpi','learning','client','overall','manager_score','missingLearning','hasEscalations','missingReports','feedback_company','feedback_hr','feedback_challenges'];
     const rowsCsv = filteredSubmissions.map(r=> [
@@ -1953,6 +2013,29 @@ function ManagerDashboard({ onViewReport }){
     allSubmissions.forEach(r => names.add(r.employee?.name));
     return Array.from(names).filter(Boolean).sort();
   }, [allSubmissions]);
+
+  // Group submissions by employee (by name, since phone numbers might be inconsistent)
+  const groupedSubmissions = useMemo(() => {
+    const groups = {};
+    filteredSubmissions.forEach(submission => {
+      const employeeName = submission.employee?.name;
+      if (!employeeName) return;
+      
+      if (!groups[employeeName]) {
+        groups[employeeName] = [];
+      }
+      groups[employeeName].push(submission);
+    });
+    
+    // Convert to array and sort by employee name
+    return Object.entries(groups)
+      .map(([name, submissions]) => ({
+        employeeName: name,
+        submissions: submissions.sort((a, b) => b.monthKey.localeCompare(a.monthKey)), // Most recent first
+        latestSubmission: submissions.sort((a, b) => b.monthKey.localeCompare(a.monthKey))[0]
+      }))
+      .sort((a, b) => a.employeeName.localeCompare(b.employeeName));
+  }, [filteredSubmissions]);
   
   const uniqueDepartments = useMemo(() => {
     const departments = new Set();
@@ -1963,73 +2046,212 @@ function ManagerDashboard({ onViewReport }){
 
   return (
     <div>
+      {/* DEBUG SECTION - Remove this after fixing */}
+      <Section title="🔧 Debug Info (Remove after fixing)">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm">
+          <div><strong>Total Submissions:</strong> {allSubmissions.length}</div>
+          <div><strong>Filtered Submissions:</strong> {filteredSubmissions.length}</div>
+          <div><strong>All Employee Names:</strong> {[...new Set(allSubmissions.map(s => s.employee?.name))].filter(Boolean).join(', ')}</div>
+          <div><strong>All Phone Numbers:</strong> {[...new Set(allSubmissions.map(s => s.employee?.phone))].filter(Boolean).join(', ') || 'NO PHONE NUMBERS FOUND!'}</div>
+          <div><strong>Employee Data Sample:</strong></div>
+          <div className="text-xs bg-gray-100 p-2 rounded mt-1">
+            {allSubmissions.slice(0, 3).map((s, i) => (
+              <div key={i}>
+                Employee {i+1}: Name="{s.employee?.name}" Phone="{s.employee?.phone}" 
+              </div>
+            ))}
+          </div>
+          <details className="mt-2">
+            <summary className="cursor-pointer text-blue-600">View Raw Data Sample</summary>
+            <pre className="mt-2 bg-gray-100 p-2 rounded text-xs overflow-auto max-h-40">
+              {JSON.stringify(allSubmissions.slice(0, 2), null, 2)}
+            </pre>
+          </details>
+        </div>
+      </Section>
+
       <Section title="Filters & Export">
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
           <div>
-            <label className="text-sm">Report Month</label>
-            <input type="month" className="border rounded-xl p-2" value={monthKey} onChange={e=>setMonthKey(e.target.value)} />
+            <label className="block text-sm font-medium text-gray-700 mb-2">Report Month</label>
+            <input 
+              type="month" 
+              className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
+              value={monthKey} 
+              onChange={e=>setMonthKey(e.target.value)} 
+            />
           </div>
           <div>
-            <label className="text-sm">Filter by Department</label>
-            <select className="border rounded-xl p-2" value={filterDept} onChange={e => setFilterDept(e.target.value)}>
-              <option value="All">All</option>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Department</label>
+            <select 
+              className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
+              value={filterDept} 
+              onChange={e => setFilterDept(e.target.value)}
+            >
+              <option value="All">All Departments</option>
               {uniqueDepartments.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-sm">Filter by Employee</label>
-            <select className="border rounded-xl p-2" value={filterEmployee} onChange={e => setFilterEmployee(e.target.value)}>
-              <option value="All">All</option>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Employee</label>
+            <select 
+              className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
+              value={filterEmployee} 
+              onChange={e => setFilterEmployee(e.target.value)}
+            >
+              <option value="All">All Employees</option>
               {uniqueEmployees.map(e => <option key={e} value={e}>{e}</option>)}
             </select>
           </div>
-          <button className="bg-blue-600 text-white rounded-xl px-3 py-2" onClick={exportCSV}>Export CSV</button>
-          <button className="bg-blue-600 text-white rounded-xl px-3 py-2" onClick={exportJSON}>Export JSON</button>
+          <div className="sm:col-span-2 lg:col-span-1">
+            <div className="flex gap-2">
+              <button 
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-3 font-medium transition-colors duration-200 shadow-sm" 
+                onClick={exportCSV}
+              >
+                Export CSV
+              </button>
+              <button 
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-xl px-4 py-3 font-medium transition-colors duration-200 shadow-sm" 
+                onClick={exportJSON}
+              >
+                Export JSON
+              </button>
+            </div>
+          </div>
         </div>
       </Section>
 
-      <Section title={loading? 'Loading…' : `Submissions for ${monthLabel(monthKey)} (${filteredSubmissions.length})`}>
+      <Section title={loading? 'Loading…' : `Employees for ${monthLabel(monthKey)} (${groupedSubmissions.length} employees, ${filteredSubmissions.length} total submissions)`}>
         {error && <div className="text-red-600 text-sm mb-2">{error}</div>}
-        <div className="overflow-auto">
+        {/* Desktop Table */}
+        <div className="hidden lg:block overflow-auto">
           <table className="w-full text-sm border-separate" style={{borderSpacing:0}}>
             <thead>
-              <tr className="bg-blue-50">
-                <th className="p-2 border text-left">Employee</th>
-                <th className="p-2 border text-left">Dept</th>
-                <th className="p-2 border">KPI</th>
-                <th className="p-2 border">Learning</th>
-                <th className="p-2 border">Client</th>
-                <th className="p-2 border">Overall</th>
-                <th className="p-2 border">Manager Score</th>
-                <th className="p-2 border">Flags</th>
-                <th className="p-2 border">Actions</th>
+              <tr className="bg-gradient-to-r from-blue-50 to-indigo-50">
+                <th className="p-3 border border-gray-200 text-left font-semibold text-gray-700">Employee</th>
+                <th className="p-3 border border-gray-200 text-left font-semibold text-gray-700">Dept</th>
+                <th className="p-3 border border-gray-200 font-semibold text-gray-700">KPI</th>
+                <th className="p-3 border border-gray-200 font-semibold text-gray-700">Learning</th>
+                <th className="p-3 border border-gray-200 font-semibold text-gray-700">Client</th>
+                <th className="p-3 border border-gray-200 font-semibold text-gray-700">Overall</th>
+                <th className="p-3 border border-gray-200 font-semibold text-gray-700">Manager Score</th>
+                <th className="p-3 border border-gray-200 font-semibold text-gray-700">Flags</th>
+                <th className="p-3 border border-gray-200 font-semibold text-gray-700">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredSubmissions.map(r=> (
-                <tr key={r.id} className="odd:bg-white even:bg-blue-50/40">
-                  <td className="p-2 border text-left font-medium">{clean(r.employee?.name)}</td>
-                  <td className="p-2 border text-left">{r.employee?.department}</td>
-                  <td className="p-2 border text-center">{r.scores?.kpiScore ?? ''}</td>
-                  <td className="p-2 border text-center">{r.scores?.learningScore ?? ''}</td>
-                  <td className="p-2 border text-center">{r.scores?.relationshipScore ?? ''}</td>
-                  <td className="p-2 border text-center font-bold">{r.scores?.overall ?? ''}</td>
-                  <td className="p-2 border text-center">{r.manager?.score || 'N/A'}</td>
-                  <td className="p-2 border text-xs text-left">
-                    {r.flags?.missingLearningHours ? '⏱️<6h ' : ''}
-                    {r.flags?.hasEscalations ? '⚠️Esc ' : ''}
-                    {r.flags?.missingReports ? '📄Miss ' : ''}
-                  </td>
-                  <td className="p-2 border text-center">
-                    <div className="flex gap-2 justify-center">
-                        <button className="text-blue-600 underline text-xs" onClick={()=>openRow(r)}>Notes</button>
-                        <button className="text-blue-600 underline text-xs" onClick={()=>onViewReport(r.employee?.name, r.employee?.phone)}>Full Report</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {groupedSubmissions.map(group => {
+                const r = group.latestSubmission; // Show latest submission data
+                return (
+                  <tr key={`${group.employeeName}-${r.id}`} className="odd:bg-white even:bg-blue-50/40 hover:bg-blue-50/60 transition-colors duration-200">
+                    <td className="p-3 border border-gray-200 text-left font-medium">
+                      {clean(group.employeeName)}
+                      {group.submissions.length > 1 && (
+                        <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                          {group.submissions.length} reports
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-3 border border-gray-200 text-left">{r.employee?.department}</td>
+                    <td className="p-3 border border-gray-200 text-center font-semibold">{r.scores?.kpiScore ?? ''}</td>
+                    <td className="p-3 border border-gray-200 text-center font-semibold">{r.scores?.learningScore ?? ''}</td>
+                    <td className="p-3 border border-gray-200 text-center font-semibold">{r.scores?.relationshipScore ?? ''}</td>
+                    <td className="p-3 border border-gray-200 text-center font-bold text-lg">{r.scores?.overall ?? ''}</td>
+                    <td className="p-3 border border-gray-200 text-center">{r.manager?.score || 'N/A'}</td>
+                    <td className="p-3 border border-gray-200 text-xs text-left">
+                      {r.flags?.missingLearningHours ? '⏱️<6h ' : ''}
+                      {r.flags?.hasEscalations ? '⚠️Esc ' : ''}
+                      {r.flags?.missingReports ? '📄Miss ' : ''}
+                    </td>
+                    <td className="p-3 border border-gray-200 text-center">
+                      <div className="flex gap-1 justify-center flex-wrap">
+                        <button className="text-blue-600 hover:text-blue-800 underline text-xs transition-colors duration-200" onClick={()=>openRow(r)}>Notes</button>
+                        <button className="text-blue-600 hover:text-blue-800 underline text-xs transition-colors duration-200" onClick={()=>{
+                          console.log('Clicking Full Report for:', {name: group.employeeName, phone: r.employee?.phone});
+                          onViewReport(group.employeeName, r.employee?.phone || group.employeeName);
+                        }}>Full Report</button>
+                        <button className="text-red-600 hover:text-red-800 underline text-xs transition-colors duration-200" onClick={()=>deleteSubmission(r.id, group.employeeName)}>Delete Latest</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="lg:hidden space-y-4">
+          {groupedSubmissions.map(group => {
+            const r = group.latestSubmission;
+            return (
+              <div key={`mobile-${group.employeeName}-${r.id}`} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="font-semibold text-lg text-gray-800">{clean(group.employeeName)}</h3>
+                    <p className="text-sm text-gray-600">{r.employee?.department}</p>
+                    {group.submissions.length > 1 && (
+                      <span className="inline-block mt-1 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                        {group.submissions.length} reports
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-blue-600">{r.scores?.overall ?? 'N/A'}</div>
+                    <div className="text-xs text-gray-500">Overall Score</div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-3 gap-4 mb-4 text-center">
+                  <div>
+                    <div className="font-semibold text-gray-800">{r.scores?.kpiScore ?? 'N/A'}</div>
+                    <div className="text-xs text-gray-500">KPI</div>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-800">{r.scores?.learningScore ?? 'N/A'}</div>
+                    <div className="text-xs text-gray-500">Learning</div>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-800">{r.scores?.relationshipScore ?? 'N/A'}</div>
+                    <div className="text-xs text-gray-500">Client</div>
+                  </div>
+                </div>
+
+                {(r.flags?.missingLearningHours || r.flags?.hasEscalations || r.flags?.missingReports) && (
+                  <div className="mb-3 text-xs">
+                    {r.flags?.missingLearningHours && <span className="inline-block bg-yellow-100 text-yellow-800 px-2 py-1 rounded mr-1">⏱️ <6h</span>}
+                    {r.flags?.hasEscalations && <span className="inline-block bg-red-100 text-red-800 px-2 py-1 rounded mr-1">⚠️ Escalations</span>}
+                    {r.flags?.missingReports && <span className="inline-block bg-orange-100 text-orange-800 px-2 py-1 rounded mr-1">📄 Missing Reports</span>}
+                  </div>
+                )}
+
+                <div className="flex gap-2 flex-wrap">
+                  <button 
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 px-3 rounded-lg transition-colors duration-200" 
+                    onClick={()=>openRow(r)}
+                  >
+                    Notes
+                  </button>
+                  <button 
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2 px-3 rounded-lg transition-colors duration-200" 
+                    onClick={()=>{
+                      console.log('Clicking Full Report for:', {name: group.employeeName, phone: r.employee?.phone});
+                      onViewReport(group.employeeName, r.employee?.phone || group.employeeName);
+                    }}
+                  >
+                    Full Report
+                  </button>
+                  <button 
+                    className="bg-red-600 hover:bg-red-700 text-white text-sm py-2 px-3 rounded-lg transition-colors duration-200" 
+                    onClick={()=>deleteSubmission(r.id, group.employeeName)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </Section>
 
@@ -2078,9 +2300,30 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
   const [selectedReportId, setSelectedReportId] = useState(null);
 
   const employeeSubmissions = useMemo(() => {
-    return allSubmissions.filter(s => s.employee?.phone === employeePhone)
-      .sort((a, b) => a.monthKey.localeCompare(b.monthKey));
-  }, [allSubmissions, employeePhone]);
+    console.log('🔍 EmployeeReportDashboard Debug:', {
+      employeeName,
+      employeePhone,
+      totalSubmissions: allSubmissions.length,
+      allEmployeeNames: allSubmissions.map(s => s.employee?.name),
+      allEmployeePhones: allSubmissions.map(s => s.employee?.phone)
+    });
+
+    const filtered = allSubmissions.filter(s => {
+      // If we have phone numbers, match by phone
+      if (employeePhone && employeePhone !== 'undefined' && s.employee?.phone) {
+        const match = s.employee.phone === employeePhone;
+        console.log(`Phone match for ${s.employee.name}: ${s.employee.phone} === ${employeePhone} = ${match}`);
+        return match;
+      }
+      // Fallback: match by name if no phone numbers
+      const match = s.employee?.name === employeeName;
+      console.log(`Name match: ${s.employee?.name} === ${employeeName} = ${match}`);
+      return match;
+    }).sort((a, b) => a.monthKey.localeCompare(b.monthKey));
+
+    console.log('🎯 Filtered submissions:', filtered.length, filtered);
+    return filtered;
+  }, [allSubmissions, employeePhone, employeeName]);
   
   const selectedReport = useMemo(() => {
     return employeeSubmissions.find(s => s.id === selectedReportId) || null;
@@ -2133,6 +2376,16 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
   if (loading) {
     return <div className="text-center p-8">Loading employee report...</div>;
   }
+
+  // DEBUG: Add temporary debugging info
+  console.log('Debug Info:', {
+    employeeName,
+    employeePhone,
+    totalSubmissions: allSubmissions.length,
+    filteredSubmissions: employeeSubmissions.length,
+    allPhones: allSubmissions.map(s => s.employee?.phone),
+    searchPhone: employeePhone
+  });
   
   if (!employeeSubmissions.length) {
     return (
@@ -2221,6 +2474,26 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
           &larr; Back to Dashboard
         </button>
       </div>
+
+      {/* DEBUG SECTION - Remove after fixing */}
+      <Section title="🔧 Employee Report Debug (Remove after fixing)">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm">
+          <div><strong>Searching for:</strong> Name="{employeeName}" Phone="{employeePhone}"</div>
+          <div><strong>Found Submissions:</strong> {employeeSubmissions.length}</div>
+          <div><strong>Total Database Submissions:</strong> {allSubmissions.length}</div>
+          <details className="mt-2">
+            <summary className="cursor-pointer text-blue-600">View All Employee Data</summary>
+            <pre className="mt-2 bg-gray-100 p-2 rounded text-xs overflow-auto max-h-40">
+              {JSON.stringify(allSubmissions.map(s => ({
+                id: s.id,
+                name: s.employee?.name,
+                phone: s.employee?.phone,
+                month: s.monthKey
+              })), null, 2)}
+            </pre>
+          </details>
+        </div>
+      </Section>
 
       {yearlySummary && (
         <Section title="Cumulative Summary & Recommendations">

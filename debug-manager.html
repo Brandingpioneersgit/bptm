@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Debug Manager Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .debug-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .debug-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Manager Dashboard Debug Tool</h1>
+
+    <div class="debug-section">
+        <h3>1. Check Supabase Connection</h3>
+        <button onclick="testConnection()">Test Connection</button>
+        <div id="connection-result"></div>
+    </div>
+
+    <div class="debug-section">
+        <h3>2. Fetch All Submissions</h3>
+        <button onclick="fetchSubmissions()">Fetch Submissions</button>
+        <div id="submissions-result"></div>
+    </div>
+
+    <div class="debug-section">
+        <h3>3. Check Data Structure</h3>
+        <button onclick="analyzeData()">Analyze Data Structure</button>
+        <div id="analysis-result"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = "https://igwgryykglsetfvomhdj.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_SDqrksN-DTMdHP01p3z6wQ_OlX5bJ3o";
+
+        let supabaseClient;
+        let allSubmissions = [];
+
+        // Initialize Supabase
+        try {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('Supabase client initialized');
+        } catch (error) {
+            console.error('Failed to initialize Supabase:', error);
+        }
+
+        async function testConnection() {
+            const resultDiv = document.getElementById('connection-result');
+            resultDiv.innerHTML = 'Testing connection...';
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('submissions')
+                    .select('count', { count: 'exact', head: true });
+
+                if (error) throw error;
+
+                resultDiv.innerHTML = `<span class="success">✓ Connection successful! Found ${data} records in submissions table.</span>`;
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">✗ Connection failed: ${error.message}</span>`;
+            }
+        }
+
+        async function fetchSubmissions() {
+            const resultDiv = document.getElementById('submissions-result');
+            resultDiv.innerHTML = 'Fetching submissions...';
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('submissions')
+                    .select('*');
+
+                if (error) throw error;
+
+                allSubmissions = data || [];
+
+                resultDiv.innerHTML = `
+                    <span class="success">✓ Fetched ${allSubmissions.length} submissions</span>
+                    <pre>${JSON.stringify(allSubmissions, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">✗ Fetch failed: ${error.message}</span>`;
+            }
+        }
+
+        function analyzeData() {
+            const resultDiv = document.getElementById('analysis-result');
+
+            if (allSubmissions.length === 0) {
+                resultDiv.innerHTML = '<span class="error">No submissions to analyze. Fetch submissions first.</span>';
+                return;
+            }
+
+            const analysis = {
+                totalSubmissions: allSubmissions.length,
+                uniqueEmployees: [...new Set(allSubmissions.map(s => s.employee?.name))].filter(Boolean),
+                uniquePhones: [...new Set(allSubmissions.map(s => s.employee?.phone))].filter(Boolean),
+                monthKeys: [...new Set(allSubmissions.map(s => s.monthKey))].sort(),
+                sampleSubmission: allSubmissions[0],
+                dataStructureIssues: []
+            };
+
+            // Check for common issues
+            allSubmissions.forEach((sub, index) => {
+                if (!sub.employee) {
+                    analysis.dataStructureIssues.push(`Submission ${index}: Missing employee object`);
+                }
+                if (!sub.employee?.name) {
+                    analysis.dataStructureIssues.push(`Submission ${index}: Missing employee name`);
+                }
+                if (!sub.employee?.phone) {
+                    analysis.dataStructureIssues.push(`Submission ${index}: Missing employee phone`);
+                }
+                if (!sub.scores) {
+                    analysis.dataStructureIssues.push(`Submission ${index}: Missing scores object`);
+                }
+            });
+
+            resultDiv.innerHTML = `
+                <div class="success">Analysis Complete:</div>
+                <pre>${JSON.stringify(analysis, null, 2)}</pre>
+            `;
+        }
+    </script>
+</body>
+
+</html>
