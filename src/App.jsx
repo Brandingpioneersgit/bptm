@@ -570,19 +570,25 @@ function AppContent(){
 
   return (
     <ModalContext.Provider value={{ openModal, closeModal }}>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 text-gray-900 font-sans">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-gray-900 font-sans">
         <Modal {...modalState} />
-        <header className="sticky top-0 bg-white/90 backdrop-blur-lg border-b border-gray-200 shadow-sm z-20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
+        <header className="sticky top-0 bg-white/95 backdrop-blur-xl border-b border-gray-200/50 shadow-lg shadow-blue-100/20 z-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
             <HeaderBrand/>
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-3">
               {isManagerLoggedIn && (
-                <button 
-                  onClick={handleLogout} 
-                  className="text-sm px-3 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors duration-200 shadow-sm"
-                >
-                  Log Out
-                </button>
+                <div className="flex items-center gap-3">
+                  <div className="hidden sm:flex items-center gap-2 text-sm text-gray-600">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    Manager Dashboard
+                  </div>
+                  <button 
+                    onClick={handleLogout} 
+                    className="text-sm px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-md hover:shadow-lg"
+                  >
+                    Log Out
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -1270,6 +1276,13 @@ function KPIsWeb({client, prevClient, onChange, monthPrev, monthThis, isNewClien
       <NumField label="# SaaS tools upsold (this)" value={client.web_saasUpsells||0} onChange={v=>onChange({...client, web_saasUpsells:v})}/>
       <ProofField label="SaaS proof / invoice / deck" value={client.web_saasProof} onChange={(v)=>onChange({...client, web_saasProof:v})}/>
       <ProofField label="CRO/Design review proof" value={client.web_proof} onChange={(v)=>onChange({...client, web_proof:v})}/>
+      
+      {/* Additional Web KPIs */}
+      <NumField label="Client Satisfaction (1-10)" value={client.web_clientSatisfaction||0} onChange={v=>onChange({...client, web_clientSatisfaction:v})}/>
+      <NumField label="Code Quality Score (1-10)" value={client.web_codeQuality||0} onChange={v=>onChange({...client, web_codeQuality:v})}/>
+      <NumField label="Website Speed Score (1-100)" value={client.web_speedScore||0} onChange={v=>onChange({...client, web_speedScore:v})}/>
+      <NumField label="Security Audits Completed" value={client.web_securityAudits||0} onChange={v=>onChange({...client, web_securityAudits:v})}/>
+      
       <div className="md:col-span-4 text-xs text-gray-600">MoM Pages Δ: {delta(client.web_pagesThis, isNewClient ? client.web_pagesPrev : prevClient.web_pagesThis)} • On-time Δ: {round1((client.web_onTimeThis||0)-(isNewClient ? client.web_onTimePrev : prevClient.web_onTimeThis||0))} • Bugs Δ: {delta(client.web_bugsThis, isNewClient ? client.web_bugsPrev : prevClient.web_bugsThis)}</div>
     </div>
   );
@@ -1331,8 +1344,24 @@ function KPIsSocial({client, prevClient, employeeRole, onChange, monthPrev, mont
           <NumField label="Short Videos" value={client.sm_shortVideos||0} onChange={v=>onChange({...client, sm_shortVideos:v})}/>
           <NumField label="Long Videos" value={client.sm_longVideos||0} onChange={v=>onChange({...client, sm_longVideos:v})}/>
           <NumField label="Quality Score (1-10)" value={client.sm_qualityScore||0} onChange={v=>onChange({...client, sm_qualityScore:v})}/>
+          
+          {/* Additional Designer KPIs */}
+          <NumField label="Brand Consistency Score (1-10)" value={client.sm_brandConsistency||0} onChange={v=>onChange({...client, sm_brandConsistency:v})}/>
+          <NumField label="Client Revisions Required" value={client.sm_revisions||0} onChange={v=>onChange({...client, sm_revisions:v})}/>
+          <NumField label="Templates Created" value={client.sm_templatesCreated||0} onChange={v=>onChange({...client, sm_templatesCreated:v})}/>
         </>
       )}
+      
+      {/* Common Social Media KPIs for all roles */}
+      <div className="md:col-span-4 bg-purple-50 rounded-lg p-4 mt-4">
+        <h4 className="font-medium text-purple-800 mb-3">📈 Additional Social Media Metrics</h4>
+        <div className="grid md:grid-cols-4 gap-3">
+          <NumField label="Story Views" value={client.sm_storyViews||0} onChange={v=>onChange({...client, sm_storyViews:v})}/>
+          <NumField label="Saves/Shares" value={client.sm_savesShares||0} onChange={v=>onChange({...client, sm_savesShares:v})}/>
+          <NumField label="Comments Responded %" value={client.sm_responseRate||0} onChange={v=>onChange({...client, sm_responseRate:v})}/>
+          <NumField label="Hashtag Performance Score (1-10)" value={client.sm_hashtagScore||0} onChange={v=>onChange({...client, sm_hashtagScore:v})}/>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1367,6 +1396,21 @@ function KPIsAds({client, prevClient, onChange, monthPrev, monthThis, isNewClien
       <TextArea label="Landing Page URL" value={client.ads_landingPageUrl || ""} onChange={v => onChange({...client, ads_landingPageUrl: v})} />
       <TextArea label="Landing Page Improvements" value={client.ads_landingPageImprovements || ""} onChange={v => onChange({...client, ads_landingPageImprovements: v})} />
       <p className="md:col-span-4 text-xs text-gray-600">MoM Δ — CTR: {round1(ctrDelta)}pp • CPL: {round1(cplDelta)} (↓ is better) • Leads: {leadsDelta}</p>
+      
+      {/* Additional Ads KPIs */}
+      <div className="md:col-span-4 bg-orange-50 rounded-lg p-4 mt-4">
+        <h4 className="font-medium text-orange-800 mb-3">📊 Advanced Ads Metrics</h4>
+        <div className="grid md:grid-cols-4 gap-3">
+          <NumField label="ROAS (Return on Ad Spend)" value={client.ads_roas||0} onChange={v=>onChange({...client, ads_roas:v})}/>
+          <NumField label="Conversion Rate %" value={client.ads_conversionRate||0} onChange={v=>onChange({...client, ads_conversionRate:v})}/>
+          <NumField label="Quality Score (1-10)" value={client.ads_qualityScore||0} onChange={v=>onChange({...client, ads_qualityScore:v})}/>
+          <NumField label="Impression Share %" value={client.ads_impressionShare||0} onChange={v=>onChange({...client, ads_impressionShare:v})}/>
+          <NumField label="Ad Spend ($)" value={client.ads_spend||0} onChange={v=>onChange({...client, ads_spend:v})}/>
+          <NumField label="Campaigns Optimized" value={client.ads_campaignsOptimized||0} onChange={v=>onChange({...client, ads_campaignsOptimized:v})}/>
+          <NumField label="A/B Tests Conducted" value={client.ads_abTests||0} onChange={v=>onChange({...client, ads_abTests:v})}/>
+          <NumField label="Negative Keywords Added" value={client.ads_negativeKeywords||0} onChange={v=>onChange({...client, ads_negativeKeywords:v})}/>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1515,6 +1559,21 @@ function KPIsSEO({client, prevClient, onChange, monthPrev, monthThis, openModal,
               <button className="text-red-600" onClick={()=>setTop3(list=>list.filter((_,idx)=>idx!==i))}>Remove</button>
             </div>
           ))}
+        </div>
+      </div>
+      
+      {/* Additional SEO KPIs */}
+      <div className="md:col-span-4 bg-green-50 rounded-lg p-4 mt-4">
+        <h4 className="font-medium text-green-800 mb-3">🔍 Advanced SEO Metrics</h4>
+        <div className="grid md:grid-cols-4 gap-3">
+          <NumField label="Core Web Vitals Score (1-100)" value={client.seo_coreWebVitals||0} onChange={v=>onChange({...client, seo_coreWebVitals:v})}/>
+          <NumField label="Backlinks Acquired" value={client.seo_backlinks||0} onChange={v=>onChange({...client, seo_backlinks:v})}/>
+          <NumField label="Technical Issues Fixed" value={client.seo_technicalFixes||0} onChange={v=>onChange({...client, seo_technicalFixes:v})}/>
+          <NumField label="Content Pieces Published" value={client.seo_contentPublished||0} onChange={v=>onChange({...client, seo_contentPublished:v})}/>
+          <NumField label="Local Citations Built" value={client.seo_localCitations||0} onChange={v=>onChange({...client, seo_localCitations:v})}/>
+          <NumField label="Schema Markup Implemented" value={client.seo_schemaMarkup||0} onChange={v=>onChange({...client, seo_schemaMarkup:v})}/>
+          <NumField label="Page Speed Score (1-100)" value={client.seo_pageSpeed||0} onChange={v=>onChange({...client, seo_pageSpeed:v})}/>
+          <NumField label="Mobile Usability Score (1-100)" value={client.seo_mobileUsability||0} onChange={v=>onChange({...client, seo_mobileUsability:v})}/>
         </div>
       </div>
     </div>
@@ -2044,33 +2103,157 @@ function ManagerDashboard({ onViewReport }){
   }, [allSubmissions]);
 
 
+  // Calculate dashboard statistics
+  const dashboardStats = useMemo(() => {
+    const stats = {
+      totalEmployees: groupedSubmissions.length,
+      totalSubmissions: filteredSubmissions.length,
+      avgOverallScore: 0,
+      departmentBreakdown: {},
+      topPerformers: [],
+      needsAttention: []
+    };
+
+    // Calculate averages and department breakdown
+    let totalScore = 0;
+    let scoreCount = 0;
+    
+    groupedSubmissions.forEach(group => {
+      const r = group.latestSubmission;
+      const dept = r.employee?.department || 'Unknown';
+      
+      if (!stats.departmentBreakdown[dept]) {
+        stats.departmentBreakdown[dept] = { count: 0, avgScore: 0, totalScore: 0 };
+      }
+      
+      stats.departmentBreakdown[dept].count++;
+      
+      if (r.scores?.overall) {
+        totalScore += r.scores.overall;
+        scoreCount++;
+        stats.departmentBreakdown[dept].totalScore += r.scores.overall;
+      }
+      
+      // Top performers (score >= 8)
+      if (r.scores?.overall >= 8) {
+        stats.topPerformers.push({
+          name: group.employeeName,
+          score: r.scores.overall,
+          department: dept
+        });
+      }
+      
+      // Needs attention (score < 6 or flags)
+      if (r.scores?.overall < 6 || r.flags?.missingLearningHours || r.flags?.hasEscalations) {
+        stats.needsAttention.push({
+          name: group.employeeName,
+          score: r.scores?.overall || 0,
+          department: dept,
+          issues: [
+            r.scores?.overall < 6 ? 'Low Score' : null,
+            r.flags?.missingLearningHours ? 'Learning <6h' : null,
+            r.flags?.hasEscalations ? 'Escalations' : null
+          ].filter(Boolean)
+        });
+      }
+    });
+    
+    stats.avgOverallScore = scoreCount > 0 ? (totalScore / scoreCount).toFixed(1) : 0;
+    
+    // Calculate department averages
+    Object.keys(stats.departmentBreakdown).forEach(dept => {
+      const deptData = stats.departmentBreakdown[dept];
+      deptData.avgScore = deptData.count > 0 ? (deptData.totalScore / deptData.count).toFixed(1) : 0;
+    });
+    
+    return stats;
+  }, [groupedSubmissions, filteredSubmissions]);
+
   return (
-    <div>
-      {/* DEBUG SECTION - Remove this after fixing */}
-      <Section title="🔧 Debug Info (Remove after fixing)">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm">
-          <div><strong>Total Submissions:</strong> {allSubmissions.length}</div>
-          <div><strong>Filtered Submissions:</strong> {filteredSubmissions.length}</div>
-          <div><strong>All Employee Names:</strong> {[...new Set(allSubmissions.map(s => s.employee?.name))].filter(Boolean).join(', ')}</div>
-          <div><strong>All Phone Numbers:</strong> {[...new Set(allSubmissions.map(s => s.employee?.phone))].filter(Boolean).join(', ') || 'NO PHONE NUMBERS FOUND!'}</div>
-          <div><strong>Employee Data Sample:</strong></div>
-          <div className="text-xs bg-gray-100 p-2 rounded mt-1">
-            {allSubmissions.slice(0, 3).map((s, i) => (
-              <div key={i}>
-                Employee {i+1}: Name="{s.employee?.name}" Phone="{s.employee?.phone}" 
-              </div>
-            ))}
+    <div className="space-y-8">
+      {/* Dashboard Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-sm font-medium">Total Employees</p>
+              <p className="text-3xl font-bold">{dashboardStats.totalEmployees}</p>
+            </div>
+            <div className="bg-white/20 rounded-full p-3">
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
           </div>
-          <details className="mt-2">
-            <summary className="cursor-pointer text-blue-600">View Raw Data Sample</summary>
-            <pre className="mt-2 bg-gray-100 p-2 rounded text-xs overflow-auto max-h-40">
-              {JSON.stringify(allSubmissions.slice(0, 2), null, 2)}
-            </pre>
-          </details>
+        </div>
+        
+        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-green-100 text-sm font-medium">Avg Score</p>
+              <p className="text-3xl font-bold">{dashboardStats.avgOverallScore}/10</p>
+            </div>
+            <div className="bg-white/20 rounded-full p-3">
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white shadow-xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-purple-100 text-sm font-medium">Top Performers</p>
+              <p className="text-3xl font-bold">{dashboardStats.topPerformers.length}</p>
+            </div>
+            <div className="bg-white/20 rounded-full p-3">
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-6 text-white shadow-xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-red-100 text-sm font-medium">Needs Attention</p>
+              <p className="text-3xl font-bold">{dashboardStats.needsAttention.length}</p>
+            </div>
+            <div className="bg-white/20 rounded-full p-3">
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Department Performance */}
+      <Section title="📊 Department Performance Overview">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Object.entries(dashboardStats.departmentBreakdown).map(([dept, data]) => (
+            <div key={dept} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold text-gray-800">{dept}</h3>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  data.avgScore >= 8 ? 'bg-green-100 text-green-800' :
+                  data.avgScore >= 6 ? 'bg-yellow-100 text-yellow-800' :
+                  'bg-red-100 text-red-800'
+                }`}>
+                  {data.avgScore}/10
+                </span>
+              </div>
+              <div className="text-sm text-gray-600">
+                {data.count} employee{data.count !== 1 ? 's' : ''}
+              </div>
+            </div>
+          ))}
         </div>
       </Section>
 
-      <Section title="Filters & Export">
+      <Section title="🎯 Filters & Export">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Report Month</label>
@@ -2475,25 +2658,7 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
         </button>
       </div>
 
-      {/* DEBUG SECTION - Remove after fixing */}
-      <Section title="🔧 Employee Report Debug (Remove after fixing)">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm">
-          <div><strong>Searching for:</strong> Name="{employeeName}" Phone="{employeePhone}"</div>
-          <div><strong>Found Submissions:</strong> {employeeSubmissions.length}</div>
-          <div><strong>Total Database Submissions:</strong> {allSubmissions.length}</div>
-          <details className="mt-2">
-            <summary className="cursor-pointer text-blue-600">View All Employee Data</summary>
-            <pre className="mt-2 bg-gray-100 p-2 rounded text-xs overflow-auto max-h-40">
-              {JSON.stringify(allSubmissions.map(s => ({
-                id: s.id,
-                name: s.employee?.name,
-                phone: s.employee?.phone,
-                month: s.monthKey
-              })), null, 2)}
-            </pre>
-          </details>
-        </div>
-      </Section>
+
 
       {yearlySummary && (
         <Section title="Cumulative Summary & Recommendations">
