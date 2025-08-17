@@ -2220,7 +2220,7 @@ function ManagerDashboard({ onViewReport }){
 
                 {(r.flags?.missingLearningHours || r.flags?.hasEscalations || r.flags?.missingReports) && (
                   <div className="mb-3 text-xs">
-                    {r.flags?.missingLearningHours && <span className="inline-block bg-yellow-100 text-yellow-800 px-2 py-1 rounded mr-1">⏱️ <6h</span>}
+                    {r.flags?.missingLearningHours && <span className="inline-block bg-yellow-100 text-yellow-800 px-2 py-1 rounded mr-1">⏱️ &lt;6h</span>}
                     {r.flags?.hasEscalations && <span className="inline-block bg-red-100 text-red-800 px-2 py-1 rounded mr-1">⚠️ Escalations</span>}
                     {r.flags?.missingReports && <span className="inline-block bg-orange-100 text-orange-800 px-2 py-1 rounded mr-1">📄 Missing Reports</span>}
                   </div>
