@@ -2800,8 +2800,16 @@ function ManagerDashboard({ onViewReport }) {
                       <div className="flex gap-1 justify-center flex-wrap">
                         <button className="text-blue-600 hover:text-blue-800 underline text-xs transition-colors duration-200" onClick={() => openRow(r)}>Notes</button>
                         <button className="text-blue-600 hover:text-blue-800 underline text-xs transition-colors duration-200" onClick={() => {
-                          console.log('Clicking Full Report for:', { name: group.employeeName, phone: r.employee?.phone, submissions: group.submissions.length });
-                          onViewReport(group.employeeName, r.employee?.phone || 'no-phone');
+                          console.log('🚀 Clicking Full Report for:', { 
+                            name: group.employeeName, 
+                            phone: r.employee?.phone, 
+                            submissions: group.submissions.length,
+                            allPhones: group.submissions.map(s => s.employee?.phone)
+                          });
+                          // Use the most common phone number from submissions, or fallback to name-only matching
+                          const phoneNumbers = group.submissions.map(s => s.employee?.phone).filter(Boolean);
+                          const mostCommonPhone = phoneNumbers.length > 0 ? phoneNumbers[0] : 'no-phone';
+                          onViewReport(group.employeeName, mostCommonPhone);
                         }}>Full Report</button>
                         <button className="text-red-600 hover:text-red-800 underline text-xs transition-colors duration-200" onClick={() => deleteSubmission(r.id, group.employeeName)}>Delete Latest</button>
                       </div>
@@ -2868,8 +2876,14 @@ function ManagerDashboard({ onViewReport }) {
                   <button
                     className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2 px-3 rounded-lg transition-colors duration-200"
                     onClick={() => {
-                      console.log('Clicking Full Report for:', { name: group.employeeName, phone: r.employee?.phone });
-                      onViewReport(group.employeeName, r.employee?.phone || group.employeeName);
+                      console.log('🚀 Mobile Full Report for:', { 
+                        name: group.employeeName, 
+                        phone: r.employee?.phone,
+                        submissions: group.submissions.length 
+                      });
+                      const phoneNumbers = group.submissions.map(s => s.employee?.phone).filter(Boolean);
+                      const mostCommonPhone = phoneNumbers.length > 0 ? phoneNumbers[0] : 'no-phone';
+                      onViewReport(group.employeeName, mostCommonPhone);
                     }}
                   >
                     Full Report
@@ -2940,17 +2954,20 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
       allEmployeePhones: allSubmissions.map(s => s.employee?.phone)
     });
 
+    // Always match by name first, then optionally by phone for additional validation
     const filtered = allSubmissions.filter(s => {
-      // If we have phone numbers, match by phone
-      if (employeePhone && employeePhone !== 'undefined' && s.employee?.phone) {
-        const match = s.employee.phone === employeePhone;
-        console.log(`Phone match for ${s.employee.name}: ${s.employee.phone} === ${employeePhone} = ${match}`);
-        return match;
+      const nameMatch = s.employee?.name === employeeName;
+      
+      // If we have a valid phone number, also check phone match
+      if (employeePhone && employeePhone !== 'undefined' && employeePhone !== 'no-phone' && s.employee?.phone) {
+        const phoneMatch = s.employee.phone === employeePhone;
+        console.log(`Employee: ${s.employee.name}, Name match: ${nameMatch}, Phone match: ${phoneMatch}`);
+        return nameMatch && phoneMatch;
       }
-      // Fallback: match by name if no phone numbers
-      const match = s.employee?.name === employeeName;
-      console.log(`Name match: ${s.employee?.name} === ${employeeName} = ${match}`);
-      return match;
+      
+      // If no valid phone, just match by name
+      console.log(`Employee: ${s.employee?.name}, Name match: ${nameMatch} (phone not available)`);
+      return nameMatch;
     }).sort((a, b) => a.monthKey.localeCompare(b.monthKey));
 
     console.log('🎯 Filtered submissions:', filtered.length, filtered);
@@ -3028,8 +3045,43 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
             &larr; Back to Dashboard
           </button>
         </div>
+        
+        <Section title="🔍 Debug Information">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+            <h4 className="font-medium text-yellow-800 mb-3">Searching for:</h4>
+            <div className="text-sm space-y-1">
+              <div><strong>Employee Name:</strong> "{employeeName}"</div>
+              <div><strong>Employee Phone:</strong> "{employeePhone}"</div>
+              <div><strong>Total Submissions in Database:</strong> {allSubmissions.length}</div>
+            </div>
+            
+            <h4 className="font-medium text-yellow-800 mt-4 mb-3">Available Employees:</h4>
+            <div className="text-xs space-y-1 max-h-40 overflow-y-auto">
+              {allSubmissions.map((s, i) => (
+                <div key={i} className="flex justify-between">
+                  <span>"{s.employee?.name}"</span>
+                  <span>"{s.employee?.phone || 'No phone'}"</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Section>
+        
         <Section title="No Submissions Found">
-          <p>No submissions found for this employee yet.</p>
+          <div className="text-center py-8">
+            <div className="text-6xl mb-4">📊</div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">No submissions found</h3>
+            <p className="text-gray-600 mb-4">
+              We couldn't find any submissions for "{employeeName}". 
+              This might be due to:
+            </p>
+            <ul className="text-left text-sm text-gray-600 space-y-1 max-w-md mx-auto">
+              <li>• Employee name mismatch (check spelling/spacing)</li>
+              <li>• Phone number mismatch</li>
+              <li>• No submissions created yet</li>
+              <li>• Data filtering issues</li>
+            </ul>
+          </div>
         </Section>
       </div>
     );
