@@ -42,57 +42,57 @@ const SUPABASE_ANON_KEY = "sb_publishable_SDqrksN-DTMdHP01p3z6wQ_OlX5bJ3o";
 const SupabaseContext = React.createContext(null);
 
 const SupabaseProvider = ({ children }) => {
-    const [supabaseClient, setSupabaseClient] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+  const [supabaseClient, setSupabaseClient] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-    useEffect(() => {
-        // Set a timeout to handle cases where the Supabase script fails to load.
-        const timeoutId = setTimeout(() => {
-            if (!window.supabase) {
-                setError("Failed to connect to the database. The Supabase script did not load in time. Please check your network connection or ad-blocker.");
-                setLoading(false);
-            }
-        }, 5000); // 5-second timeout
+  useEffect(() => {
+    // Set a timeout to handle cases where the Supabase script fails to load.
+    const timeoutId = setTimeout(() => {
+      if (!window.supabase) {
+        setError("Failed to connect to the database. The Supabase script did not load in time. Please check your network connection or ad-blocker.");
+        setLoading(false);
+      }
+    }, 5000); // 5-second timeout
 
-        // Poll every 100ms for the global 'supabase' object.
-        const intervalId = setInterval(() => {
-            if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
-                clearInterval(intervalId);
-                clearTimeout(timeoutId);
-                const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                setSupabaseClient(client);
-                setLoading(false);
-            }
-        }, 100);
+    // Poll every 100ms for the global 'supabase' object.
+    const intervalId = setInterval(() => {
+      if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+        clearInterval(intervalId);
+        clearTimeout(timeoutId);
+        const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        setSupabaseClient(client);
+        setLoading(false);
+      }
+    }, 100);
 
-        return () => {
-            clearInterval(intervalId);
-            clearTimeout(timeoutId);
-        };
-    }, []);
+    return () => {
+      clearInterval(intervalId);
+      clearTimeout(timeoutId);
+    };
+  }, []);
 
-    if (loading) {
-        return <div className="min-h-screen flex items-center justify-center text-gray-600"><div>Loading Database Connection...</div></div>;
-    }
-    
-    if (error) {
-        return <div className="min-h-screen flex items-center justify-center text-red-600 p-4"><div>Error: {error}</div></div>;
-    }
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center text-gray-600"><div>Loading Database Connection...</div></div>;
+  }
 
-    return (
-        <SupabaseContext.Provider value={supabaseClient}>
-            {children}
-        </SupabaseContext.Provider>
-    );
+  if (error) {
+    return <div className="min-h-screen flex items-center justify-center text-red-600 p-4"><div>Error: {error}</div></div>;
+  }
+
+  return (
+    <SupabaseContext.Provider value={supabaseClient}>
+      {children}
+    </SupabaseContext.Provider>
+  );
 };
 
 const useSupabase = () => {
-    const context = React.useContext(SupabaseContext);
-    if (context === undefined) {
-        throw new Error('useSupabase must be used within a SupabaseProvider');
-    }
-    return context;
+  const context = React.useContext(SupabaseContext);
+  if (context === undefined) {
+    throw new Error('useSupabase must be used within a SupabaseProvider');
+  }
+  return context;
 };
 
 
@@ -130,13 +130,13 @@ const ROLES_BY_DEPT = {
   "Web Head": ["Web Head"],
 };
 const uid = () => Math.random().toString(36).slice(2, 9);
-const thisMonthKey = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; };
-const prevMonthKey = (mk)=>{ if(!mk) return ""; const [y,m]=mk.split("-").map(Number); const d=new Date(y, m-2, 1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; };
-const monthLabel = (mk)=>{ if(!mk) return ""; const [y,m]=mk.split("-").map(Number); return new Date(y, m-1, 1).toLocaleString(undefined,{month:'short',year:'numeric'}); };
-const round1 = (n) => Math.round(n*10)/10;
-const isDriveUrl = (u)=> /https?:\/\/(drive|docs)\.google\.com\//i.test(u||"");
+const thisMonthKey = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; };
+const prevMonthKey = (mk) => { if (!mk) return ""; const [y, m] = mk.split("-").map(Number); const d = new Date(y, m - 2, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; };
+const monthLabel = (mk) => { if (!mk) return ""; const [y, m] = mk.split("-").map(Number); return new Date(y, m - 1, 1).toLocaleString(undefined, { month: 'short', year: 'numeric' }); };
+const round1 = (n) => Math.round(n * 10) / 10;
+const isDriveUrl = (u) => /https?:\/\/(drive|docs)\.google\.com\//i.test(u || "");
 const isPhoneNumber = (p) => !!p && /^\d{10}$/.test(p);
-const isGensparkUrl = (u) => /https?:\/\/(www\.)?genspark\.ai/i.test(u||"");
+const isGensparkUrl = (u) => /https?:\/\/(www\.)?genspark\.ai/i.test(u || "");
 
 // Date formatting helpers
 const toDDMMYYYY = (dateStr) => {
@@ -160,103 +160,103 @@ function daysInMonth(monthKey) {
 /********************
  * Scoring Functions *
  ********************/
-function scoreKPIs(employee, clients){
+function scoreKPIs(employee, clients) {
   const dept = employee.department;
-  if(dept === "Web"){
-    let pages=0,onTime=0,bugs=0; (clients||[]).forEach(c=>{ pages+=(c.web_pagesThis||0); onTime+=(c.web_onTimeThis||0); bugs+=(c.web_bugsThis||0);});
-    const n = clients?.length||1;
-    const pagesScore = Math.min(10,(pages/10)*10);
-    const onTimeScore = Math.min(10,(onTime/n)/10);
-    const bugsScore = Math.min(10,(bugs/20)*10);
-    return round1(pagesScore*0.5 + onTimeScore*0.3 + bugsScore*0.2);
+  if (dept === "Web") {
+    let pages = 0, onTime = 0, bugs = 0; (clients || []).forEach(c => { pages += (c.web_pagesThis || 0); onTime += (c.web_onTimeThis || 0); bugs += (c.web_bugsThis || 0); });
+    const n = clients?.length || 1;
+    const pagesScore = Math.min(10, (pages / 10) * 10);
+    const onTimeScore = Math.min(10, (onTime / n) / 10);
+    const bugsScore = Math.min(10, (bugs / 20) * 10);
+    return round1(pagesScore * 0.5 + onTimeScore * 0.3 + bugsScore * 0.2);
   }
-  if(dept === "Social Media"){
-    let folDelta=0,reach=0,er=0,campaigns=0, creatives=0, quality=0, hasDesignerRole=false;
-    (employee.role||[]).forEach(r => {
-      if(r.includes("Designer")) hasDesignerRole = true;
+  if (dept === "Social Media") {
+    let folDelta = 0, reach = 0, er = 0, campaigns = 0, creatives = 0, quality = 0, hasDesignerRole = false;
+    (employee.role || []).forEach(r => {
+      if (r.includes("Designer")) hasDesignerRole = true;
     });
 
-    (clients||[]).forEach(c=>{
-      folDelta+=(c.sm_followersThis||0)-(c.sm_followersPrev||0);
-      reach+=(c.sm_reachThis||0);
-      er+=(c.sm_erThis||0);
-      campaigns+=(c.sm_campaignsThis||0);
+    (clients || []).forEach(c => {
+      folDelta += (c.sm_followersThis || 0) - (c.sm_followersPrev || 0);
+      reach += (c.sm_reachThis || 0);
+      er += (c.sm_erThis || 0);
+      campaigns += (c.sm_campaignsThis || 0);
       if (hasDesignerRole) {
-        creatives+=(c.sm_graphicsPhotoshop + c.sm_graphicsCanva + c.sm_graphicsAi || 0);
-        quality+=(c.sm_qualityScore||0);
+        creatives += (c.sm_graphicsPhotoshop + c.sm_graphicsCanva + c.sm_graphicsAi || 0);
+        quality += (c.sm_qualityScore || 0);
       }
     });
-    const n = clients?.length||1;
-    const growthScore = Math.min(10,((folDelta/n)/200)*10);
-    const reachScore = Math.min(10,((reach/n)/50000)*10);
-    const erScore = Math.min(10,((er/n)/5)*10);
-    const campScore = Math.min(10,((campaigns/n)/4)*10);
-    const creativeScore = Math.min(10, (creatives/n/10)*10);
-    const qualityScore = quality > 0 ? (quality/n) : 0;
-    
+    const n = clients?.length || 1;
+    const growthScore = Math.min(10, ((folDelta / n) / 200) * 10);
+    const reachScore = Math.min(10, ((reach / n) / 50000) * 10);
+    const erScore = Math.min(10, ((er / n) / 5) * 10);
+    const campScore = Math.min(10, ((campaigns / n) / 4) * 10);
+    const creativeScore = Math.min(10, (creatives / n / 10) * 10);
+    const qualityScore = quality > 0 ? (quality / n) : 0;
+
     if (hasDesignerRole) {
       return round1(creativeScore * 0.5 + qualityScore * 0.5);
     }
-    
-    return round1(growthScore*0.35 + reachScore*0.25 + erScore*0.25 + campScore*0.15);
+
+    return round1(growthScore * 0.35 + reachScore * 0.25 + erScore * 0.25 + campScore * 0.15);
   }
-  if(dept === "Ads"){
-    let ctr=0,cpl=0,leads=0,newAds=0; (clients||[]).forEach(c=>{ ctr+=(c.ads_ctrThis||0); cpl+=(c.ads_cplThis||0); leads+=(c.ads_leadsThis||0); newAds+=(c.ads_newAds||0);});
-    const n = clients?.length||1;
-    const ctrScore = Math.min(10,((ctr/n)/3)*10);
-    const cplScore = Math.min(10,(3/Math.max(0.1,(cpl/n)))*10); // lower is better
-    const leadsScore = Math.min(10,((leads/n)/150)*10);
-    const buildScore = Math.min(10,((newAds/n)/15)*10);
-    return round1(ctrScore*0.3 + cplScore*0.3 + leadsScore*0.3 + buildScore*0.1);
+  if (dept === "Ads") {
+    let ctr = 0, cpl = 0, leads = 0, newAds = 0; (clients || []).forEach(c => { ctr += (c.ads_ctrThis || 0); cpl += (c.ads_cplThis || 0); leads += (c.ads_leadsThis || 0); newAds += (c.ads_newAds || 0); });
+    const n = clients?.length || 1;
+    const ctrScore = Math.min(10, ((ctr / n) / 3) * 10);
+    const cplScore = Math.min(10, (3 / Math.max(0.1, (cpl / n))) * 10); // lower is better
+    const leadsScore = Math.min(10, ((leads / n) / 150) * 10);
+    const buildScore = Math.min(10, ((newAds / n) / 15) * 10);
+    return round1(ctrScore * 0.3 + cplScore * 0.3 + leadsScore * 0.3 + buildScore * 0.1);
   }
-  if(dept === "SEO"){
-    let trafThis=0, trafPrev=0, kwImproved=0, aiCount=0, volSum=0, kwCount=0, llmThis=0, llmPrev=0, leadsThis=0, leadsPrev=0, top3=0;
-    (clients||[]).forEach(c=>{
-      trafThis+=(c.seo_trafficThis||0); trafPrev+=(c.seo_trafficPrev||0);
-      kwImproved+=(c.seo_kwImprovedThis||0); aiCount+=(c.seo_aiOverviewThis||0);
-      llmThis+=(c.seo_llmTrafficThis||0); llmPrev+=(c.seo_llmTrafficPrev||0);
-      leadsThis+=(c.seo_leadsThis||0); leadsPrev+=(c.seo_leadsPrev||0);
-      top3+=(c.seo_top3?.length||0);
-      (c.seo_keywordsWorked||[]).forEach(k=>{ volSum+=(k.searchVolume||0); kwCount++; });
+  if (dept === "SEO") {
+    let trafThis = 0, trafPrev = 0, kwImproved = 0, aiCount = 0, volSum = 0, kwCount = 0, llmThis = 0, llmPrev = 0, leadsThis = 0, leadsPrev = 0, top3 = 0;
+    (clients || []).forEach(c => {
+      trafThis += (c.seo_trafficThis || 0); trafPrev += (c.seo_trafficPrev || 0);
+      kwImproved += (c.seo_kwImprovedThis || 0); aiCount += (c.seo_aiOverviewThis || 0);
+      llmThis += (c.seo_llmTrafficThis || 0); llmPrev += (c.seo_llmTrafficPrev || 0);
+      leadsThis += (c.seo_leadsThis || 0); leadsPrev += (c.seo_leadsPrev || 0);
+      top3 += (c.seo_top3?.length || 0);
+      (c.seo_keywordsWorked || []).forEach(k => { volSum += (k.searchVolume || 0); kwCount++; });
     });
-    const n = clients?.length||1;
-    const deltaPct = ((trafThis - trafPrev)/Math.max(1,trafPrev))*100;
-    const trafScore = Math.min(10,(Math.max(0,deltaPct)/20)*10);
-    const kwScore = Math.min(10,((kwImproved/n)/10)*10);
-    const aiScore = Math.min(10,((aiCount/n)/5)*10);
-    const volScore = Math.min(10,((volSum/Math.max(1,kwCount))/500)*10);
-    const llmDelta = ((llmThis-llmPrev)/Math.max(1,llmPrev))*100; const llmScore = Math.min(10,(Math.max(0,llmDelta)/20)*10);
-    const leadsDelta = ((leadsThis-leadsPrev)/Math.max(1,leadsPrev))*100; const leadsScore = Math.min(10,(Math.max(0,leadsDelta)/20)*10);
-    const top3Score = Math.min(10,((top3/n)/10)*10);
-    return round1(trafScore*0.25 + kwScore*0.2 + aiScore*0.1 + volScore*0.1 + llmScore*0.15 + leadsScore*0.15 + top3Score*0.05);
+    const n = clients?.length || 1;
+    const deltaPct = ((trafThis - trafPrev) / Math.max(1, trafPrev)) * 100;
+    const trafScore = Math.min(10, (Math.max(0, deltaPct) / 20) * 10);
+    const kwScore = Math.min(10, ((kwImproved / n) / 10) * 10);
+    const aiScore = Math.min(10, ((aiCount / n) / 5) * 10);
+    const volScore = Math.min(10, ((volSum / Math.max(1, kwCount)) / 500) * 10);
+    const llmDelta = ((llmThis - llmPrev) / Math.max(1, llmPrev)) * 100; const llmScore = Math.min(10, (Math.max(0, llmDelta) / 20) * 10);
+    const leadsDelta = ((leadsThis - leadsPrev) / Math.max(1, leadsPrev)) * 100; const leadsScore = Math.min(10, (Math.max(0, leadsDelta) / 20) * 10);
+    const top3Score = Math.min(10, ((top3 / n) / 10) * 10);
+    return round1(trafScore * 0.25 + kwScore * 0.2 + aiScore * 0.1 + volScore * 0.1 + llmScore * 0.15 + leadsScore * 0.15 + top3Score * 0.05);
   }
-  if(dept === "HR"){
-    const c = clients?.[0]||{}; const hiresThis=c.hr_hiresThis||0, screened=c.hr_screened||0, activities=c.hr_engagements||0;
+  if (dept === "HR") {
+    const c = clients?.[0] || {}; const hiresThis = c.hr_hiresThis || 0, screened = c.hr_screened || 0, activities = c.hr_engagements || 0;
     const hiresScore = Math.min(10, hiresThis * 3);
     const screenedScore = Math.min(10, screened / 50 * 10);
     const activityScore = Math.min(10, activities * 2.5);
-    return round1(hiresScore*0.4 + screenedScore*0.4 + activityScore*0.2);
+    return round1(hiresScore * 0.4 + screenedScore * 0.4 + activityScore * 0.2);
   }
-  if(dept === "Accounts"){
-    const c = clients?.[0]||{}; const colThis=c.ac_collectionsPctThis||0, colPrev=c.ac_collectionsPctPrev||0, gstDone=c.ac_gstDone||false, tdsDone=c.ac_tdsDone||false;
-    const colScore = Math.min(10, ((Math.max(0,colThis-colPrev)/20)*5));
+  if (dept === "Accounts") {
+    const c = clients?.[0] || {}; const colThis = c.ac_collectionsPctThis || 0, colPrev = c.ac_collectionsPctPrev || 0, gstDone = c.ac_gstDone || false, tdsDone = c.ac_tdsDone || false;
+    const colScore = Math.min(10, ((Math.max(0, colThis - colPrev) / 20) * 5));
     const complianceScore = (gstDone ? 2.5 : 0) + (tdsDone ? 2.5 : 0);
-    return round1(colScore*0.5 + complianceScore*0.5);
+    return round1(colScore * 0.5 + complianceScore * 0.5);
   }
-  if(dept === "Sales"){
-    const c = clients?.[0]||{}; const revThis=c.sa_revenueThis||0, revPrev=c.sa_revenuePrev||0, convThis=c.sa_conversionRateThis||0, convPrev=c.sa_conversionRatePrev||0, pipeThis=c.sa_pipelineThis||0, pipePrev=c.sa_pipelinePrev||0, upsThis=c.sa_aiUpsellValueThis||0, upsPrev=c.sa_aiUpsellValuePrev||0;
-    const revDelta = Math.max(0,revThis-revPrev), convDelta=Math.max(0,convThis-convPrev), pipeDelta=Math.max(0,pipeThis-pipePrev), upsDelta=Math.max(0,upsThis-upsPrev);
-    const s1=Math.min(10,(revDelta/500000)*10), s2=Math.min(10,(convDelta/5)*10), s3=Math.min(10,(pipeDelta/25)*10), s4=Math.min(10,(upsDelta/100000)*10);
-    return round1(s1*0.45 + s2*0.2 + s3*0.2 + s4*0.15);
+  if (dept === "Sales") {
+    const c = clients?.[0] || {}; const revThis = c.sa_revenueThis || 0, revPrev = c.sa_revenuePrev || 0, convThis = c.sa_conversionRateThis || 0, convPrev = c.sa_conversionRatePrev || 0, pipeThis = c.sa_pipelineThis || 0, pipePrev = c.sa_pipelinePrev || 0, upsThis = c.sa_aiUpsellValueThis || 0, upsPrev = c.sa_aiUpsellValuePrev || 0;
+    const revDelta = Math.max(0, revThis - revPrev), convDelta = Math.max(0, convThis - convPrev), pipeDelta = Math.max(0, pipeThis - pipePrev), upsDelta = Math.max(0, upsThis - upsPrev);
+    const s1 = Math.min(10, (revDelta / 500000) * 10), s2 = Math.min(10, (convDelta / 5) * 10), s3 = Math.min(10, (pipeDelta / 25) * 10), s4 = Math.min(10, (upsDelta / 100000) * 10);
+    return round1(s1 * 0.45 + s2 * 0.2 + s3 * 0.2 + s4 * 0.15);
   }
-  if(dept === "Blended (HR + Sales)"){
-    const hr=clients?.[0]||{}, sales=clients?.[1]||{};
-    const hrScore = Math.min(10,Math.max(0,(hr.hr_hiresThis||0)-(hr.hr_hiresPrev||0))/3*10)*0.6 + Math.min(10,Math.max(0,(hr.hr_processDonePctThis||0)-(hr.hr_processDonePctPrev||0))/10*10)*0.4;
-    const salesScore = Math.min(10,Math.max(0,(sales.sa_revenueThis||0)-(sales.sa_revenuePrev||0))/300000*10)*0.7 + Math.min(10,Math.max(0,(sales.sa_conversionRateThis||0)-(sales.sa_conversionRatePrev||0))/5*10)*0.3;
-    return round1(hrScore*0.8 + salesScore*0.2);
+  if (dept === "Blended (HR + Sales)") {
+    const hr = clients?.[0] || {}, sales = clients?.[1] || {};
+    const hrScore = Math.min(10, Math.max(0, (hr.hr_hiresThis || 0) - (hr.hr_hiresPrev || 0)) / 3 * 10) * 0.6 + Math.min(10, Math.max(0, (hr.hr_processDonePctThis || 0) - (hr.hr_processDonePctPrev || 0)) / 10 * 10) * 0.4;
+    const salesScore = Math.min(10, Math.max(0, (sales.sa_revenueThis || 0) - (sales.sa_revenuePrev || 0)) / 300000 * 10) * 0.7 + Math.min(10, Math.max(0, (sales.sa_conversionRateThis || 0) - (sales.sa_conversionRatePrev || 0)) / 5 * 10) * 0.3;
+    return round1(hrScore * 0.8 + salesScore * 0.2);
   }
-  if(dept === "Operations Head"){
-    const client_scores = (clients||[]).map(c=>{
+  if (dept === "Operations Head") {
+    const client_scores = (clients || []).map(c => {
       let score = 0;
       if (c.op_paymentDate && c.op_paymentDate.length > 0) score += 2;
       if (c.op_teamFinishedScope) score += 3;
@@ -269,9 +269,9 @@ function scoreKPIs(employee, clients){
     });
     const n = client_scores.length || 1;
     const totalScore = client_scores.reduce((sum, s) => sum + s, 0);
-    return round1(totalScore/n);
+    return round1(totalScore / n);
   }
-  if(dept === "Web Head"){
+  if (dept === "Web Head") {
     // Web Head KPIs based on client performance
     let upselling = 0;
     let pages = 0;
@@ -292,16 +292,16 @@ function scoreKPIs(employee, clients){
   }
   return 0;
 }
-function scoreLearning(entries){ const total = (entries||[]).reduce((s,e)=>s+(e.durationMins||0),0); return round1(Math.min(10, (total / 360) * 10)); }
-function scoreRelationshipFromClients(clients, dept){
-  let meetings=0, appr=0, esc=0, satSum=0, satCnt=0, totalInteractions=0;
-  (clients||[]).forEach(c=>{ 
+function scoreLearning(entries) { const total = (entries || []).reduce((s, e) => s + (e.durationMins || 0), 0); return round1(Math.min(10, (total / 360) * 10)); }
+function scoreRelationshipFromClients(clients, dept) {
+  let meetings = 0, appr = 0, esc = 0, satSum = 0, satCnt = 0, totalInteractions = 0;
+  (clients || []).forEach(c => {
     if (c.relationship) {
-      meetings += c.relationship.meetings?.length || 0; 
-      appr += c.relationship.appreciations?.length || 0; 
-      esc += c.relationship.escalations?.length || 0; 
-      const s=c.relationship.clientSatisfaction||0; 
-      if(s>0){ satSum+=s; satCnt++; } 
+      meetings += c.relationship.meetings?.length || 0;
+      appr += c.relationship.appreciations?.length || 0;
+      esc += c.relationship.escalations?.length || 0;
+      const s = c.relationship.clientSatisfaction || 0;
+      if (s > 0) { satSum += s; satCnt++; }
       totalInteractions += c.clientInteractions || 0;
     }
     if (c.op_appreciations) {
@@ -312,25 +312,25 @@ function scoreRelationshipFromClients(clients, dept){
     }
   });
 
-  const ms=Math.min(4,meetings*0.8), as=Math.min(3,appr*0.75), ep=Math.min(5,esc*1.5); // caps
-  const sat = Math.min(3, (satCnt? (satSum/satCnt):0) *0.3);
-  const interactionScore = Math.min(10, totalInteractions/50 * 5); // Example scoring
-  return round1(Math.max(0, ms+as+sat-ep)); // out of 10
+  const ms = Math.min(4, meetings * 0.8), as = Math.min(3, appr * 0.75), ep = Math.min(5, esc * 1.5); // caps
+  const sat = Math.min(3, (satCnt ? (satSum / satCnt) : 0) * 0.3);
+  const interactionScore = Math.min(10, totalInteractions / 50 * 5); // Example scoring
+  return round1(Math.max(0, ms + as + sat - ep)); // out of 10
 }
-function overallOutOf10(kpi, learning, rel, manager){ return round1((kpi*0.4 + learning*0.3 + rel*0.2 + manager*0.1)); }
+function overallOutOf10(kpi, learning, rel, manager) { return round1((kpi * 0.4 + learning * 0.3 + rel * 0.2 + manager * 0.1)); }
 
-function generateSummary(model){
-  const names = (model.clients||[]).map(c=>c.name).filter(Boolean);
-  const meet = (model.clients||[]).reduce((s,c)=> s + (c.relationship?.meetings?.length||0), 0);
-  const esc  = (model.clients||[]).reduce((s,c)=> s + (c.relationship?.escalations?.length||0), 0);
-  const appr = (model.clients||[]).reduce((s,c)=> s + (c.relationship?.appreciations?.length||0), 0);
-  const learnMin = (model.learning||[]).reduce((s,e)=>s+(e.durationMins||0),0);
+function generateSummary(model) {
+  const names = (model.clients || []).map(c => c.name).filter(Boolean);
+  const meet = (model.clients || []).reduce((s, c) => s + (c.relationship?.meetings?.length || 0), 0);
+  const esc = (model.clients || []).reduce((s, c) => s + (c.relationship?.escalations?.length || 0), 0);
+  const appr = (model.clients || []).reduce((s, c) => s + (c.relationship?.appreciations?.length || 0), 0);
+  const learnMin = (model.learning || []).reduce((s, e) => s + (e.durationMins || 0), 0);
   const parts = [];
-  parts.push(`Handled ${names.length} client(s): ${names.join(', ')||'—'}.`);
+  parts.push(`Handled ${names.length} client(s): ${names.join(', ') || '—'}.`);
   parts.push(`Meetings ${meet}, Appreciations ${appr}, Escalations ${esc}.`);
-  parts.push(`Learning: ${(learnMin/60).toFixed(1)}h (${learnMin>=360?'Meets 6h':'Below 6h'}).`);
-  if(model.flags?.missingReports) parts.push('⚠️ Missing report links for some clients.');
-  if(model.flags?.hasEscalations) parts.push('⚠️ Escalations present — investigate.');
+  parts.push(`Learning: ${(learnMin / 60).toFixed(1)}h (${learnMin >= 360 ? 'Meets 6h' : 'Below 6h'}).`);
+  if (model.flags?.missingReports) parts.push('⚠️ Missing report links for some clients.');
+  if (model.flags?.hasEscalations) parts.push('⚠️ Escalations present — investigate.');
   parts.push(`Scores — KPI ${model.scores?.kpiScore}/10, Learning ${model.scores?.learningScore}/10, Client Status ${model.scores?.relationshipScore}/10, Overall ${model.scores?.overall}/10.`);
   if (model.manager?.score) parts.push(`Manager Score: ${model.manager.score}/10`);
   return parts.join(' ');
@@ -342,7 +342,7 @@ function generateSummary(model){
 // Celebration Component
 const CelebrationEffect = ({ show }) => {
   if (!show) return null;
-  
+
   return (
     <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
       <div className="celebration-container">
@@ -400,10 +400,10 @@ const CelebrationEffect = ({ show }) => {
 // Simple Performance Chart Component
 const PerformanceChart = ({ data, title }) => {
   if (!data || data.length === 0) return null;
-  
+
   const maxScore = Math.max(...data.map(d => d.score), 10);
   const chartHeight = 200;
-  
+
   return (
     <div className="bg-white rounded-xl p-4 border border-gray-200">
       <h4 className="font-medium text-gray-800 mb-4">{title}</h4>
@@ -431,10 +431,10 @@ const PerformanceChart = ({ data, title }) => {
               </text>
             </g>
           ))}
-          
+
           {/* Chart line */}
           <polyline
-            points={data.map((d, i) => 
+            points={data.map((d, i) =>
               `${50 + (i * (100 / Math.max(data.length - 1, 1)) * 8)},${chartHeight - (d.score / 10) * (chartHeight - 40)}`
             ).join(' ')}
             fill="none"
@@ -443,7 +443,7 @@ const PerformanceChart = ({ data, title }) => {
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-          
+
           {/* Data points */}
           {data.map((d, i) => (
             <g key={i}>
@@ -533,7 +533,7 @@ const PDFDownloadButton = ({ data, employeeName }) => {
         </body>
       </html>
     `;
-    
+
     // Create blob and download
     const blob = new Blob([htmlContent], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
@@ -543,14 +543,14 @@ const PDFDownloadButton = ({ data, employeeName }) => {
     a.click();
     URL.revokeObjectURL(url);
   };
-  
+
   return (
     <button
       onClick={downloadPDF}
       className="bg-red-600 hover:bg-red-700 text-white rounded-xl px-4 py-2 text-sm font-medium transition-colors duration-200 shadow-sm flex items-center gap-2"
     >
       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"/>
+        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
       </svg>
       Download PDF
     </button>
@@ -560,7 +560,7 @@ const PDFDownloadButton = ({ data, employeeName }) => {
 // Information Tooltip Component
 const InfoTooltip = ({ content }) => {
   const [showTooltip, setShowTooltip] = useState(false);
-  
+
   return (
     <div className="relative inline-block ml-2">
       <button
@@ -571,7 +571,7 @@ const InfoTooltip = ({ content }) => {
         onClick={() => setShowTooltip(!showTooltip)}
       >
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd"/>
+          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
         </svg>
       </button>
       {showTooltip && (
@@ -586,9 +586,9 @@ const InfoTooltip = ({ content }) => {
 
 const HeaderBrand = () => (
   <div className="flex items-center gap-3">
-    <img 
-      src="https://brandingpioneers.com/assets/logo.png" 
-      alt="Branding Pioneers" 
+    <img
+      src="https://brandingpioneers.com/assets/logo.png"
+      alt="Branding Pioneers"
       className="w-10 h-10 object-contain"
       onError={(e) => {
         // Fallback to initials if logo fails to load
@@ -635,7 +635,7 @@ function useHash() {
 }
 
 // Hook to provide modal functionality
-const ModalContext = React.createContext({ openModal: () => {}, closeModal: () => {} });
+const ModalContext = React.createContext({ openModal: () => { }, closeModal: () => { } });
 const useModal = () => React.useContext(ModalContext);
 
 // Custom Modal component
@@ -736,7 +736,7 @@ function useFetchSubmissions() {
         .select('*');
 
       if (error) throw error;
-      
+
       setAllSubmissions(data || []);
     } catch (e) {
       console.error("Failed to load submissions from Supabase:", e);
@@ -754,7 +754,7 @@ function useFetchSubmissions() {
   return { allSubmissions, loading, error, refreshSubmissions: fetchSubmissions };
 }
 
-function AppContent(){
+function AppContent() {
   const hash = useHash();
   const [isManagerLoggedIn, setIsManagerLoggedIn] = useState(false);
   const [password, setPassword] = useState('');
@@ -819,7 +819,7 @@ function AppContent(){
         <Modal {...modalState} />
         <header className="sticky top-0 bg-white/95 backdrop-blur-xl border-b border-gray-200/50 shadow-lg shadow-blue-100/20 z-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-            <HeaderBrand/>
+            <HeaderBrand />
             <div className="flex items-center gap-3">
               {isManagerLoggedIn && (
                 <div className="flex items-center gap-3">
@@ -827,8 +827,8 @@ function AppContent(){
                     <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                     Manager Dashboard
                   </div>
-                  <button 
-                    onClick={handleLogout} 
+                  <button
+                    onClick={handleLogout}
                     className="text-sm px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-md hover:shadow-lg"
                   >
                     Log Out
@@ -842,7 +842,7 @@ function AppContent(){
           {isManagerLoggedIn ? (
             <ManagerSection />
           ) : (
-            <EmployeeForm/>
+            <EmployeeForm />
           )}
         </main>
         <footer className="bg-white/90 backdrop-blur-lg border-t border-gray-200 mt-auto py-8">
@@ -885,22 +885,22 @@ function AppContent(){
 }
 
 export default function App() {
-    return (
-        <SupabaseProvider>
-            <AppContent />
-        </SupabaseProvider>
-    );
+  return (
+    <SupabaseProvider>
+      <AppContent />
+    </SupabaseProvider>
+  );
 }
 
 /**********************
  * Employee Form View *
  **********************/
-function EmployeeForm(){
+function EmployeeForm() {
   const supabase = useSupabase();
   const { openModal, closeModal } = useModal();
   const { allSubmissions } = useFetchSubmissions();
-  
-  const [currentSubmission, setCurrentSubmission] = useState({ ...EMPTY_SUBMISSION, isDraft:true });
+
+  const [currentSubmission, setCurrentSubmission] = useState({ ...EMPTY_SUBMISSION, isDraft: true });
   const [previousSubmission, setPreviousSubmission] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null); // {name, phone}
 
@@ -912,7 +912,7 @@ function EmployeeForm(){
     });
     return Object.values(employees).sort((a, b) => a.name.localeCompare(b.name));
   }, [allSubmissions]);
-  
+
   // Effect to load previous submission data when an employee is selected
   useEffect(() => {
     if (!selectedEmployee) {
@@ -923,14 +923,14 @@ function EmployeeForm(){
       }));
       return;
     }
-    
+
     // Find the most recent submission for the selected employee
     const prevSub = allSubmissions
       .filter(s => s.employee.phone === selectedEmployee.phone)
       .sort((a, b) => b.monthKey.localeCompare(a.monthKey))[0] || null;
-    
+
     setPreviousSubmission(prevSub);
-    
+
     // Set up the current submission form with the selected employee's details
     // but keep the rest of the fields blank for this month's data.
     setCurrentSubmission(prev => ({
@@ -957,14 +957,14 @@ function EmployeeForm(){
     });
   }, []);
 
-  const kpiScore = useMemo(()=>scoreKPIs(currentSubmission.employee, currentSubmission.clients), [currentSubmission.employee, currentSubmission.clients]);
-  const learningScore = useMemo(()=>scoreLearning(currentSubmission.learning), [currentSubmission.learning]);
-  const relationshipScore = useMemo(()=>scoreRelationshipFromClients(currentSubmission.clients), [currentSubmission.employee, currentSubmission.clients]);
-  const overall = useMemo(()=>overallOutOf10(kpiScore, learningScore, relationshipScore, currentSubmission.manager?.score), [kpiScore,learningScore,relationshipScore, currentSubmission.manager?.score]);
+  const kpiScore = useMemo(() => scoreKPIs(currentSubmission.employee, currentSubmission.clients), [currentSubmission.employee, currentSubmission.clients]);
+  const learningScore = useMemo(() => scoreLearning(currentSubmission.learning), [currentSubmission.learning]);
+  const relationshipScore = useMemo(() => scoreRelationshipFromClients(currentSubmission.clients), [currentSubmission.employee, currentSubmission.clients]);
+  const overall = useMemo(() => overallOutOf10(kpiScore, learningScore, relationshipScore, currentSubmission.manager?.score), [kpiScore, learningScore, relationshipScore, currentSubmission.manager?.score]);
 
   // Celebration effect for good scores
   const [showCelebration, setShowCelebration] = useState(false);
-  
+
   useEffect(() => {
     if (overall >= 8) {
       setShowCelebration(true);
@@ -973,41 +973,41 @@ function EmployeeForm(){
     }
   }, [overall]);
 
-  const flags = useMemo(()=>{
-    const learningMins = (currentSubmission.learning||[]).reduce((s,e)=>s+(e.durationMins||0),0);
+  const flags = useMemo(() => {
+    const learningMins = (currentSubmission.learning || []).reduce((s, e) => s + (e.durationMins || 0), 0);
     const missingLearningHours = learningMins < 360;
-    const hasEscalations = (currentSubmission.clients||[]).some(c=> (c.relationship?.escalations||[]).length>0);
-    const missingReports = (currentSubmission.clients||[]).some(c=> (c.reports||[]).length===0);
+    const hasEscalations = (currentSubmission.clients || []).some(c => (c.relationship?.escalations || []).length > 0);
+    const missingReports = (currentSubmission.clients || []).some(c => (c.reports || []).length === 0);
     return { missingLearningHours, hasEscalations, missingReports };
-  },[currentSubmission]);
-  
-  useEffect(()=>{
-    setCurrentSubmission(m=>{
+  }, [currentSubmission]);
+
+  useEffect(() => {
+    setCurrentSubmission(m => {
       const nextScores = { kpiScore, learningScore, relationshipScore, overall };
-      const sameScores = JSON.stringify(nextScores) === JSON.stringify(m.scores||{});
-      const sameFlags = JSON.stringify(flags) === JSON.stringify(m.flags||{});
+      const sameScores = JSON.stringify(nextScores) === JSON.stringify(m.scores || {});
+      const sameFlags = JSON.stringify(flags) === JSON.stringify(m.flags || {});
       if (sameScores && sameFlags) return m;
       return { ...m, flags, scores: nextScores };
     });
-  },[kpiScore, learningScore, relationshipScore, overall, flags]);
+  }, [kpiScore, learningScore, relationshipScore, overall, flags]);
 
-  async function submitFinal(){
+  async function submitFinal() {
     if (!supabase) {
-        openModal("Error", "Database connection not ready. Please wait a moment and try again.");
-        return;
+      openModal("Error", "Database connection not ready. Please wait a moment and try again.");
+      return;
     }
 
     const check = validateSubmission(currentSubmission);
-    if(!check.ok){
+    if (!check.ok) {
       openModal(
         "Validation Errors",
-        `Please fix the following before submitting:\n\n${check.errors.map((e,i)=> `${i+1}. ${e}`).join('\n')}`,
+        `Please fix the following before submitting:\n\n${check.errors.map((e, i) => `${i + 1}. ${e}`).join('\n')}`,
         closeModal
       );
       return;
     }
-    const final = { ...currentSubmission, isDraft:false, employee: { ...currentSubmission.employee, name: (currentSubmission.employee?.name||"").trim(), phone: currentSubmission.employee.phone } };
-    
+    const final = { ...currentSubmission, isDraft: false, employee: { ...currentSubmission.employee, name: (currentSubmission.employee?.name || "").trim(), phone: currentSubmission.employee.phone } };
+
     // Remove the temporary ID if it exists before upserting
     delete final.id;
 
@@ -1033,8 +1033,8 @@ function EmployeeForm(){
   return (
     <div>
       <CelebrationEffect show={showCelebration} />
-      <Section 
-        title="Employee & Report Month" 
+      <Section
+        title="Employee & Report Month"
         number="1"
         info="Select your profile from existing employees or create a new one. Choose the month you're reporting for. This helps track your progress over time and ensures accurate month-over-month comparisons."
       >
@@ -1046,9 +1046,9 @@ function EmployeeForm(){
               className="w-full border rounded-xl p-2"
               value={selectedEmployee ? `${selectedEmployee.name}-${selectedEmployee.phone}` : ""}
               onChange={(e) => {
-                if(e.target.value === "") {
+                if (e.target.value === "") {
                   setSelectedEmployee(null);
-                  setCurrentSubmission({...EMPTY_SUBMISSION, monthKey: thisMonthKey()});
+                  setCurrentSubmission({ ...EMPTY_SUBMISSION, monthKey: thisMonthKey() });
                 } else {
                   const [name, phone] = e.target.value.split('-');
                   setSelectedEmployee({ name, phone });
@@ -1064,15 +1064,15 @@ function EmployeeForm(){
             </select>
           </div>
           {isNewEmployee && (
-            <TextField label="Name" placeholder="Your name" value={currentSubmission.employee.name||""} onChange={v=>updateCurrentSubmission('employee.name', v)}/>
+            <TextField label="Name" placeholder="Your name" value={currentSubmission.employee.name || ""} onChange={v => updateCurrentSubmission('employee.name', v)} />
           )}
           {isNewEmployee && (
-            <TextField label="Phone Number" placeholder="e.g., 9876543210" value={currentSubmission.employee.phone||""} onChange={v=>updateCurrentSubmission('employee.phone', v)} />
+            <TextField label="Phone Number" placeholder="e.g., 9876543210" value={currentSubmission.employee.phone || ""} onChange={v => updateCurrentSubmission('employee.phone', v)} />
           )}
           <div>
             <label className="text-sm">Department</label>
-            <select className="w-full border rounded-xl p-2" value={currentSubmission.employee.department} onChange={e=>updateCurrentSubmission('employee.department', e.target.value)}>
-              {DEPARTMENTS.map(d=> <option key={d}>{d}</option>)}
+            <select className="w-full border rounded-xl p-2" value={currentSubmission.employee.department} onChange={e => updateCurrentSubmission('employee.department', e.target.value)}>
+              {DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
             </select>
           </div>
           <div>
@@ -1086,54 +1086,54 @@ function EmployeeForm(){
           </div>
           <div>
             <label className="text-sm">Report Month</label>
-            <input type="month" className="w-full border rounded-xl p-2" value={currentSubmission.monthKey} onChange={e=>updateCurrentSubmission('monthKey', e.target.value)} />
+            <input type="month" className="w-full border rounded-xl p-2" value={currentSubmission.monthKey} onChange={e => updateCurrentSubmission('monthKey', e.target.value)} />
             <div className="text-xs text-gray-500 mt-1">Comparisons: {monthLabel(mPrev)} vs {monthLabel(mThis)}</div>
           </div>
         </div>
       </Section>
 
-      <Section 
-        title="Attendance & Tasks (this month)" 
+      <Section
+        title="Attendance & Tasks (this month)"
         number="1b"
         info="Record your work attendance for the month - both Work From Office (WFO) and Work From Home (WFH) days. Also track the number of tasks completed and provide your AI task management table link with screenshot proof."
       >
         <div className="grid md:grid-cols-4 gap-3">
-          <NumField label="WFO days (0–31)" value={currentSubmission.meta.attendance.wfo} onChange={v=>updateCurrentSubmission('meta.attendance.wfo', v)}/>
-          <NumField label="WFH days (0–31)" value={currentSubmission.meta.attendance.wfh} onChange={v=>updateCurrentSubmission('meta.attendance.wfh', v)}/>
+          <NumField label="WFO days (0–31)" value={currentSubmission.meta.attendance.wfo} onChange={v => updateCurrentSubmission('meta.attendance.wfo', v)} />
+          <NumField label="WFH days (0–31)" value={currentSubmission.meta.attendance.wfh} onChange={v => updateCurrentSubmission('meta.attendance.wfh', v)} />
           <div className="md:col-span-2 text-xs text-gray-500 self-end">
             Total cannot exceed the number of days in {monthLabel(currentSubmission.monthKey)} ({daysInMonth(currentSubmission.monthKey)} days).
           </div>
-          <NumField label="Tasks completed (per AI table)" value={currentSubmission.meta.tasks.count} onChange={v=>updateCurrentSubmission('meta.tasks.count', v)}/>
-          <TextField label="AI Table / PM link (Drive/URL)" value={currentSubmission.meta.tasks.aiTableLink} onChange={v=>updateCurrentSubmission('meta.tasks.aiTableLink', v)}/>
-          <TextField label="AI Table screenshot (Drive URL)" value={currentSubmission.meta.tasks.aiTableScreenshot} onChange={v=>updateCurrentSubmission('meta.tasks.aiTableScreenshot', v)}/>
+          <NumField label="Tasks completed (per AI table)" value={currentSubmission.meta.tasks.count} onChange={v => updateCurrentSubmission('meta.tasks.count', v)} />
+          <TextField label="AI Table / PM link (Drive/URL)" value={currentSubmission.meta.tasks.aiTableLink} onChange={v => updateCurrentSubmission('meta.tasks.aiTableLink', v)} />
+          <TextField label="AI Table screenshot (Drive URL)" value={currentSubmission.meta.tasks.aiTableScreenshot} onChange={v => updateCurrentSubmission('meta.tasks.aiTableScreenshot', v)} />
         </div>
       </Section>
 
-      <DeptClientsBlock currentSubmission={currentSubmission} previousSubmission={previousSubmission} setModel={setCurrentSubmission} monthPrev={mPrev} monthThis={mThis} openModal={openModal} closeModal={closeModal}/>
-      <LearningBlock model={currentSubmission} setModel={setCurrentSubmission} openModal={openModal}/>
+      <DeptClientsBlock currentSubmission={currentSubmission} previousSubmission={previousSubmission} setModel={setCurrentSubmission} monthPrev={mPrev} monthThis={mThis} openModal={openModal} closeModal={closeModal} />
+      <LearningBlock model={currentSubmission} setModel={setCurrentSubmission} openModal={openModal} />
 
-      <Section 
-        title="AI Usage (Optional)" 
+      <Section
+        title="AI Usage (Optional)"
         number="4"
         info="Describe how you used AI tools to improve your work efficiency this month. Include specific examples, tools used, and measurable improvements. This helps us understand AI adoption across the team."
       >
-        <textarea className="w-full border rounded-xl p-3" rows={4} placeholder="List ways you used AI to work faster/better this month. Include links or examples." value={currentSubmission.aiUsageNotes} onChange={e=>updateCurrentSubmission('aiUsageNotes', e.target.value)}/>
+        <textarea className="w-full border rounded-xl p-3" rows={4} placeholder="List ways you used AI to work faster/better this month. Include links or examples." value={currentSubmission.aiUsageNotes} onChange={e => updateCurrentSubmission('aiUsageNotes', e.target.value)} />
       </Section>
 
-      <Section 
-        title="Employee Feedback" 
+      <Section
+        title="Employee Feedback"
         number="5"
         info="Share your honest feedback about the company, HR processes, and any challenges you're facing. This information helps management improve the work environment and address concerns proactively."
       >
         <div className="grid md:grid-cols-1 gap-4">
-          <TextArea label="General feedback about the company" placeholder="What's working well? What could be improved?" rows={3} value={currentSubmission.feedback.company} onChange={v=>updateCurrentSubmission('feedback.company', v)}/>
-          <TextArea label="Feedback regarding HR and policies" placeholder="Any thoughts on HR processes, communication, or company policies?" rows={3} value={currentSubmission.feedback.hr} onChange={v=>updateCurrentSubmission('feedback.hr', v)}/>
-          <TextArea label="Challenges you are facing" placeholder="Are there any obstacles or challenges hindering your work or growth?" rows={3} value={currentSubmission.feedback.challenges} onChange={v=>updateCurrentSubmission('feedback.challenges', v)}/>
+          <TextArea label="General feedback about the company" placeholder="What's working well? What could be improved?" rows={3} value={currentSubmission.feedback.company} onChange={v => updateCurrentSubmission('feedback.company', v)} />
+          <TextArea label="Feedback regarding HR and policies" placeholder="Any thoughts on HR processes, communication, or company policies?" rows={3} value={currentSubmission.feedback.hr} onChange={v => updateCurrentSubmission('feedback.hr', v)} />
+          <TextArea label="Challenges you are facing" placeholder="Are there any obstacles or challenges hindering your work or growth?" rows={3} value={currentSubmission.feedback.challenges} onChange={v => updateCurrentSubmission('feedback.challenges', v)} />
         </div>
       </Section>
 
-      <Section 
-        title="Performance Summary & Submission" 
+      <Section
+        title="Performance Summary & Submission"
         number="6"
         info="Review your calculated scores based on KPIs, learning hours, and client relationships. Scores of 8+ trigger celebration effects! Submit as draft to save progress or finalize to complete your monthly report."
       >
@@ -1156,7 +1156,7 @@ function EmployeeForm(){
 /***********************
  * Validation helpers  *
  ***********************/
-function validateSubmission(model){
+function validateSubmission(model) {
   const errors = [];
   const m = model || {};
   const emp = m.employee || {};
@@ -1167,8 +1167,8 @@ function validateSubmission(model){
   const isDateYYYYMMDD = (d) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d);
   const isUrl = (u) => !!u && u.startsWith('http');
   const isPhoneNumber = (p) => !!p && /^\d{10}$/.test(p);
-  const isDriveUrl = (u)=> /https?:\/\/(drive|docs)\.google\.com\//i.test(u||"");
-  const isGensparkUrl = (u) => /https?:\/\/(www\.)?genspark\.ai/i.test(u||"");
+  const isDriveUrl = (u) => /https?:\/\/(drive|docs)\.google\.com\//i.test(u || "");
+  const isGensparkUrl = (u) => /https?:\/\/(www\.)?genspark\.ai/i.test(u || "");
 
   // 1) employee + month
   if (!emp.name || !emp.name.trim()) errors.push("Enter your Name.");
@@ -1179,7 +1179,7 @@ function validateSubmission(model){
 
   // 2) attendance & tasks
   const meta = m.meta || {};
-  const att = meta.attendance || { wfo:0, wfh:0 };
+  const att = meta.attendance || { wfo: 0, wfh: 0 };
   const wfo = Number(att.wfo || 0);
   const wfh = Number(att.wfh || 0);
   if (wfo < 0 || wfo > 31) errors.push("WFO days must be between 0 and 31.");
@@ -1205,21 +1205,21 @@ function validateSubmission(model){
 
   // 4) clients & dept KPIs
   const clients = m.clients || [];
-  const isInternal = ["HR","Accounts","Sales","Blended (HR + Sales)"].includes(dept);
+  const isInternal = ["HR", "Accounts", "Sales", "Blended (HR + Sales)"].includes(dept);
   const isWebHead = dept === "Web Head";
   const isOpsHead = dept === "Operations Head";
-  if (!isInternal && clients.length===0 && !isWebHead && !isOpsHead) errors.push("Add at least one Client for this department.");
+  if (!isInternal && clients.length === 0 && !isWebHead && !isOpsHead) errors.push("Add at least one Client for this department.");
 
-  clients.forEach((c, idx)=>{
-    const row = `Client "${c?.name || `#${idx+1}`}"`;
+  clients.forEach((c, idx) => {
+    const row = `Client "${c?.name || `#${idx + 1}`}"`;
 
     if (!c.name || !c.name.trim()) errors.push(`${row}: name is required.`);
     const isGraphicDesigner = emp.role.includes("Graphic Designer");
     const needsReports = !["Web", "Web Head", "Social Media"].includes(dept) || (dept === "Social Media" && !isGraphicDesigner);
 
-    if (needsReports){
-      if(!c.reports || c.reports.length===0) errors.push(`${c.name||'Client'}: add at least one report/proof link (Drive/Genspark).`);
-      if((c.reports||[]).some(r=> !isDriveUrl(r.url) && !isGensparkUrl(r.url))) errors.push(`${c.name||'Client'}: report/proof links must be Google Drive/Docs or Genspark URLs.`);
+    if (needsReports) {
+      if (!c.reports || c.reports.length === 0) errors.push(`${c.name || 'Client'}: add at least one report/proof link (Drive/Genspark).`);
+      if ((c.reports || []).some(r => !isDriveUrl(r.url) && !isGensparkUrl(r.url))) errors.push(`${c.name || 'Client'}: report/proof links must be Google Drive/Docs or Genspark URLs.`);
     }
 
     if (dept === "SEO") {
@@ -1228,9 +1228,9 @@ function validateSubmission(model){
       }
 
       const kws = c?.seo_keywordsWorked || [];
-      kws.forEach((k,ki)=>{
-        if (!k.keyword || !k.keyword.trim()) errors.push(`${row}: Keyword #${ki+1} missing text.`);
-        if (k.searchVolume == null || Number.isNaN(Number(k.searchVolume))) errors.push(`${row}: Keyword #${ki+1} missing search volume.`);
+      kws.forEach((k, ki) => {
+        if (!k.keyword || !k.keyword.trim()) errors.push(`${row}: Keyword #${ki + 1} missing text.`);
+        if (k.searchVolume == null || Number.isNaN(Number(k.searchVolume))) errors.push(`${row}: Keyword #${ki + 1} missing search volume.`);
       });
 
       if (kws.length > 0) {
@@ -1241,83 +1241,83 @@ function validateSubmission(model){
         }
       }
 
-      if ((c?.seo_aiOverviewPrev != null) ^ (c?.seo_aiOverviewThis != null)){
+      if ((c?.seo_aiOverviewPrev != null) ^ (c?.seo_aiOverviewThis != null)) {
         errors.push(`${row}: AI overview traffic should have prev & this values for comparison.`);
       }
     } else if (dept === "Web" || dept === "Web Head") {
-      if (Number(c?.web_saasUpsells || 0) > 0 && c?.web_saasProof && !isDriveUrl(c.web_saasProof)){
+      if (Number(c?.web_saasUpsells || 0) > 0 && c?.web_saasProof && !isDriveUrl(c.web_saasProof)) {
         errors.push(`${row}: SaaS upsell proof must be a Google Drive/Docs URL.`);
       }
     } else if (dept === "Social Media" && isGraphicDesigner) {
-        if (!c.sm_creativesThis) {
-            // errors.push(`${row}: Graphic Designer role requires a number of creatives.`)
-        }
+      if (!c.sm_creativesThis) {
+        // errors.push(`${row}: Graphic Designer role requires a number of creatives.`)
+      }
     } else if (dept === "Operations Head") {
-        if(!c.op_clientScope || c.op_clientScope.length === 0) errors.push(`${row}: select at least one client scope.`);
-        if(c.op_paymentDate && !isDateYYYYMMDD(c.op_paymentDate)) errors.push(`${row}: enter client payment date.`);
-        if(c.op_clientStatus === 'Upgraded' || c.op_clientStatus === 'Left' || c.op_clientStatus === 'Reduced') {
-          if (!c.op_clientStatusReason || !c.op_clientStatusReason.trim()) errors.push(`${row}: provide a reason for the client status.`);
-        }
+      if (!c.op_clientScope || c.op_clientScope.length === 0) errors.push(`${row}: select at least one client scope.`);
+      if (c.op_paymentDate && !isDateYYYYMMDD(c.op_paymentDate)) errors.push(`${row}: enter client payment date.`);
+      if (c.op_clientStatus === 'Upgraded' || c.op_clientStatus === 'Left' || c.op_clientStatus === 'Reduced') {
+        if (!c.op_clientStatusReason || !c.op_clientStatusReason.trim()) errors.push(`${row}: provide a reason for the client status.`);
+      }
     }
-    
+
     // Client Report Status + payments + meetings
     if (!isGraphicDesigner && !isWebHead) {
-      const rel = c.relationship||{};
-      if(rel.roadmapSentDate && !isDateYYYYMMDD(rel.roadmapSentDate)) errors.push(`${c.name||'Client'}: Roadmap Sent Date is not a valid date.`);
-      if(rel.reportSentDate && !isDateYYYYMMDD(rel.reportSentDate)) errors.push(`${c.name||'Client'}: Report Sent Date is not a valid date.`);
-      if(rel.meetings?.some(m=> m.notesLink && !isDriveUrl(m.notesLink))) errors.push(`${c.name||'Client'}: Meeting notes links must be valid Google Drive URLs.`);
-      if(rel.paymentReceived && !isDateYYYYMMDD(rel.paymentDate)) errors.push(`${c.name||'Client'}: Payment date is required when payment is marked as received.`);
-      if(rel.clientSatisfaction && (rel.clientSatisfaction<1 || rel.clientSatisfaction>10)) errors.push(`${c.name||'Client'}: Client satisfaction must be between 1 and 10.`);
-      if((rel.appreciations||[]).some(a=>a.url && !isDriveUrl(a.url))) errors.push(`${c.name||'Client'}: Appreciation proof links must be valid Google Drive/Docs URLs.`);
-      if((rel.escalations||[]).some(a=>a.url && !isDriveUrl(a.url))) errors.push(`${c.name||'Client'}: Escalation proof links must be valid Google Drive/Docs URLs.`);
+      const rel = c.relationship || {};
+      if (rel.roadmapSentDate && !isDateYYYYMMDD(rel.roadmapSentDate)) errors.push(`${c.name || 'Client'}: Roadmap Sent Date is not a valid date.`);
+      if (rel.reportSentDate && !isDateYYYYMMDD(rel.reportSentDate)) errors.push(`${c.name || 'Client'}: Report Sent Date is not a valid date.`);
+      if (rel.meetings?.some(m => m.notesLink && !isDriveUrl(m.notesLink))) errors.push(`${c.name || 'Client'}: Meeting notes links must be valid Google Drive URLs.`);
+      if (rel.paymentReceived && !isDateYYYYMMDD(rel.paymentDate)) errors.push(`${c.name || 'Client'}: Payment date is required when payment is marked as received.`);
+      if (rel.clientSatisfaction && (rel.clientSatisfaction < 1 || rel.clientSatisfaction > 10)) errors.push(`${c.name || 'Client'}: Client satisfaction must be between 1 and 10.`);
+      if ((rel.appreciations || []).some(a => a.url && !isDriveUrl(a.url))) errors.push(`${c.name || 'Client'}: Appreciation proof links must be valid Google Drive/Docs URLs.`);
+      if ((rel.escalations || []).some(a => a.url && !isDriveUrl(a.url))) errors.push(`${c.name || 'Client'}: Escalation proof links must be valid Google Drive/Docs URLs.`);
     }
 
   });
 
-  return { ok: errors.length===0, errors };
+  return { ok: errors.length === 0, errors };
 }
 
 /************************
  * Clients & KPI Section *
  ************************/
-function DeptClientsBlock({currentSubmission, previousSubmission, setModel, monthPrev, monthThis, openModal, closeModal}){
-  const isInternal = ["HR","Accounts","Sales","Blended (HR + Sales)"].includes(currentSubmission.employee.department);
+function DeptClientsBlock({ currentSubmission, previousSubmission, setModel, monthPrev, monthThis, openModal, closeModal }) {
+  const isInternal = ["HR", "Accounts", "Sales", "Blended (HR + Sales)"].includes(currentSubmission.employee.department);
   const isWebHead = currentSubmission.employee.department === "Web Head";
   const isOpsHead = currentSubmission.employee.department === "Operations Head";
 
   return (
-    <Section 
-      title="KPIs, Reports & Client Report Status" 
+    <Section
+      title="KPIs, Reports & Client Report Status"
       number="2"
       info="Enter your key performance indicators based on your department. Include client work, deliverables, and performance metrics. Upload proof links (Google Drive URLs) to validate your achievements. This section is crucial for performance evaluation."
     >
       {(isInternal && !isOpsHead && !isWebHead) ? (
         <InternalKPIs model={currentSubmission} prevModel={previousSubmission} setModel={setModel} monthPrev={monthPrev} monthThis={monthThis} />
       ) : (
-        <ClientTable currentSubmission={currentSubmission} previousSubmission={previousSubmission} setModel={setModel} monthPrev={monthPrev} monthThis={monthThis} openModal={openModal} closeModal={closeModal}/>
+        <ClientTable currentSubmission={currentSubmission} previousSubmission={previousSubmission} setModel={setModel} monthPrev={monthPrev} monthThis={monthThis} openModal={openModal} closeModal={closeModal} />
       )}
     </Section>
   );
 }
 
-function ClientTable({currentSubmission, previousSubmission, setModel, monthPrev, monthThis, openModal, closeModal}){
-  const [draftRow, setDraftRow] = useState({ name:"", scopeOfWork:"", url:"" });
+function ClientTable({ currentSubmission, previousSubmission, setModel, monthPrev, monthThis, openModal, closeModal }) {
+  const [draftRow, setDraftRow] = useState({ name: "", scopeOfWork: "", url: "" });
   const isOpsHead = currentSubmission.employee.department === "Operations Head";
   const isWebHead = currentSubmission.employee.department === "Web Head";
   const isGraphicDesigner = currentSubmission.employee.role?.includes("Graphic Designer");
   const hasClientStatusSection = ["SEO", "Social Media", "Ads", "Operations Head"].includes(currentSubmission.employee.department);
 
-  function pushDraft(){
-    if(!draftRow.name.trim()) return;
-    if(draftRow.url && !isDriveUrl(draftRow.url) && !isGensparkUrl(draftRow.url)) {
+  function pushDraft() {
+    if (!draftRow.name.trim()) return;
+    if (draftRow.url && !isDriveUrl(draftRow.url) && !isGensparkUrl(draftRow.url)) {
       openModal('Invalid Link', 'Please paste a Google Drive, Google Docs, or Genspark URL.', closeModal);
       return;
     }
-    const base = { id: uid(), name: draftRow.name.trim(), reports: [], relationship: { roadmapSentDate:'', reportSentDate:'', meetings:[], appreciations:[], escalations:[], clientSatisfaction:0, paymentReceived:false, paymentDate:'' } };
+    const base = { id: uid(), name: draftRow.name.trim(), reports: [], relationship: { roadmapSentDate: '', reportSentDate: '', meetings: [], appreciations: [], escalations: [], clientSatisfaction: 0, paymentReceived: false, paymentDate: '' } };
     const withReport = (draftRow.url)
-      ? { ...base, reports:[{ id: uid(), label: draftRow.scopeOfWork.trim()||'Report', url: draftRow.url.trim() }] }
+      ? { ...base, reports: [{ id: uid(), label: draftRow.scopeOfWork.trim() || 'Report', url: draftRow.url.trim() }] }
       : base;
-    
+
     if (isOpsHead) {
       withReport.op_clientScope = [];
       withReport.op_paymentDate = '';
@@ -1329,16 +1329,16 @@ function ClientTable({currentSubmission, previousSubmission, setModel, monthPrev
       withReport.op_performanceRemarks = '';
       withReport.op_comingMonthActions = '';
     }
-    
-    if(isWebHead){
+
+    if (isWebHead) {
       withReport.web_saasUpsells = 0;
       withReport.web_saasProof = "";
       withReport.web_pagesThis = 0;
       withReport.web_onTimeThis = 0;
     }
 
-    setModel(m=>({ ...m, clients:[...m.clients, withReport] }));
-    setDraftRow({ name:"", scopeOfWork:"", url:"" });
+    setModel(m => ({ ...m, clients: [...m.clients, withReport] }));
+    setDraftRow({ name: "", scopeOfWork: "", url: "" });
   }
 
   const prevClients = previousSubmission?.clients || [];
@@ -1371,7 +1371,7 @@ function ClientTable({currentSubmission, previousSubmission, setModel, monthPrev
         <div className="flex-1 border rounded-xl p-2 text-sm text-gray-500">or enter a new client below.</div>
       </div>
       <div className="overflow-auto">
-        <table className="w-full text-sm border-separate" style={{borderSpacing:0}}>
+        <table className="w-full text-sm border-separate" style={{ borderSpacing: 0 }}>
           <thead>
             <tr className="bg-blue-50">
               <th className="text-left p-2 border">Client</th>
@@ -1381,36 +1381,36 @@ function ClientTable({currentSubmission, previousSubmission, setModel, monthPrev
             </tr>
           </thead>
           <tbody>
-            {currentSubmission.clients.map(c=> (
+            {currentSubmission.clients.map(c => (
               <tr key={c.id} className="odd:bg-white even:bg-blue-50/40">
                 <td className="p-2 border font-medium">{c.name}</td>
                 <td className="p-2 border" colSpan={2}>
                   <TinyLinks
-                    items={(c.reports||[])}
-                    onAdd={(r)=>{
-                      if(!isDriveUrl(r.url) && !isGensparkUrl(r.url)) {
+                    items={(c.reports || [])}
+                    onAdd={(r) => {
+                      if (!isDriveUrl(r.url) && !isGensparkUrl(r.url)) {
                         openModal('Invalid Link', 'Please paste a Google Drive/Docs or Genspark URL link.', closeModal);
                         return;
                       }
-                      setModel(m=>({...m, clients: m.clients.map(x=>x.id===c.id?{...x, reports:[...(x.reports||[]), r]}:x)}));
+                      setModel(m => ({ ...m, clients: m.clients.map(x => x.id === c.id ? { ...x, reports: [...(x.reports || []), r] } : x) }));
                     }}
-                    onRemove={(id)=>setModel(m=>({...m, clients: m.clients.map(x=>x.id===c.id?{...x, reports:x.reports.filter(rr=>rr.id!==id)}:x)}))}
+                    onRemove={(id) => setModel(m => ({ ...m, clients: m.clients.map(x => x.id === c.id ? { ...x, reports: x.reports.filter(rr => rr.id !== id) } : x) }))}
                   />
                 </td>
                 <td className="p-2 border">
-                  <button className="text-xs text-red-600" onClick={()=>setModel(m=>({...m, clients: m.clients.filter(x=>x.id!==c.id)}))}>Remove</button>
+                  <button className="text-xs text-red-600" onClick={() => setModel(m => ({ ...m, clients: m.clients.filter(x => x.id !== c.id) }))}>Remove</button>
                 </td>
               </tr>
             ))}
             <tr className="bg-amber-50">
               <td className="p-2 border">
-                <input className="w-full border rounded-lg p-2" placeholder="Enter client name" value={draftRow.name} onChange={e=>setDraftRow(d=>({...d, name:e.target.value}))} />
+                <input className="w-full border rounded-lg p-2" placeholder="Enter client name" value={draftRow.name} onChange={e => setDraftRow(d => ({ ...d, name: e.target.value }))} />
               </td>
               <td className="p-2 border">
-                <textarea className="w-full border rounded-lg p-2" rows={2} placeholder="Scope of Work (Dashboard, PDF, WhatsApp…)" value={draftRow.scopeOfWork} onChange={e=>setDraftRow(d=>({...d, scopeOfWork:e.target.value}))} />
+                <textarea className="w-full border rounded-lg p-2" rows={2} placeholder="Scope of Work (Dashboard, PDF, WhatsApp…)" value={draftRow.scopeOfWork} onChange={e => setDraftRow(d => ({ ...d, scopeOfWork: e.target.value }))} />
               </td>
               <td className="p-2 border">
-                <input className="w-full border rounded-lg p-2" placeholder="Google Drive or Genspark URL (view access)" value={draftRow.url} onChange={e=>setDraftRow(d=>({...d, url:e.target.value}))} />
+                <input className="w-full border rounded-lg p-2" placeholder="Google Drive or Genspark URL (view access)" value={draftRow.url} onChange={e => setDraftRow(d => ({ ...d, url: e.target.value }))} />
               </td>
               <td className="p-2 border">
                 <button className="px-3 py-2 rounded-lg bg-blue-600 text-white" onClick={pushDraft}>Add Client</button>
@@ -1420,39 +1420,40 @@ function ClientTable({currentSubmission, previousSubmission, setModel, monthPrev
         </table>
       </div>
 
-      {currentSubmission.clients.length===0 && (
+      {currentSubmission.clients.length === 0 && (
         <div className="text-sm text-gray-600 mt-2">Start by typing a client name in the first row, optionally add a Drive link, then hit <b>Add Client</b>. KPIs for that client will appear below.</div>
       )}
 
-      {currentSubmission.clients.map(c=> {
+      {currentSubmission.clients.map(c => {
         const prevClient = previousSubmission?.clients.find(pc => pc.name === c.name) || {};
         const isNewClient = !previousSubmission || Object.keys(prevClient).length === 0;
         return (
           <div key={c.id} className="border rounded-2xl p-4 my-4 bg-white">
             <div className="font-semibold mb-2">KPIs • {c.name} <span className="text-xs text-gray-500">({monthLabel(monthPrev)} vs {monthLabel(monthThis)})</span></div>
             {currentSubmission.employee.department === 'Web' && (
-              <KPIsWeb client={c} prevClient={prevClient} onChange={(cc)=>setModel(m=>({...m, clients: m.clients.map(x=>x.id===c.id?cc:x)}))} monthPrev={monthPrev} monthThis={monthThis} isNewClient={isNewClient}/>
+              <KPIsWeb client={c} prevClient={prevClient} onChange={(cc) => setModel(m => ({ ...m, clients: m.clients.map(x => x.id === c.id ? cc : x) }))} monthPrev={monthPrev} monthThis={monthThis} isNewClient={isNewClient} />
             )}
             {currentSubmission.employee.department === 'Social Media' && (
-              <KPIsSocial client={c} prevClient={prevClient} employeeRole={currentSubmission.employee.role} onChange={(cc)=>setModel(m=>({...m, clients: m.clients.map(x=>x.id===c.id?cc:x)}))} monthPrev={monthPrev} monthThis={monthThis} isNewClient={isNewClient}/>
+              <KPIsSocial client={c} prevClient={prevClient} employeeRole={currentSubmission.employee.role} onChange={(cc) => setModel(m => ({ ...m, clients: m.clients.map(x => x.id === c.id ? cc : x) }))} monthPrev={monthPrev} monthThis={monthThis} isNewClient={isNewClient} />
             )}
             {currentSubmission.employee.department === 'Ads' && (
-              <KPIsAds client={c} prevClient={prevClient} onChange={(cc)=>setModel(m=>({...m, clients: m.clients.map(x=>x.id===c.id?cc:x)}))} monthPrev={monthPrev} monthThis={monthThis} isNewClient={isNewClient}/>
+              <KPIsAds client={c} prevClient={prevClient} onChange={(cc) => setModel(m => ({ ...m, clients: m.clients.map(x => x.id === c.id ? cc : x) }))} monthPrev={monthPrev} monthThis={monthThis} isNewClient={isNewClient} />
             )}
             {currentSubmission.employee.department === 'SEO' && (
-              <KPIsSEO client={c} prevClient={prevClient} onChange={(cc)=>setModel(m=>({...m, clients: m.clients.map(x=>x.id===c.id?cc:x)}))} monthPrev={monthPrev} monthThis={monthThis} openModal={openModal} closeModal={closeModal} isNewClient={isNewClient}/>
+              <KPIsSEO client={c} prevClient={prevClient} onChange={(cc) => setModel(m => ({ ...m, clients: m.clients.map(x => x.id === c.id ? cc : x) }))} monthPrev={monthPrev} monthThis={monthThis} openModal={openModal} closeModal={closeModal} isNewClient={isNewClient} />
             )}
             {isWebHead && (
-              <KPIsWebHead client={c} prevClient={prevClient} onChange={(cc)=>setModel(m=>({...m, clients: m.clients.map(x=>x.id===c.id?cc:x)}))} monthPrev={monthPrev} monthThis={monthThis} isNewClient={isNewClient} />
+              <KPIsWebHead client={c} prevClient={prevClient} onChange={(cc) => setModel(m => ({ ...m, clients: m.clients.map(x => x.id === c.id ? cc : x) }))} monthPrev={monthPrev} monthThis={monthThis} isNewClient={isNewClient} />
             )}
             {isOpsHead && (
-              <KPIsOperationsHead client={c} onChange={(cc)=>setModel(m=>({...m, clients: m.clients.map(x=>x.id===c.id?cc:x)}))} />
+              <KPIsOperationsHead client={c} onChange={(cc) => setModel(m => ({ ...m, clients: m.clients.map(x => x.id === c.id ? cc : x) }))} />
             )}
             {hasClientStatusSection && (
-              <ClientReportStatus client={c} prevClient={prevClient} onChange={(cc)=>setModel(m=>({...m, clients: m.clients.map(x=>x.id===c.id?cc:x)}))}/>
+              <ClientReportStatus client={c} prevClient={prevClient} onChange={(cc) => setModel(m => ({ ...m, clients: m.clients.map(x => x.id === c.id ? cc : x) }))} />
             )}
           </div>
-        )})}
+        )
+      })}
     </div>
   );
 }
@@ -1523,186 +1524,186 @@ function PrevValue({ label, value }) {
   );
 }
 
-function ProofField({label, value, onChange}){
+function ProofField({ label, value, onChange }) {
   return (
     <div>
       <label className="text-xs text-gray-600">{label} (Drive URL)</label>
-      <input className="w-full border rounded-xl p-2" placeholder="https://drive.google.com/..." value={value||""} onChange={e=>onChange(e.target.value)} />
+      <input className="w-full border rounded-xl p-2" placeholder="https://drive.google.com/..." value={value || ""} onChange={e => onChange(e.target.value)} />
     </div>
   );
 }
 
-function KPIsWeb({client, prevClient, onChange, monthPrev, monthThis, isNewClient}){
-  const delta = (a,b)=> (a||0) - (b||0);
+function KPIsWeb({ client, prevClient, onChange, monthPrev, monthThis, isNewClient }) {
+  const delta = (a, b) => (a || 0) - (b || 0);
   return (
     <div className="grid md:grid-cols-4 gap-3 mt-3">
       {isNewClient ? (
-        <NumField label={`# Pages (${monthLabel(monthPrev)})`} value={client.web_pagesPrev || 0} onChange={v=>onChange({...client, web_pagesPrev: v})}/>
+        <NumField label={`# Pages (${monthLabel(monthPrev)})`} value={client.web_pagesPrev || 0} onChange={v => onChange({ ...client, web_pagesPrev: v })} />
       ) : (
         <PrevValue label={`# Pages (${monthLabel(monthPrev)})`} value={prevClient.web_pagesThis || 0} />
       )}
-      <NumField label={`# Pages (${monthLabel(monthThis)})`} value={client.web_pagesThis||0} onChange={v=>onChange({...client, web_pagesThis:v})}/>
+      <NumField label={`# Pages (${monthLabel(monthThis)})`} value={client.web_pagesThis || 0} onChange={v => onChange({ ...client, web_pagesThis: v })} />
       {isNewClient ? (
-        <NumField label={`On-time % (${monthLabel(monthPrev)})`} value={client.web_onTimePrev || 0} onChange={v=>onChange({...client, web_onTimePrev: v})}/>
+        <NumField label={`On-time % (${monthLabel(monthPrev)})`} value={client.web_onTimePrev || 0} onChange={v => onChange({ ...client, web_onTimePrev: v })} />
       ) : (
         <PrevValue label={`On-time % (${monthLabel(monthPrev)})`} value={prevClient.web_onTimeThis || 0} />
       )}
-      <NumField label={`On-time % (${monthLabel(monthThis)})`} value={client.web_onTimeThis||0} onChange={v=>onChange({...client, web_onTimeThis:v})}/>
+      <NumField label={`On-time % (${monthLabel(monthThis)})`} value={client.web_onTimeThis || 0} onChange={v => onChange({ ...client, web_onTimeThis: v })} />
       {isNewClient ? (
-        <NumField label={`Bugs Fixed (${monthLabel(monthPrev)})`} value={client.web_bugsPrev || 0} onChange={v=>onChange({...client, web_bugsPrev: v})}/>
+        <NumField label={`Bugs Fixed (${monthLabel(monthPrev)})`} value={client.web_bugsPrev || 0} onChange={v => onChange({ ...client, web_bugsPrev: v })} />
       ) : (
         <PrevValue label={`Bugs Fixed (${monthLabel(monthPrev)})`} value={prevClient.web_bugsThis || 0} />
       )}
-      <NumField label={`Bugs Fixed (${monthLabel(monthThis)})`} value={client.web_bugsThis||0} onChange={v=>onChange({...client, web_bugsThis:v})}/>
-      <NumField label="# SaaS tools upsold (this)" value={client.web_saasUpsells||0} onChange={v=>onChange({...client, web_saasUpsells:v})}/>
-      <ProofField label="SaaS proof / invoice / deck" value={client.web_saasProof} onChange={(v)=>onChange({...client, web_saasProof:v})}/>
-      <ProofField label="CRO/Design review proof" value={client.web_proof} onChange={(v)=>onChange({...client, web_proof:v})}/>
-      
+      <NumField label={`Bugs Fixed (${monthLabel(monthThis)})`} value={client.web_bugsThis || 0} onChange={v => onChange({ ...client, web_bugsThis: v })} />
+      <NumField label="# SaaS tools upsold (this)" value={client.web_saasUpsells || 0} onChange={v => onChange({ ...client, web_saasUpsells: v })} />
+      <ProofField label="SaaS proof / invoice / deck" value={client.web_saasProof} onChange={(v) => onChange({ ...client, web_saasProof: v })} />
+      <ProofField label="CRO/Design review proof" value={client.web_proof} onChange={(v) => onChange({ ...client, web_proof: v })} />
+
       {/* Additional Web KPIs */}
-      <NumField label="Client Satisfaction (1-10)" value={client.web_clientSatisfaction||0} onChange={v=>onChange({...client, web_clientSatisfaction:v})}/>
-      <NumField label="Code Quality Score (1-10)" value={client.web_codeQuality||0} onChange={v=>onChange({...client, web_codeQuality:v})}/>
-      <NumField label="Website Speed Score (1-100)" value={client.web_speedScore||0} onChange={v=>onChange({...client, web_speedScore:v})}/>
-      <NumField label="Security Audits Completed" value={client.web_securityAudits||0} onChange={v=>onChange({...client, web_securityAudits:v})}/>
-      
-      <div className="md:col-span-4 text-xs text-gray-600">MoM Pages Δ: {delta(client.web_pagesThis, isNewClient ? client.web_pagesPrev : prevClient.web_pagesThis)} • On-time Δ: {round1((client.web_onTimeThis||0)-(isNewClient ? client.web_onTimePrev : prevClient.web_onTimeThis||0))} • Bugs Δ: {delta(client.web_bugsThis, isNewClient ? client.web_bugsPrev : prevClient.web_bugsThis)}</div>
+      <NumField label="Client Satisfaction (1-10)" value={client.web_clientSatisfaction || 0} onChange={v => onChange({ ...client, web_clientSatisfaction: v })} />
+      <NumField label="Code Quality Score (1-10)" value={client.web_codeQuality || 0} onChange={v => onChange({ ...client, web_codeQuality: v })} />
+      <NumField label="Website Speed Score (1-100)" value={client.web_speedScore || 0} onChange={v => onChange({ ...client, web_speedScore: v })} />
+      <NumField label="Security Audits Completed" value={client.web_securityAudits || 0} onChange={v => onChange({ ...client, web_securityAudits: v })} />
+
+      <div className="md:col-span-4 text-xs text-gray-600">MoM Pages Δ: {delta(client.web_pagesThis, isNewClient ? client.web_pagesPrev : prevClient.web_pagesThis)} • On-time Δ: {round1((client.web_onTimeThis || 0) - (isNewClient ? client.web_onTimePrev : prevClient.web_onTimeThis || 0))} • Bugs Δ: {delta(client.web_bugsThis, isNewClient ? client.web_bugsPrev : prevClient.web_bugsThis)}</div>
     </div>
   );
 }
 
-function KPIsWebHead({client, prevClient, onChange}){
+function KPIsWebHead({ client, prevClient, onChange }) {
   return (
     <div className="grid md:grid-cols-4 gap-3 mt-3">
-        <NumField label={`# Pages Delivered`} value={client.web_pagesThis||0} onChange={v=>onChange({...client, web_pagesThis:v})}/>
-        <NumField label={`On-time % Delivered`} value={client.web_onTimeThis||0} onChange={v=>onChange({...client, web_onTimeThis:v})}/>
-        <NumField label="# SaaS tools upsold (this)" value={client.web_saasUpsells||0} onChange={v=>onChange({...client, web_saasUpsells:v})}/>
-        <ProofField label="Upsell proof / invoice" value={client.web_saasProof} onChange={v=>onChange({...client, web_saasProof:v})}/>
+      <NumField label={`# Pages Delivered`} value={client.web_pagesThis || 0} onChange={v => onChange({ ...client, web_pagesThis: v })} />
+      <NumField label={`On-time % Delivered`} value={client.web_onTimeThis || 0} onChange={v => onChange({ ...client, web_onTimeThis: v })} />
+      <NumField label="# SaaS tools upsold (this)" value={client.web_saasUpsells || 0} onChange={v => onChange({ ...client, web_saasUpsells: v })} />
+      <ProofField label="Upsell proof / invoice" value={client.web_saasProof} onChange={v => onChange({ ...client, web_saasProof: v })} />
     </div>
   );
 }
 
 
-function KPIsSocial({client, prevClient, employeeRole, onChange, monthPrev, monthThis, isNewClient}){
-  const folDelta = (client.sm_followersThis||0) - (isNewClient ? (client.sm_followersPrev||0) : (prevClient.sm_followersThis||0));
-  const reachDelta = (client.sm_reachThis||0) - (isNewClient ? (client.sm_reachPrev||0) : (prevClient.sm_reachThis||0));
-  const erDelta = (client.sm_erThis||0) - (isNewClient ? (client.sm_erPrev||0) : (prevClient.sm_erThis||0));
+function KPIsSocial({ client, prevClient, employeeRole, onChange, monthPrev, monthThis, isNewClient }) {
+  const folDelta = (client.sm_followersThis || 0) - (isNewClient ? (client.sm_followersPrev || 0) : (prevClient.sm_followersThis || 0));
+  const reachDelta = (client.sm_reachThis || 0) - (isNewClient ? (client.sm_reachPrev || 0) : (prevClient.sm_reachThis || 0));
+  const erDelta = (client.sm_erThis || 0) - (isNewClient ? (client.sm_erPrev || 0) : (prevClient.sm_erThis || 0));
   const isDesigner = employeeRole?.includes('Graphic Designer');
   return (
     <div className="grid md:grid-cols-4 gap-3 mt-3">
       {!isDesigner && (
         <>
           {isNewClient ? (
-            <NumField label={`Followers (${monthLabel(monthPrev)})`} value={client.sm_followersPrev || 0} onChange={v=>onChange({...client, sm_followersPrev:v})}/>
+            <NumField label={`Followers (${monthLabel(monthPrev)})`} value={client.sm_followersPrev || 0} onChange={v => onChange({ ...client, sm_followersPrev: v })} />
           ) : (
             <PrevValue label={`Followers (${monthLabel(monthPrev)})`} value={prevClient.sm_followersThis || 0} />
           )}
-          <NumField label={`Followers (${monthLabel(monthThis)})`} value={client.sm_followersThis||0} onChange={v=>onChange({...client, sm_followersThis:v})}/>
+          <NumField label={`Followers (${monthLabel(monthThis)})`} value={client.sm_followersThis || 0} onChange={v => onChange({ ...client, sm_followersThis: v })} />
           {isNewClient ? (
-            <NumField label={`Reach (${monthLabel(monthPrev)})`} value={client.sm_reachPrev || 0} onChange={v=>onChange({...client, sm_reachPrev:v})}/>
+            <NumField label={`Reach (${monthLabel(monthPrev)})`} value={client.sm_reachPrev || 0} onChange={v => onChange({ ...client, sm_reachPrev: v })} />
           ) : (
             <PrevValue label={`Reach (${monthLabel(monthPrev)})`} value={prevClient.sm_reachThis || 0} />
           )}
-          <NumField label={`Reach (${monthLabel(monthThis)})`} value={client.sm_reachThis||0} onChange={v=>onChange({...client, sm_reachThis:v})}/>
+          <NumField label={`Reach (${monthLabel(monthThis)})`} value={client.sm_reachThis || 0} onChange={v => onChange({ ...client, sm_reachThis: v })} />
           {isNewClient ? (
-            <NumField label={`Engagement Rate % (${monthLabel(monthPrev)})`} value={client.sm_erPrev || 0} onChange={v=>onChange({...client, sm_erPrev:v})}/>
+            <NumField label={`Engagement Rate % (${monthLabel(monthPrev)})`} value={client.sm_erPrev || 0} onChange={v => onChange({ ...client, sm_erPrev: v })} />
           ) : (
             <PrevValue label={`Engagement Rate % (${monthLabel(monthPrev)})`} value={prevClient.sm_erThis || 0} />
           )}
-          <NumField label={`Engagement Rate % (${monthLabel(monthThis)})`} value={client.sm_erThis||0} onChange={v=>onChange({...client, sm_erThis:v})}/>
-          <NumField label="# Campaigns (this)" value={client.sm_campaignsThis||0} onChange={v=>onChange({...client, sm_campaignsThis:v})}/>
+          <NumField label={`Engagement Rate % (${monthLabel(monthThis)})`} value={client.sm_erThis || 0} onChange={v => onChange({ ...client, sm_erThis: v })} />
+          <NumField label="# Campaigns (this)" value={client.sm_campaignsThis || 0} onChange={v => onChange({ ...client, sm_campaignsThis: v })} />
           <p className="md:col-span-4 text-xs text-gray-600">MoM Δ — Followers: {folDelta} • Reach: {reachDelta} • ER: {round1(erDelta)}</p>
-          <TextField label="Best Performing Post (title/desc)" value={client.sm_bestPostTitle||""} onChange={v=>onChange({...client, sm_bestPostTitle:v})}/>
-          <ProofField label="Best Post proof (post URL / insights)" value={client.sm_bestPostProof} onChange={v=>onChange({...client, sm_bestPostProof:v})}/>
-          <TextArea label="Distribution Achievements (what you did)" rows={3} value={client.sm_distributionNotes||""} onChange={v=>onChange({...client, sm_distributionNotes:v})} className="md:col-span-2"/>
-          <ProofField label="Campaign proof (deck / screenshots)" value={client.sm_campaignProof} onChange={v=>onChange({...client, sm_campaignProof:v})}/>
+          <TextField label="Best Performing Post (title/desc)" value={client.sm_bestPostTitle || ""} onChange={v => onChange({ ...client, sm_bestPostTitle: v })} />
+          <ProofField label="Best Post proof (post URL / insights)" value={client.sm_bestPostProof} onChange={v => onChange({ ...client, sm_bestPostProof: v })} />
+          <TextArea label="Distribution Achievements (what you did)" rows={3} value={client.sm_distributionNotes || ""} onChange={v => onChange({ ...client, sm_distributionNotes: v })} className="md:col-span-2" />
+          <ProofField label="Campaign proof (deck / screenshots)" value={client.sm_campaignProof} onChange={v => onChange({ ...client, sm_campaignProof: v })} />
         </>
       )}
       {isDesigner && (
         <>
           <h4 className="font-semibold text-sm col-span-4 mt-2">Graphic Designer KPIs</h4>
-          <NumField label="Graphics (Photoshop)" value={client.sm_graphicsPhotoshop||0} onChange={v=>onChange({...client, sm_graphicsPhotoshop:v})}/>
-          <NumField label="Graphics (Canva)" value={client.sm_graphicsCanva||0} onChange={v=>onChange({...client, sm_graphicsCanva:v})}/>
-          <NumField label="Graphics (AI)" value={client.sm_graphicsAi||0} onChange={v=>onChange({...client, sm_graphicsAi:v})}/>
-          <NumField label="Short Videos" value={client.sm_shortVideos||0} onChange={v=>onChange({...client, sm_shortVideos:v})}/>
-          <NumField label="Long Videos" value={client.sm_longVideos||0} onChange={v=>onChange({...client, sm_longVideos:v})}/>
-          <NumField label="Quality Score (1-10)" value={client.sm_qualityScore||0} onChange={v=>onChange({...client, sm_qualityScore:v})}/>
-          
+          <NumField label="Graphics (Photoshop)" value={client.sm_graphicsPhotoshop || 0} onChange={v => onChange({ ...client, sm_graphicsPhotoshop: v })} />
+          <NumField label="Graphics (Canva)" value={client.sm_graphicsCanva || 0} onChange={v => onChange({ ...client, sm_graphicsCanva: v })} />
+          <NumField label="Graphics (AI)" value={client.sm_graphicsAi || 0} onChange={v => onChange({ ...client, sm_graphicsAi: v })} />
+          <NumField label="Short Videos" value={client.sm_shortVideos || 0} onChange={v => onChange({ ...client, sm_shortVideos: v })} />
+          <NumField label="Long Videos" value={client.sm_longVideos || 0} onChange={v => onChange({ ...client, sm_longVideos: v })} />
+          <NumField label="Quality Score (1-10)" value={client.sm_qualityScore || 0} onChange={v => onChange({ ...client, sm_qualityScore: v })} />
+
           {/* Additional Designer KPIs */}
-          <NumField label="Brand Consistency Score (1-10)" value={client.sm_brandConsistency||0} onChange={v=>onChange({...client, sm_brandConsistency:v})}/>
-          <NumField label="Client Revisions Required" value={client.sm_revisions||0} onChange={v=>onChange({...client, sm_revisions:v})}/>
-          <NumField label="Templates Created" value={client.sm_templatesCreated||0} onChange={v=>onChange({...client, sm_templatesCreated:v})}/>
+          <NumField label="Brand Consistency Score (1-10)" value={client.sm_brandConsistency || 0} onChange={v => onChange({ ...client, sm_brandConsistency: v })} />
+          <NumField label="Client Revisions Required" value={client.sm_revisions || 0} onChange={v => onChange({ ...client, sm_revisions: v })} />
+          <NumField label="Templates Created" value={client.sm_templatesCreated || 0} onChange={v => onChange({ ...client, sm_templatesCreated: v })} />
         </>
       )}
-      
+
       {/* Common Social Media KPIs for all roles */}
       <div className="md:col-span-4 bg-purple-50 rounded-lg p-4 mt-4">
         <h4 className="font-medium text-purple-800 mb-3">📈 Additional Social Media Metrics</h4>
         <div className="grid md:grid-cols-4 gap-3">
-          <NumField label="Story Views" value={client.sm_storyViews||0} onChange={v=>onChange({...client, sm_storyViews:v})}/>
-          <NumField label="Saves/Shares" value={client.sm_savesShares||0} onChange={v=>onChange({...client, sm_savesShares:v})}/>
-          <NumField label="Comments Responded %" value={client.sm_responseRate||0} onChange={v=>onChange({...client, sm_responseRate:v})}/>
-          <NumField label="Hashtag Performance Score (1-10)" value={client.sm_hashtagScore||0} onChange={v=>onChange({...client, sm_hashtagScore:v})}/>
+          <NumField label="Story Views" value={client.sm_storyViews || 0} onChange={v => onChange({ ...client, sm_storyViews: v })} />
+          <NumField label="Saves/Shares" value={client.sm_savesShares || 0} onChange={v => onChange({ ...client, sm_savesShares: v })} />
+          <NumField label="Comments Responded %" value={client.sm_responseRate || 0} onChange={v => onChange({ ...client, sm_responseRate: v })} />
+          <NumField label="Hashtag Performance Score (1-10)" value={client.sm_hashtagScore || 0} onChange={v => onChange({ ...client, sm_hashtagScore: v })} />
         </div>
       </div>
     </div>
   );
 }
 
-function KPIsAds({client, prevClient, onChange, monthPrev, monthThis, isNewClient}){
-  const cplDelta = (client.ads_cplThis||0) - (isNewClient ? (client.ads_cplPrev||0) : (prevClient.ads_cplThis||0));
-  const ctrDelta = (client.ads_ctrThis||0) - (isNewClient ? (client.ads_ctrPrev||0) : (prevClient.ads_ctrThis||0));
-  const leadsDelta = (client.ads_leadsThis||0) - (isNewClient ? (client.ads_leadsPrev||0) : (prevClient.ads_leadsThis||0));
+function KPIsAds({ client, prevClient, onChange, monthPrev, monthThis, isNewClient }) {
+  const cplDelta = (client.ads_cplThis || 0) - (isNewClient ? (client.ads_cplPrev || 0) : (prevClient.ads_cplThis || 0));
+  const ctrDelta = (client.ads_ctrThis || 0) - (isNewClient ? (client.ads_ctrPrev || 0) : (prevClient.ads_ctrThis || 0));
+  const leadsDelta = (client.ads_leadsThis || 0) - (isNewClient ? (client.ads_leadsPrev || 0) : (prevClient.ads_leadsThis || 0));
   return (
     <div className="grid md:grid-cols-4 gap-3 mt-3">
-      <NumField label="# New Ads Created (this)" value={client.ads_newAds||0} onChange={v=>onChange({...client, ads_newAds:v})}/>
+      <NumField label="# New Ads Created (this)" value={client.ads_newAds || 0} onChange={v => onChange({ ...client, ads_newAds: v })} />
       {isNewClient ? (
-        <NumField label={`CTR % (${monthLabel(monthPrev)})`} value={client.ads_ctrPrev || 0} onChange={v=>onChange({...client, ads_ctrPrev:v})}/>
+        <NumField label={`CTR % (${monthLabel(monthPrev)})`} value={client.ads_ctrPrev || 0} onChange={v => onChange({ ...client, ads_ctrPrev: v })} />
       ) : (
         <PrevValue label={`CTR % (${monthLabel(monthPrev)})`} value={prevClient.ads_ctrThis || 0} />
       )}
-      <NumField label={`CTR % (${monthLabel(monthThis)})`} value={client.ads_ctrThis||0} onChange={v=>onChange({...client, ads_ctrThis:v})}/>
+      <NumField label={`CTR % (${monthLabel(monthThis)})`} value={client.ads_ctrThis || 0} onChange={v => onChange({ ...client, ads_ctrThis: v })} />
       {isNewClient ? (
-        <NumField label={`CPL (${monthLabel(monthPrev)})`} value={client.ads_cplPrev || 0} onChange={v=>onChange({...client, ads_cplPrev:v})}/>
+        <NumField label={`CPL (${monthLabel(monthPrev)})`} value={client.ads_cplPrev || 0} onChange={v => onChange({ ...client, ads_cplPrev: v })} />
       ) : (
         <PrevValue label={`CPL (${monthLabel(monthPrev)})`} value={prevClient.ads_cplThis || 0} />
       )}
-      <NumField label={`CPL (${monthLabel(monthThis)})`} value={client.ads_cplThis||0} onChange={v=>onChange({...client, ads_cplThis:v})}/>
+      <NumField label={`CPL (${monthLabel(monthThis)})`} value={client.ads_cplThis || 0} onChange={v => onChange({ ...client, ads_cplThis: v })} />
       {isNewClient ? (
-        <NumField label={`Leads (${monthLabel(monthPrev)})`} value={client.ads_leadsPrev || 0} onChange={v=>onChange({...client, ads_leadsPrev:v})}/>
+        <NumField label={`Leads (${monthLabel(monthPrev)})`} value={client.ads_leadsPrev || 0} onChange={v => onChange({ ...client, ads_leadsPrev: v })} />
       ) : (
         <PrevValue label={`Leads (${monthLabel(monthPrev)})`} value={prevClient.ads_leadsThis || 0} />
       )}
-      <NumField label={`Leads (${monthLabel(monthThis)})`} value={client.ads_leadsThis||0} onChange={v=>onChange({...client, ads_leadsThis:v})}/>
-      <TextField label="Best Performing Ad (name/desc)" value={client.ads_bestAdTitle||""} onChange={v=>onChange({...client, ads_bestAdTitle:v})}/>
-      <ProofField label="Best Ad proof (screenshot/insights)" value={client.ads_bestAdProof} onChange={v=>onChange({...client, ads_bestAdProof:v})}/>
-      <TextArea label="Landing Page URL" value={client.ads_landingPageUrl || ""} onChange={v => onChange({...client, ads_landingPageUrl: v})} />
-      <TextArea label="Landing Page Improvements" value={client.ads_landingPageImprovements || ""} onChange={v => onChange({...client, ads_landingPageImprovements: v})} />
+      <NumField label={`Leads (${monthLabel(monthThis)})`} value={client.ads_leadsThis || 0} onChange={v => onChange({ ...client, ads_leadsThis: v })} />
+      <TextField label="Best Performing Ad (name/desc)" value={client.ads_bestAdTitle || ""} onChange={v => onChange({ ...client, ads_bestAdTitle: v })} />
+      <ProofField label="Best Ad proof (screenshot/insights)" value={client.ads_bestAdProof} onChange={v => onChange({ ...client, ads_bestAdProof: v })} />
+      <TextArea label="Landing Page URL" value={client.ads_landingPageUrl || ""} onChange={v => onChange({ ...client, ads_landingPageUrl: v })} />
+      <TextArea label="Landing Page Improvements" value={client.ads_landingPageImprovements || ""} onChange={v => onChange({ ...client, ads_landingPageImprovements: v })} />
       <p className="md:col-span-4 text-xs text-gray-600">MoM Δ — CTR: {round1(ctrDelta)}pp • CPL: {round1(cplDelta)} (↓ is better) • Leads: {leadsDelta}</p>
-      
+
       {/* Additional Ads KPIs */}
       <div className="md:col-span-4 bg-orange-50 rounded-lg p-4 mt-4">
         <h4 className="font-medium text-orange-800 mb-3">📊 Advanced Ads Metrics</h4>
         <div className="grid md:grid-cols-4 gap-3">
-          <NumField label="ROAS (Return on Ad Spend)" value={client.ads_roas||0} onChange={v=>onChange({...client, ads_roas:v})}/>
-          <NumField label="Conversion Rate %" value={client.ads_conversionRate||0} onChange={v=>onChange({...client, ads_conversionRate:v})}/>
-          <NumField label="Quality Score (1-10)" value={client.ads_qualityScore||0} onChange={v=>onChange({...client, ads_qualityScore:v})}/>
-          <NumField label="Impression Share %" value={client.ads_impressionShare||0} onChange={v=>onChange({...client, ads_impressionShare:v})}/>
-          <NumField label="Ad Spend ($)" value={client.ads_spend||0} onChange={v=>onChange({...client, ads_spend:v})}/>
-          <NumField label="Campaigns Optimized" value={client.ads_campaignsOptimized||0} onChange={v=>onChange({...client, ads_campaignsOptimized:v})}/>
-          <NumField label="A/B Tests Conducted" value={client.ads_abTests||0} onChange={v=>onChange({...client, ads_abTests:v})}/>
-          <NumField label="Negative Keywords Added" value={client.ads_negativeKeywords||0} onChange={v=>onChange({...client, ads_negativeKeywords:v})}/>
+          <NumField label="ROAS (Return on Ad Spend)" value={client.ads_roas || 0} onChange={v => onChange({ ...client, ads_roas: v })} />
+          <NumField label="Conversion Rate %" value={client.ads_conversionRate || 0} onChange={v => onChange({ ...client, ads_conversionRate: v })} />
+          <NumField label="Quality Score (1-10)" value={client.ads_qualityScore || 0} onChange={v => onChange({ ...client, ads_qualityScore: v })} />
+          <NumField label="Impression Share %" value={client.ads_impressionShare || 0} onChange={v => onChange({ ...client, ads_impressionShare: v })} />
+          <NumField label="Ad Spend ($)" value={client.ads_spend || 0} onChange={v => onChange({ ...client, ads_spend: v })} />
+          <NumField label="Campaigns Optimized" value={client.ads_campaignsOptimized || 0} onChange={v => onChange({ ...client, ads_campaignsOptimized: v })} />
+          <NumField label="A/B Tests Conducted" value={client.ads_abTests || 0} onChange={v => onChange({ ...client, ads_abTests: v })} />
+          <NumField label="Negative Keywords Added" value={client.ads_negativeKeywords || 0} onChange={v => onChange({ ...client, ads_negativeKeywords: v })} />
         </div>
       </div>
     </div>
   );
 }
 
-function KPIsSEO({client, prevClient, onChange, monthPrev, monthThis, openModal, closeModal, isNewClient}){
-  const [kw, setKw] = useState(client.seo_keywordsWorked||[]);
-  const [top3, setTop3] = useState(client.seo_top3||[]);
-  useEffect(()=>{ onChange({...client, seo_keywordsWorked: kw}); },[kw]);
-  useEffect(()=>{ onChange({...client, seo_top3: top3}); },[top3]);
+function KPIsSEO({ client, prevClient, onChange, monthPrev, monthThis, openModal, closeModal, isNewClient }) {
+  const [kw, setKw] = useState(client.seo_keywordsWorked || []);
+  const [top3, setTop3] = useState(client.seo_top3 || []);
+  useEffect(() => { onChange({ ...client, seo_keywordsWorked: kw }); }, [kw]);
+  useEffect(() => { onChange({ ...client, seo_top3: top3 }); }, [top3]);
 
-  const addKw = ()=>{
+  const addKw = () => {
     let newKw = { keyword: '', location: '', searchVolume: 0, rankPrev: 0, rankNow: 0, proof: '' };
     const getKeyword = (currentVal = '') => {
       openModal('Add Keyword', 'Enter the keyword.', (keyword) => {
@@ -1743,18 +1744,18 @@ function KPIsSEO({client, prevClient, onChange, monthPrev, monthThis, openModal,
     const getProof = (currentVal = '') => {
       openModal('Proof URL', 'Enter the proof URL (Drive / SERP screenshot).', (proof) => {
         newKw.proof = proof;
-        setKw(list=>[...list, newKw]);
+        setKw(list => [...list, newKw]);
         closeModal();
       }, closeModal, 'Proof URL', currentVal);
     };
 
     getKeyword();
   };
-  const addTop3 = ()=>{
+  const addTop3 = () => {
     let newTop3 = { keyword: '', searchVolume: 0, proof: '' };
     const getKeyword = (currentVal = '') => {
       openModal('Add Top 3 Keyword', 'Enter the keyword.', (keyword) => {
-        if(!keyword) { closeModal(); return; }
+        if (!keyword) { closeModal(); return; }
         newTop3.keyword = keyword;
         getSearchVolume(newTop3.searchVolume);
       }, closeModal, 'Top 3 Keyword', currentVal);
@@ -1770,48 +1771,48 @@ function KPIsSEO({client, prevClient, onChange, monthPrev, monthThis, openModal,
     const getProof = (currentVal = '') => {
       openModal('Proof URL', 'Enter the proof URL (Drive/SERP).', (proof) => {
         newTop3.proof = proof;
-        setTop3(list=>[...list, newTop3]);
+        setTop3(list => [...list, newTop3]);
         closeModal();
       }, closeModal, 'Proof URL', currentVal);
     };
 
     getKeyword();
   };
-  const trafDelta = (client.seo_trafficThis||0) - (isNewClient ? (client.seo_trafficPrev||0) : (prevClient.seo_trafficThis||0));
-  const llmDelta  = (client.seo_llmTrafficThis||0) - (isNewClient ? (client.seo_llmTrafficPrev||0) : (prevClient.seo_llmTrafficThis||0));
-  const leadsDelta = (client.seo_leadsThis||0) - (isNewClient ? (client.seo_leadsPrev||0) : (prevClient.seo_leadsThis||0));
-  const localCallsDelta = (client.seo_localCallsThis||0) - (isNewClient ? (client.seo_localCallsPrev||0) : (prevClient.seo_localCallsThis||0));
+  const trafDelta = (client.seo_trafficThis || 0) - (isNewClient ? (client.seo_trafficPrev || 0) : (prevClient.seo_trafficThis || 0));
+  const llmDelta = (client.seo_llmTrafficThis || 0) - (isNewClient ? (client.seo_llmTrafficPrev || 0) : (prevClient.seo_llmTrafficThis || 0));
+  const leadsDelta = (client.seo_leadsThis || 0) - (isNewClient ? (client.seo_leadsPrev || 0) : (prevClient.seo_leadsThis || 0));
+  const localCallsDelta = (client.seo_localCallsThis || 0) - (isNewClient ? (client.seo_localCallsPrev || 0) : (prevClient.seo_localCallsThis || 0));
   return (
     <div className="grid md:grid-cols-4 gap-3 mt-3">
       {isNewClient ? (
-        <NumField label={`Organic Traffic (${monthLabel(monthPrev)})`} value={client.seo_trafficPrev || 0} onChange={v=>onChange({...client, seo_trafficPrev:v})}/>
+        <NumField label={`Organic Traffic (${monthLabel(monthPrev)})`} value={client.seo_trafficPrev || 0} onChange={v => onChange({ ...client, seo_trafficPrev: v })} />
       ) : (
         <PrevValue label={`Organic Traffic (${monthLabel(monthPrev)})`} value={prevClient.seo_trafficThis || 0} />
       )}
-      <NumField label={`Organic Traffic (${monthLabel(monthThis)})`} value={client.seo_trafficThis||0} onChange={v=>onChange({...client, seo_trafficThis:v})}/>
+      <NumField label={`Organic Traffic (${monthLabel(monthThis)})`} value={client.seo_trafficThis || 0} onChange={v => onChange({ ...client, seo_trafficThis: v })} />
       {isNewClient ? (
-        <NumField label={`LLM/AI Overview Traffic (${monthLabel(monthPrev)})`} value={client.seo_llmTrafficPrev || 0} onChange={v=>onChange({...client, seo_llmTrafficPrev:v})}/>
+        <NumField label={`LLM/AI Overview Traffic (${monthLabel(monthPrev)})`} value={client.seo_llmTrafficPrev || 0} onChange={v => onChange({ ...client, seo_llmTrafficPrev: v })} />
       ) : (
         <PrevValue label={`LLM/AI Overview Traffic (${monthLabel(monthPrev)})`} value={prevClient.seo_llmTrafficThis || 0} />
       )}
-      <NumField label={`LLM/AI Overview Traffic (${monthLabel(monthThis)})`} value={client.seo_llmTrafficThis||0} onChange={v=>onChange({...client, seo_llmTrafficThis:v})}/>
+      <NumField label={`LLM/AI Overview Traffic (${monthLabel(monthThis)})`} value={client.seo_llmTrafficThis || 0} onChange={v => onChange({ ...client, seo_llmTrafficThis: v })} />
       {isNewClient ? (
-        <NumField label={`Leads from SEO (${monthLabel(monthPrev)})`} value={client.seo_leadsPrev || 0} onChange={v=>onChange({...client, seo_leadsPrev:v})}/>
+        <NumField label={`Leads from SEO (${monthLabel(monthPrev)})`} value={client.seo_leadsPrev || 0} onChange={v => onChange({ ...client, seo_leadsPrev: v })} />
       ) : (
         <PrevValue label={`Leads from SEO (${monthLabel(monthPrev)})`} value={prevClient.seo_leadsThis || 0} />
       )}
-      <NumField label={`Leads from SEO (${monthLabel(monthThis)})`} value={client.seo_leadsThis||0} onChange={v=>onChange({...client, seo_leadsThis:v})}/>
-      <NumField label="# Keywords Improved (this)" value={client.seo_kwImprovedThis||0} onChange={v=>onChange({...client, seo_kwImprovedThis:v})}/>
-      <NumField label="# AI Overviews / LLM (this)" value={client.seo_aiOverviewThis||0} onChange={v=>onChange({...client, seo_aiOverviewThis:v})}/>
+      <NumField label={`Leads from SEO (${monthLabel(monthThis)})`} value={client.seo_leadsThis || 0} onChange={v => onChange({ ...client, seo_leadsThis: v })} />
+      <NumField label="# Keywords Improved (this)" value={client.seo_kwImprovedThis || 0} onChange={v => onChange({ ...client, seo_kwImprovedThis: v })} />
+      <NumField label="# AI Overviews / LLM (this)" value={client.seo_aiOverviewThis || 0} onChange={v => onChange({ ...client, seo_aiOverviewThis: v })} />
       {isNewClient ? (
-        <NumField label={`Local SEO Calls (${monthLabel(monthPrev)})`} value={client.seo_localCallsPrev || 0} onChange={v=>onChange({...client, seo_localCallsPrev:v})}/>
+        <NumField label={`Local SEO Calls (${monthLabel(monthPrev)})`} value={client.seo_localCallsPrev || 0} onChange={v => onChange({ ...client, seo_localCallsPrev: v })} />
       ) : (
         <PrevValue label={`Local SEO Calls (${monthLabel(monthPrev)})`} value={prevClient.seo_localCallsThis || 0} />
       )}
-      <NumField label={`Local SEO Calls (${monthLabel(monthThis)})`} value={client.seo_localCallsThis||0} onChange={v=>onChange({...client, seo_localCallsThis:v})}/>
-      <ProofField label="Traffic/GA4 proof" value={client.seo_trafficProof} onChange={(v)=>onChange({...client, seo_trafficProof:v})}/>
-      <ProofField label="AI Overview proof" value={client.seo_aiOverviewProof} onChange={(v)=>onChange({...client, seo_aiOverviewProof:v})}/>
-      <div className="md:col-span-4 text-xs text-gray-600">MoM Δ — Organic: {trafDelta} {isNewClient ? '' : prevClient.seo_trafficThis? '('+round1((trafDelta/prevClient.seo_trafficThis)*100)+'%)' : ''} • LLM: {llmDelta} • SEO Leads: {leadsDelta} • Local Calls: {localCallsDelta}</div>
+      <NumField label={`Local SEO Calls (${monthLabel(monthThis)})`} value={client.seo_localCallsThis || 0} onChange={v => onChange({ ...client, seo_localCallsThis: v })} />
+      <ProofField label="Traffic/GA4 proof" value={client.seo_trafficProof} onChange={(v) => onChange({ ...client, seo_trafficProof: v })} />
+      <ProofField label="AI Overview proof" value={client.seo_aiOverviewProof} onChange={(v) => onChange({ ...client, seo_aiOverviewProof: v })} />
+      <div className="md:col-span-4 text-xs text-gray-600">MoM Δ — Organic: {trafDelta} {isNewClient ? '' : prevClient.seo_trafficThis ? '(' + round1((trafDelta / prevClient.seo_trafficThis) * 100) + '%)' : ''} • LLM: {llmDelta} • SEO Leads: {leadsDelta} • Local Calls: {localCallsDelta}</div>
 
       <div className="md:col-span-4">
         <div className="flex items-center justify-between">
@@ -1819,10 +1820,10 @@ function KPIsSEO({client, prevClient, onChange, monthPrev, monthThis, openModal,
           <button className="text-xs px-2 py-1 bg-blue-600 text-white rounded-lg" onClick={addKw}>+ Add Keyword</button>
         </div>
         <div className="mt-2 space-y-1">
-          {kw.map((k,i)=> (
+          {kw.map((k, i) => (
             <div key={i} className="text-xs flex items-center justify-between border rounded-lg p-2 gap-2">
-              <div className="truncate"><b>{k.keyword}</b> • {k.location||'—'} • SV {k.searchVolume} • Rank {k.rankPrev||"-"}→{k.rankNow||"-"} • <a className="underline" href={k.proof||'#'} target="_blank" rel="noreferrer">proof</a></div>
-              <button className="text-red-600" onClick={()=>setKw(list=>list.filter((_,idx)=>idx!==i))}>Remove</button>
+              <div className="truncate"><b>{k.keyword}</b> • {k.location || '—'} • SV {k.searchVolume} • Rank {k.rankPrev || "-"}→{k.rankNow || "-"} • <a className="underline" href={k.proof || '#'} target="_blank" rel="noreferrer">proof</a></div>
+              <button className="text-red-600" onClick={() => setKw(list => list.filter((_, idx) => idx !== i))}>Remove</button>
             </div>
           ))}
         </div>
@@ -1834,38 +1835,38 @@ function KPIsSEO({client, prevClient, onChange, monthPrev, monthThis, openModal,
           <button className="text-xs px-2 py-1 bg-blue-600 text-white rounded-lg" onClick={addTop3}>+ Add Top-3 Keyword</button>
         </div>
         <div className="mt-2 space-y-1">
-          {top3.map((k,i)=> (
+          {top3.map((k, i) => (
             <div key={i} className="text-xs flex items-center justify-between border rounded-lg p-2 gap-2">
-              <div className="truncate"><b>{k.keyword}</b> • SV {k.searchVolume} • <a className="underline" href={k.proof||'#'} target="_blank" rel="noreferrer">proof</a></div>
-              <button className="text-red-600" onClick={()=>setTop3(list=>list.filter((_,idx)=>idx!==i))}>Remove</button>
+              <div className="truncate"><b>{k.keyword}</b> • SV {k.searchVolume} • <a className="underline" href={k.proof || '#'} target="_blank" rel="noreferrer">proof</a></div>
+              <button className="text-red-600" onClick={() => setTop3(list => list.filter((_, idx) => idx !== i))}>Remove</button>
             </div>
           ))}
         </div>
       </div>
-      
+
       {/* Additional SEO KPIs */}
       <div className="md:col-span-4 bg-green-50 rounded-lg p-4 mt-4">
         <h4 className="font-medium text-green-800 mb-3">🔍 Advanced SEO Metrics</h4>
         <div className="grid md:grid-cols-4 gap-3">
-          <NumField label="Core Web Vitals Score (1-100)" value={client.seo_coreWebVitals||0} onChange={v=>onChange({...client, seo_coreWebVitals:v})}/>
-          <NumField label="Backlinks Acquired" value={client.seo_backlinks||0} onChange={v=>onChange({...client, seo_backlinks:v})}/>
-          <NumField label="Technical Issues Fixed" value={client.seo_technicalFixes||0} onChange={v=>onChange({...client, seo_technicalFixes:v})}/>
-          <NumField label="Content Pieces Published" value={client.seo_contentPublished||0} onChange={v=>onChange({...client, seo_contentPublished:v})}/>
-          <NumField label="Local Citations Built" value={client.seo_localCitations||0} onChange={v=>onChange({...client, seo_localCitations:v})}/>
-          <NumField label="Schema Markup Implemented" value={client.seo_schemaMarkup||0} onChange={v=>onChange({...client, seo_schemaMarkup:v})}/>
-          <NumField label="Page Speed Score (1-100)" value={client.seo_pageSpeed||0} onChange={v=>onChange({...client, seo_pageSpeed:v})}/>
-          <NumField label="Mobile Usability Score (1-100)" value={client.seo_mobileUsability||0} onChange={v=>onChange({...client, seo_mobileUsability:v})}/>
+          <NumField label="Core Web Vitals Score (1-100)" value={client.seo_coreWebVitals || 0} onChange={v => onChange({ ...client, seo_coreWebVitals: v })} />
+          <NumField label="Backlinks Acquired" value={client.seo_backlinks || 0} onChange={v => onChange({ ...client, seo_backlinks: v })} />
+          <NumField label="Technical Issues Fixed" value={client.seo_technicalFixes || 0} onChange={v => onChange({ ...client, seo_technicalFixes: v })} />
+          <NumField label="Content Pieces Published" value={client.seo_contentPublished || 0} onChange={v => onChange({ ...client, seo_contentPublished: v })} />
+          <NumField label="Local Citations Built" value={client.seo_localCitations || 0} onChange={v => onChange({ ...client, seo_localCitations: v })} />
+          <NumField label="Schema Markup Implemented" value={client.seo_schemaMarkup || 0} onChange={v => onChange({ ...client, seo_schemaMarkup: v })} />
+          <NumField label="Page Speed Score (1-100)" value={client.seo_pageSpeed || 0} onChange={v => onChange({ ...client, seo_pageSpeed: v })} />
+          <NumField label="Mobile Usability Score (1-100)" value={client.seo_mobileUsability || 0} onChange={v => onChange({ ...client, seo_mobileUsability: v })} />
         </div>
       </div>
     </div>
   );
 }
 
-function KPIsOperationsHead({client, onChange}){
+function KPIsOperationsHead({ client, onChange }) {
   const scopeOptions = ["Social Media", "SEO", "Ads"];
   const statusOptions = ["Active", "Upgraded", "Left", "Reduced"];
-  const [appDraft, setAppDraft] = useState({ url:'', remark:'' });
-  const [escDraft, setEscDraft] = useState({ url:'', remark:'' });
+  const [appDraft, setAppDraft] = useState({ url: '', remark: '' });
+  const [escDraft, setEscDraft] = useState({ url: '', remark: '' });
   const openModal = useModal();
 
   const addAppreciation = () => {
@@ -1890,55 +1891,55 @@ function KPIsOperationsHead({client, onChange}){
     setEscDraft({ url: '', remark: '' });
   };
 
-  return(
+  return (
     <div className="grid md:grid-cols-4 gap-3 mt-3">
-        <TextField label="Client Name" value={client.name} onChange={v => onChange({...client, name: v})} />
-        <MultiSelect 
-          options={scopeOptions}
-          selected={client.op_clientScope || []}
-          onChange={v => onChange({...client, op_clientScope: v})}
-          placeholder="Select Scope"
-        />
-        <NumField label="Client Satisfaction (1-10)" value={client.op_satisfactionScore || 0} onChange={v => onChange({...client, op_satisfactionScore: v})} />
-        <div>
-          <label className="text-sm">Client Payment Date</label>
-          <input type="date" className="w-full border rounded-xl p-2" value={client.op_paymentDate || ''} onChange={e => onChange({...client, op_paymentDate: e.target.value})} />
+      <TextField label="Client Name" value={client.name} onChange={v => onChange({ ...client, name: v })} />
+      <MultiSelect
+        options={scopeOptions}
+        selected={client.op_clientScope || []}
+        onChange={v => onChange({ ...client, op_clientScope: v })}
+        placeholder="Select Scope"
+      />
+      <NumField label="Client Satisfaction (1-10)" value={client.op_satisfactionScore || 0} onChange={v => onChange({ ...client, op_satisfactionScore: v })} />
+      <div>
+        <label className="text-sm">Client Payment Date</label>
+        <input type="date" className="w-full border rounded-xl p-2" value={client.op_paymentDate || ''} onChange={e => onChange({ ...client, op_paymentDate: e.target.value })} />
+      </div>
+
+      <div className="col-span-4">
+        <label className="text-sm">Team Finished Scope?</label>
+        <input type="checkbox" checked={client.op_teamFinishedScope || false} onChange={e => onChange({ ...client, op_teamFinishedScope: e.target.checked })} />
+      </div>
+
+      <div className="col-span-2">
+        <label className="text-sm">Client Status</label>
+        <select className="w-full border rounded-xl p-2" value={client.op_clientStatus || 'Active'} onChange={e => onChange({ ...client, op_clientStatus: e.target.value })}>
+          {statusOptions.map(s => <option key={s}>{s}</option>)}
+        </select>
+      </div>
+      {(client.op_clientStatus === 'Upgraded' || client.op_clientStatus === 'Left' || client.op_clientStatus === 'Reduced') && (
+        <TextArea label="Reason for status change" value={client.op_clientStatusReason || ''} onChange={v => onChange({ ...client, op_clientStatusReason: v })} rows={2} className="col-span-2" />
+      )}
+
+      <TextArea label="Who Performed Well/Poorly" value={client.op_performanceRemarks || ''} onChange={v => onChange({ ...client, op_performanceRemarks: v })} rows={3} className="col-span-2" />
+      <TextArea label="Things to do differently next month" value={client.op_comingMonthActions || ''} onChange={v => onChange({ ...client, op_comingMonthActions: v })} rows={3} className="col-span-2" />
+
+      <div className="md:col-span-2">
+        <div className="font-medium">Appreciations</div>
+        <div className="grid grid-cols-3 gap-2 mt-1">
+          <input className="border rounded-xl p-2 col-span-2" placeholder="Proof link (Drive/WhatsApp in Drive) – optional" value={appDraft.url} onChange={e => setAppDraft(d => ({ ...d, url: e.target.value }))} />
+          <input className="border rounded-xl p-2" placeholder="Remark (client/channel)" value={appDraft.remark} onChange={e => setAppDraft(d => ({ ...d, remark: e.target.value }))} />
+          <button className="col-span-3 rounded-xl bg-emerald-600 text-white px-3 py-2" onClick={addAppreciation}>+ Add Appreciation</button>
         </div>
-        
-        <div className="col-span-4">
-          <label className="text-sm">Team Finished Scope?</label>
-          <input type="checkbox" checked={client.op_teamFinishedScope || false} onChange={e => onChange({...client, op_teamFinishedScope: e.target.checked})} />
+      </div>
+      <div className="md:col-span-2">
+        <div className="font-medium">Escalations</div>
+        <div className="grid grid-cols-3 gap-2 mt-1">
+          <input className="border rounded-xl p-2 col-span-2" placeholder="Proof link (Drive) – optional" value={escDraft.url} onChange={e => setEscDraft(d => ({ ...d, url: e.target.value }))} />
+          <input className="border rounded-xl p-2" placeholder="Why did this happen?" value={escDraft.remark} onChange={e => setEscDraft(d => ({ ...d, remark: e.target.value }))} />
+          <button className="col-span-3 rounded-xl bg-red-600 text-white px-3 py-2" onClick={addEscalation}>+ Add Escalation</button>
         </div>
-        
-        <div className="col-span-2">
-          <label className="text-sm">Client Status</label>
-          <select className="w-full border rounded-xl p-2" value={client.op_clientStatus || 'Active'} onChange={e => onChange({...client, op_clientStatus: e.target.value})}>
-            {statusOptions.map(s => <option key={s}>{s}</option>)}
-          </select>
-        </div>
-        {(client.op_clientStatus === 'Upgraded' || client.op_clientStatus === 'Left' || client.op_clientStatus === 'Reduced') && (
-          <TextArea label="Reason for status change" value={client.op_clientStatusReason || ''} onChange={v => onChange({...client, op_clientStatusReason: v})} rows={2} className="col-span-2" />
-        )}
-        
-        <TextArea label="Who Performed Well/Poorly" value={client.op_performanceRemarks || ''} onChange={v => onChange({...client, op_performanceRemarks: v})} rows={3} className="col-span-2" />
-        <TextArea label="Things to do differently next month" value={client.op_comingMonthActions || ''} onChange={v => onChange({...client, op_comingMonthActions: v})} rows={3} className="col-span-2" />
-        
-        <div className="md:col-span-2">
-          <div className="font-medium">Appreciations</div>
-          <div className="grid grid-cols-3 gap-2 mt-1">
-            <input className="border rounded-xl p-2 col-span-2" placeholder="Proof link (Drive/WhatsApp in Drive) – optional" value={appDraft.url} onChange={e=>setAppDraft(d=>({...d, url:e.target.value}))} />
-            <input className="border rounded-xl p-2" placeholder="Remark (client/channel)" value={appDraft.remark} onChange={e=>setAppDraft(d=>({...d, remark:e.target.value}))} />
-            <button className="col-span-3 rounded-xl bg-emerald-600 text-white px-3 py-2" onClick={addAppreciation}>+ Add Appreciation</button>
-          </div>
-        </div>
-        <div className="md:col-span-2">
-          <div className="font-medium">Escalations</div>
-          <div className="grid grid-cols-3 gap-2 mt-1">
-            <input className="border rounded-xl p-2 col-span-2" placeholder="Proof link (Drive) – optional" value={escDraft.url} onChange={e=>setEscDraft(d=>({...d, url:e.target.value}))} />
-            <input className="border rounded-xl p-2" placeholder="Why did this happen?" value={escDraft.remark} onChange={e=>setEscDraft(d=>({...d, remark:e.target.value}))} />
-            <button className="col-span-3 rounded-xl bg-red-600 text-white px-3 py-2" onClick={addEscalation}>+ Add Escalation</button>
-          </div>
-        </div>
+      </div>
     </div>
   );
 }
@@ -1946,17 +1947,17 @@ function KPIsOperationsHead({client, onChange}){
 /*****************************
  * Client Report Status block *
  *****************************/
-function ClientReportStatus({client, prevClient, onChange}){
-  const rel = client.relationship||{ roadmapSentDate:'', reportSentDate:'', meetings:[], appreciations:[], escalations:[], clientSatisfaction:0, paymentReceived:false, paymentDate:'' };
+function ClientReportStatus({ client, prevClient, onChange }) {
+  const rel = client.relationship || { roadmapSentDate: '', reportSentDate: '', meetings: [], appreciations: [], escalations: [], clientSatisfaction: 0, paymentReceived: false, paymentDate: '' };
   const prevRel = prevClient.relationship || {};
-  const [meetDraft, setMeetDraft] = useState({ date:'', summary:'', notesLink:'' });
-  const [appDraft, setAppDraft] = useState({ url:'', remark:'' });
-  const [escDraft, setEscDraft] = useState({ url:'', remark:'' });
+  const [meetDraft, setMeetDraft] = useState({ date: '', summary: '', notesLink: '' });
+  const [appDraft, setAppDraft] = useState({ url: '', remark: '' });
+  const [escDraft, setEscDraft] = useState({ url: '', remark: '' });
   const openModal = useModal();
-  
-  function addMeeting(){ if(!meetDraft.date || !meetDraft.summary) return; if(meetDraft.notesLink && !isDriveUrl(meetDraft.notesLink)) { openModal('Invalid Link', 'Notes link must be a Google Drive/Docs URL.'); return; } onChange({ ...client, relationship: { ...rel, meetings:[...(rel.meetings||[]), { id:uid(), ...meetDraft }] }}); setMeetDraft({ date:'', summary:'', notesLink:'' }); }
-  function addAppreciation(){ if(appDraft.url && !isDriveUrl(appDraft.url)) { openModal('Invalid Link', 'Use Google Drive link for proof.'); return; } const item = { id:uid(), url: appDraft.url||'', remark: appDraft.remark||'' }; onChange({ ...client, relationship:{...rel, appreciations:[...(rel.appreciations||[]), item]}}); setAppDraft({ url:'', remark:'' }); }
-  function addEscalation(){ if(escDraft.url && !isDriveUrl(escDraft.url)) { openModal('Invalid Link', 'Use Google Drive link for proof.'); return; } const item = { id:uid(), url: escDraft.url||'', why: escDraft.remark||'' }; onChange({ ...client, relationship:{...rel, escalations:[...(rel.escalations||[]), item]}}); setEscDraft({ url:'', remark:'' }); }
+
+  function addMeeting() { if (!meetDraft.date || !meetDraft.summary) return; if (meetDraft.notesLink && !isDriveUrl(meetDraft.notesLink)) { openModal('Invalid Link', 'Notes link must be a Google Drive/Docs URL.'); return; } onChange({ ...client, relationship: { ...rel, meetings: [...(rel.meetings || []), { id: uid(), ...meetDraft }] } }); setMeetDraft({ date: '', summary: '', notesLink: '' }); }
+  function addAppreciation() { if (appDraft.url && !isDriveUrl(appDraft.url)) { openModal('Invalid Link', 'Use Google Drive link for proof.'); return; } const item = { id: uid(), url: appDraft.url || '', remark: appDraft.remark || '' }; onChange({ ...client, relationship: { ...rel, appreciations: [...(rel.appreciations || []), item] } }); setAppDraft({ url: '', remark: '' }); }
+  function addEscalation() { if (escDraft.url && !isDriveUrl(escDraft.url)) { openModal('Invalid Link', 'Use Google Drive link for proof.'); return; } const item = { id: uid(), url: escDraft.url || '', why: escDraft.remark || '' }; onChange({ ...client, relationship: { ...rel, escalations: [...(rel.escalations || []), item] } }); setEscDraft({ url: '', remark: '' }); }
 
   return (
     <div className="mt-4 border-t pt-3">
@@ -1964,32 +1965,32 @@ function ClientReportStatus({client, prevClient, onChange}){
       <div className="grid md:grid-cols-4 gap-3">
         <div>
           <label className="text-sm">Roadmap Sent Date</label>
-          <input type="date" className="w-full border rounded-xl p-2" value={rel.roadmapSentDate||''} onChange={e=>onChange({...client, relationship:{...rel, roadmapSentDate:e.target.value}})} />
+          <input type="date" className="w-full border rounded-xl p-2" value={rel.roadmapSentDate || ''} onChange={e => onChange({ ...client, relationship: { ...rel, roadmapSentDate: e.target.value } })} />
           {prevRel.roadmapSentDate && <div className="text-xs text-gray-500 mt-1">Prev: {toDDMMYYYY(prevRel.roadmapSentDate)}</div>}
         </div>
         <div>
           <label className="text-sm">Report Sent Date</label>
-          <input type="date" className="w-full border rounded-xl p-2" value={rel.reportSentDate||''} onChange={e=>onChange({...client, relationship:{...rel, reportSentDate:e.target.value}})} />
+          <input type="date" className="w-full border rounded-xl p-2" value={rel.reportSentDate || ''} onChange={e => onChange({ ...client, relationship: { ...rel, reportSentDate: e.target.value } })} />
           {prevRel.reportSentDate && <div className="text-xs text-gray-500 mt-1">Prev: {toDDMMYYYY(prevRel.reportSentDate)}</div>}
         </div>
         <div>
           <label className="text-sm">Client Satisfaction (1–10)</label>
-          <input type="number" min={1} max={10} className="w-full border rounded-xl p-2" value={rel.clientSatisfaction||0} onChange={e=>onChange({...client, relationship:{...rel, clientSatisfaction:Number(e.target.value||0)}})} />
+          <input type="number" min={1} max={10} className="w-full border rounded-xl p-2" value={rel.clientSatisfaction || 0} onChange={e => onChange({ ...client, relationship: { ...rel, clientSatisfaction: Number(e.target.value || 0) } })} />
           {prevRel.clientSatisfaction > 0 && <div className="text-xs text-gray-500 mt-1">Prev: {prevRel.clientSatisfaction}</div>}
         </div>
         <div className="md:col-span-1 flex items-end gap-2">
           <label className="text-sm mr-2">Payment Received?</label>
-          <input type="checkbox" checked={!!rel.paymentReceived} onChange={e=>onChange({...client, relationship:{...rel, paymentReceived:e.target.checked}})} />
+          <input type="checkbox" checked={!!rel.paymentReceived} onChange={e => onChange({ ...client, relationship: { ...rel, paymentReceived: e.target.checked } })} />
         </div>
         <div>
           <label className="text-sm">Payment Date</label>
-          <input type="date" className="w-full border rounded-xl p-2" value={rel.paymentDate||''} onChange={e=>onChange({...client, relationship:{...rel, paymentDate:e.target.value}})} />
+          <input type="date" className="w-full border rounded-xl p-2" value={rel.paymentDate || ''} onChange={e => onChange({ ...client, relationship: { ...rel, paymentDate: e.target.value } })} />
           {prevRel.paymentDate && <div className="text-xs text-gray-500 mt-1">Prev: {toDDMMYYYY(prevRel.paymentDate)}</div>}
         </div>
-        
+
         <div className="col-span-4">
-            <NumField label="Client Interactions (messages/mails)" value={client.clientInteractions || 0} onChange={v => onChange({ ...client, clientInteractions: v })}/>
-            {prevClient.clientInteractions > 0 && <div className="text-xs text-gray-500 mt-1">Prev: {prevClient.clientInteractions}</div>}
+          <NumField label="Client Interactions (messages/mails)" value={client.clientInteractions || 0} onChange={v => onChange({ ...client, clientInteractions: v })} />
+          {prevClient.clientInteractions > 0 && <div className="text-xs text-gray-500 mt-1">Prev: {prevClient.clientInteractions}</div>}
         </div>
 
         <div className="md:col-span-4">
@@ -1997,17 +1998,17 @@ function ClientReportStatus({client, prevClient, onChange}){
           <div className="grid md:grid-cols-4 gap-3 mt-1">
             <div>
               <label className="text-sm">Date</label>
-              <input type="date" className="border rounded-xl p-2 w-full" value={meetDraft.date} onChange={e=>setMeetDraft(d=>({...d, date:e.target.value}))} />
+              <input type="date" className="border rounded-xl p-2 w-full" value={meetDraft.date} onChange={e => setMeetDraft(d => ({ ...d, date: e.target.value }))} />
             </div>
-            <input className="border rounded-xl p-2" placeholder="Summary of discussion" value={meetDraft.summary} onChange={e=>setMeetDraft(d=>({...d, summary:e.target.value}))} />
-            <input className="border rounded-xl p-2" placeholder="Notes link (Drive/Doc)" value={meetDraft.notesLink} onChange={e=>setMeetDraft(d=>({...d, notesLink:e.target.value}))} />
+            <input className="border rounded-xl p-2" placeholder="Summary of discussion" value={meetDraft.summary} onChange={e => setMeetDraft(d => ({ ...d, summary: e.target.value }))} />
+            <input className="border rounded-xl p-2" placeholder="Notes link (Drive/Doc)" value={meetDraft.notesLink} onChange={e => setMeetDraft(d => ({ ...d, notesLink: e.target.value }))} />
             <button className="rounded-xl bg-blue-600 text-white px-3" onClick={addMeeting}>Add Meeting</button>
           </div>
           <ul className="text-xs mt-2 space-y-1">
-            {(rel.meetings||[]).map(m=> (
+            {(rel.meetings || []).map(m => (
               <li key={m.id} className="border rounded-lg p-2 flex items-center justify-between">
                 <div>{toDDMMYYYY(m.date)} • {m.summary} {m.notesLink && (<a className="underline ml-2" href={m.notesLink} target="_blank" rel="noreferrer">notes</a>)}</div>
-                <button className="text-red-600" onClick={()=>onChange({...client, relationship:{...rel, meetings:(rel.meetings||[]).filter(x=>x.id!==m.id)}})}>Remove</button>
+                <button className="text-red-600" onClick={() => onChange({ ...client, relationship: { ...rel, meetings: (rel.meetings || []).filter(x => x.id !== m.id) } })}>Remove</button>
               </li>
             ))}
           </ul>
@@ -2016,15 +2017,15 @@ function ClientReportStatus({client, prevClient, onChange}){
         <div className="md:col-span-2">
           <div className="font-medium">Appreciations</div>
           <div className="grid grid-cols-3 gap-2 mt-1">
-            <input className="border rounded-xl p-2 col-span-2" placeholder="Proof link (Drive/WhatsApp in Drive) – optional" value={appDraft.url} onChange={e=>setAppDraft(d=>({...d, url:e.target.value}))} />
-            <input className="border rounded-xl p-2" placeholder="Remark (client/channel)" value={appDraft.remark} onChange={e=>setAppDraft(d=>({...d, remark:e.target.value}))} />
+            <input className="border rounded-xl p-2 col-span-2" placeholder="Proof link (Drive/WhatsApp in Drive) – optional" value={appDraft.url} onChange={e => setAppDraft(d => ({ ...d, url: e.target.value }))} />
+            <input className="border rounded-xl p-2" placeholder="Remark (client/channel)" value={appDraft.remark} onChange={e => setAppDraft(d => ({ ...d, remark: e.target.value }))} />
             <button className="col-span-3 rounded-xl bg-emerald-600 text-white px-3 py-2" onClick={addAppreciation}>+ Add Appreciation</button>
           </div>
           <ul className="text-xs mt-2 space-y-1">
-            {(rel.appreciations||[]).map(a=> (
+            {(rel.appreciations || []).map(a => (
               <li key={a.id} className="border rounded-lg p-2 flex items-center justify-between">
-                <div className="truncate">{a.remark||'—'} {a.url && (<a className="underline ml-2" href={a.url} target="_blank" rel="noreferrer">proof</a>)}</div>
-                <button className="text-red-600" onClick={()=>onChange({...client, relationship:{...rel, appreciations:(rel.appreciations||[]).filter(x=>x.id!==a.id)}})}>Remove</button>
+                <div className="truncate">{a.remark || '—'} {a.url && (<a className="underline ml-2" href={a.url} target="_blank" rel="noreferrer">proof</a>)}</div>
+                <button className="text-red-600" onClick={() => onChange({ ...client, relationship: { ...rel, appreciations: (rel.appreciations || []).filter(x => x.id !== a.id) } })}>Remove</button>
               </li>
             ))}
           </ul>
@@ -2032,16 +2033,16 @@ function ClientReportStatus({client, prevClient, onChange}){
         <div className="md:col-span-2">
           <div className="font-medium">Escalations</div>
           <div className="grid grid-cols-3 gap-2 mt-1">
-            <input className="border rounded-xl p-2 col-span-2" placeholder="Proof link (Drive) – optional" value={escDraft.url} onChange={e=>setEscDraft(d=>({...d, url:e.target.value}))} />
-            <input className="border rounded-xl p-2" placeholder="Why did this happen?" value={escDraft.remark} onChange={e=>setEscDraft(d=>({...d, remark:e.target.value}))} />
+            <input className="border rounded-xl p-2 col-span-2" placeholder="Proof link (Drive) – optional" value={escDraft.url} onChange={e => setEscDraft(d => ({ ...d, url: e.target.value }))} />
+            <input className="border rounded-xl p-2" placeholder="Why did this happen?" value={escDraft.remark} onChange={e => setEscDraft(d => ({ ...d, remark: e.target.value }))} />
             <button className="col-span-3 rounded-xl bg-red-600 text-white px-3 py-2" onClick={addEscalation}>+ Add Escalation</button>
           </div>
           <ul className="text-xs mt-2 space-y-1">
-            {(rel.escalations||[]).map(a=> (
+            {(rel.escalations || []).map(a => (
               <li key={a.id} className="border rounded-lg p-2">
                 <div className="flex items-center justify-between">
-                  <div className="truncate">{a.why||'—'} {a.url && (<a className="underline ml-2" href={a.url} target="_blank" rel="noreferrer">proof</a>)}</div>
-                  <button className="text-red-600" onClick={()=>onChange({...client, relationship:{...rel, escalations:(rel.escalations||[]).filter(x=>x.id!==a.id)}})}>Remove</button>
+                  <div className="truncate">{a.why || '—'} {a.url && (<a className="underline ml-2" href={a.url} target="_blank" rel="noreferrer">proof</a>)}</div>
+                  <button className="text-red-600" onClick={() => onChange({ ...client, relationship: { ...rel, escalations: (rel.escalations || []).filter(x => x.id !== a.id) } })}>Remove</button>
                 </div>
               </li>
             ))}
@@ -2056,38 +2057,38 @@ function ClientReportStatus({client, prevClient, onChange}){
 /*****************
  * Learning Block *
  *****************/
-function LearningBlock({model, setModel, openModal}){
-  const [draft, setDraft] = useState({ title:'', link:'', durationMins:0, learned:'', applied:'' });
-  const total = (model.learning||[]).reduce((s,e)=>s+(e.durationMins||0),0);
-  function addEntry(){
-    if(!draft.title || !draft.link || !draft.durationMins) {
-      openModal('Missing Information', 'Please fill in the title, link, and duration to add a learning entry.', () => {});
+function LearningBlock({ model, setModel, openModal }) {
+  const [draft, setDraft] = useState({ title: '', link: '', durationMins: 0, learned: '', applied: '' });
+  const total = (model.learning || []).reduce((s, e) => s + (e.durationMins || 0), 0);
+  function addEntry() {
+    if (!draft.title || !draft.link || !draft.durationMins) {
+      openModal('Missing Information', 'Please fill in the title, link, and duration to add a learning entry.', () => { });
       return;
     }
     const entry = { id: uid(), ...draft };
-    setModel(m=>({...m, learning:[...m.learning, entry]}));
-    setDraft({ title:'', link:'', durationMins:0, learned:'', applied:'' });
+    setModel(m => ({ ...m, learning: [...m.learning, entry] }));
+    setDraft({ title: '', link: '', durationMins: 0, learned: '', applied: '' });
   }
   return (
-    <Section 
-      title="Learning (min 6 hours = 360 mins; proofs required)" 
+    <Section
+      title="Learning (min 6 hours = 360 mins; proofs required)"
       number="3"
       info="Document your learning activities for the month. You must complete at least 6 hours (360 minutes) of learning. Include courses, certifications, workshops, or skill development. Provide proof links to validate your learning efforts."
     >
       <div className="grid md:grid-cols-4 gap-3">
-        <TextField label="Title / Topic" value={draft.title} onChange={v=>setDraft(d=>({...d, title:v}))}/>
-        <TextField label="Link (YouTube/Course/Doc)" value={draft.link} onChange={v=>setDraft(d=>({...d, link:v}))}/>
-        <NumField label="Duration (mins)" value={draft.durationMins} onChange={v=>setDraft(d=>({...d, durationMins:v}))}/>
+        <TextField label="Title / Topic" value={draft.title} onChange={v => setDraft(d => ({ ...d, title: v }))} />
+        <TextField label="Link (YouTube/Course/Doc)" value={draft.link} onChange={v => setDraft(d => ({ ...d, link: v }))} />
+        <NumField label="Duration (mins)" value={draft.durationMins} onChange={v => setDraft(d => ({ ...d, durationMins: v }))} />
         <button className="bg-blue-600 text-white rounded-xl px-3 self-end py-2" onClick={addEntry}>Add</button>
-        <TextArea className="md:col-span-2" label="What did you learn (key points)" rows={3} value={draft.learned} onChange={v=>setDraft(d=>({...d, learned:v}))}/>
-        <TextArea className="md:col-span-2" label="How did you apply it in work?" rows={3} value={draft.applied} onChange={v=>setDraft(d=>({...d, applied:v}))}/>
+        <TextArea className="md:col-span-2" label="What did you learn (key points)" rows={3} value={draft.learned} onChange={v => setDraft(d => ({ ...d, learned: v }))} />
+        <TextArea className="md:col-span-2" label="How did you apply it in work?" rows={3} value={draft.applied} onChange={v => setDraft(d => ({ ...d, applied: v }))} />
       </div>
-      <div className="mt-2 text-sm">Total this month: <b>{(total/60).toFixed(1)} hours</b> {total<360 && <span className="text-red-600">(below 6h)</span>}</div>
+      <div className="mt-2 text-sm">Total this month: <b>{(total / 60).toFixed(1)} hours</b> {total < 360 && <span className="text-red-600">(below 6h)</span>}</div>
       <ul className="mt-2 space-y-1 text-xs">
-        {(model.learning||[]).map(item=> (
+        {(model.learning || []).map(item => (
           <li key={item.id} className="border rounded-lg p-2 flex items-center justify-between">
             <div className="truncate"><b>{item.title}</b> • {item.durationMins}m • <a className="underline" href={item.link} target="_blank" rel="noreferrer">link</a></div>
-            <button className="text-red-600" onClick={()=>setModel(m=>({...m, learning: m.learning.filter(x=>x.id!==item.id)}))}>Remove</button>
+            <button className="text-red-600" onClick={() => setModel(m => ({ ...m, learning: m.learning.filter(x => x.id !== item.id) }))}>Remove</button>
           </li>
         ))}
       </ul>
@@ -2098,65 +2099,65 @@ function LearningBlock({model, setModel, openModal}){
 /*******************
  * Internal KPIs    *
  *******************/
-function InternalKPIs({model, prevModel, setModel, monthPrev, monthThis}){
+function InternalKPIs({ model, prevModel, setModel, monthPrev, monthThis }) {
   const dept = model.employee.department;
-  const c = (model.clients[0]||{ id:uid(), name: dept+" Internal" });
-  const prevC = (prevModel?.clients[0]||{});
-  function merge(p){ setModel(m=>{ const first = m.clients[0]? {...m.clients[0], ...p} : {...c, ...p}; const rest = m.clients.slice(1); return {...m, clients:[first, ...rest]};}); }
+  const c = (model.clients[0] || { id: uid(), name: dept + " Internal" });
+  const prevC = (prevModel?.clients[0] || {});
+  function merge(p) { setModel(m => { const first = m.clients[0] ? { ...m.clients[0], ...p } : { ...c, ...p }; const rest = m.clients.slice(1); return { ...m, clients: [first, ...rest] }; }); }
   return (
     <div className="grid md:grid-cols-4 gap-3">
-      {dept==='HR' && (
+      {dept === 'HR' && (
         <>
-          <NumField label="# Candidates Screened" value={c.hr_screened||0} onChange={v=>merge({ hr_screened:v })}/>
+          <NumField label="# Candidates Screened" value={c.hr_screened || 0} onChange={v => merge({ hr_screened: v })} />
           <PrevValue label={`# New Hires Done (${monthLabel(monthPrev)})`} value={prevC.hr_hiresThis || 0} />
-          <NumField label={`# New Hires Done (${monthLabel(monthThis)})`} value={c.hr_hiresThis||0} onChange={v=>merge({ hr_hiresThis:v })}/>
-          <NumField label="# Engagement Activities" value={c.hr_engagements||0} onChange={v=>merge({ hr_engagements:v })}/>
+          <NumField label={`# New Hires Done (${monthLabel(monthThis)})`} value={c.hr_hiresThis || 0} onChange={v => merge({ hr_hiresThis: v })} />
+          <NumField label="# Engagement Activities" value={c.hr_engagements || 0} onChange={v => merge({ hr_engagements: v })} />
           <TextArea className="md:col-span-4" label="Employee Resolutions (Hurdles & Resolutions)" rows={3} value={c.hr_resolutions || ""} onChange={v => merge({ hr_resolutions: v })} />
           <h4 className="font-semibold text-sm col-span-4 mt-2">Candidate Pipeline</h4>
-          <NumField label="Screening" value={c.hr_pipeline_screening||0} onChange={v=>merge({ hr_pipeline_screening: v })}/>
-          <NumField label="Shortlisting" value={c.hr_pipeline_shortlisting||0} onChange={v=>merge({ hr_pipeline_shortlisting: v })}/>
-          <NumField label="Interviews Conducted" value={c.hr_pipeline_interviews||0} onChange={v=>merge({ hr_pipeline_interviews: v })}/>
+          <NumField label="Screening" value={c.hr_pipeline_screening || 0} onChange={v => merge({ hr_pipeline_screening: v })} />
+          <NumField label="Shortlisting" value={c.hr_pipeline_shortlisting || 0} onChange={v => merge({ hr_pipeline_shortlisting: v })} />
+          <NumField label="Interviews Conducted" value={c.hr_pipeline_interviews || 0} onChange={v => merge({ hr_pipeline_interviews: v })} />
         </>
       )}
-      {dept==='Accounts' && (
+      {dept === 'Accounts' && (
         <>
           <h4 className="font-semibold text-sm col-span-4 mt-2">Client Payments</h4>
           <NumField label="New Client Onboarding (Count)" value={c.ac_newOnboardings || 0} onChange={v => merge({ ac_newOnboardings: v })} />
           <PrevValue label={`Collections % (${monthLabel(monthPrev)})`} value={prevC.ac_collectionsPctThis || 0} />
-          <NumField label={`Collections % (${monthLabel(monthThis)})`} value={c.ac_collectionsPctThis||0} onChange={v=>merge({ ac_collectionsPctThis:v })}/>
+          <NumField label={`Collections % (${monthLabel(monthThis)})`} value={c.ac_collectionsPctThis || 0} onChange={v => merge({ ac_collectionsPctThis: v })} />
           <h4 className="font-semibold text-sm col-span-4 mt-2">Compliance</h4>
           <div className="flex items-center gap-2">
             <label className="text-sm">GST Filed?</label>
-            <input type="checkbox" checked={!!c.ac_gstDone} onChange={e=>merge({ ac_gstDone: e.target.checked })} />
+            <input type="checkbox" checked={!!c.ac_gstDone} onChange={e => merge({ ac_gstDone: e.target.checked })} />
           </div>
           <div className="flex items-center gap-2">
             <label className="text-sm">TDS Filed?</label>
-            <input type="checkbox" checked={!!c.ac_tdsDone} onChange={e=>merge({ ac_tdsDone: e.target.checked })} />
+            <input type="checkbox" checked={!!c.ac_tdsDone} onChange={e => merge({ ac_tdsDone: e.target.checked })} />
           </div>
         </>
       )}
-      {dept==='Sales' && (
+      {dept === 'Sales' && (
         <>
           <PrevValue label={`New Revenue (₹) ${monthLabel(monthPrev)}`} value={prevC.sa_revenueThis || 0} />
-          <NumField label={`New Revenue (₹) ${monthLabel(monthThis)}`} value={c.sa_revenueThis||0} onChange={v=>merge({ sa_revenueThis:v })}/>
+          <NumField label={`New Revenue (₹) ${monthLabel(monthThis)}`} value={c.sa_revenueThis || 0} onChange={v => merge({ sa_revenueThis: v })} />
           <PrevValue label={`Conversion % (${monthLabel(monthPrev)})`} value={prevC.sa_conversionRateThis || 0} />
-          <NumField label={`Conversion % (${monthLabel(monthThis)}`} value={c.sa_conversionRateThis||0} onChange={v=>merge({ sa_conversionRateThis:v })}/>
+          <NumField label={`Conversion % (${monthLabel(monthThis)}`} value={c.sa_conversionRateThis || 0} onChange={v => merge({ sa_conversionRateThis: v })} />
           <PrevValue label={`Pipeline (#) ${monthLabel(monthPrev)}`} value={prevC.sa_pipelineThis || 0} />
-          <NumField label={`Pipeline (#) ${monthLabel(monthThis)}`} value={c.sa_pipelineThis||0} onChange={v=>merge({ sa_pipelineThis:v })}/>
+          <NumField label={`Pipeline (#) ${monthLabel(monthThis)}`} value={c.sa_pipelineThis || 0} onChange={v => merge({ sa_pipelineThis: v })} />
           <PrevValue label={`AI Upsell Value (₹) ${monthLabel(monthPrev)}`} value={prevC.sa_aiUpsellValueThis || 0} />
-          <NumField label={`AI Upsell Value (₹) ${monthLabel(monthThis)}`} value={c.sa_aiUpsellValueThis||0} onChange={v=>merge({ sa_aiUpsellValueThis:v })}/>
-          <NumField label={`Next Month Projection (₹)`} value={c.sa_projectionNext||0} onChange={v=>merge({ sa_projectionNext:v })}/>
+          <NumField label={`AI Upsell Value (₹) ${monthLabel(monthThis)}`} value={c.sa_aiUpsellValueThis || 0} onChange={v => merge({ sa_aiUpsellValueThis: v })} />
+          <NumField label={`Next Month Projection (₹)`} value={c.sa_projectionNext || 0} onChange={v => merge({ sa_projectionNext: v })} />
         </>
       )}
-      {dept==='Blended (HR + Sales)' && (
+      {dept === 'Blended (HR + Sales)' && (
         <>
           <div className="md:col-span-4 text-xs text-gray-600">Blended role: fill HR metrics first, then Sales metrics.</div>
           {/* HR */}
           <PrevValue label={`(HR) Hires (${monthLabel(monthPrev)})`} value={prevC.hr_hiresThis || 0} />
-          <NumField label={`(HR) Hires (${monthLabel(monthThis)})`} value={c.hr_hiresThis||0} onChange={v=>merge({ hr_hiresThis:v })}/>
+          <NumField label={`(HR) Hires (${monthLabel(monthThis)})`} value={c.hr_hiresThis || 0} onChange={v => merge({ hr_hiresThis: v })} />
           {/* Sales */}
           <PrevValue label={`(Sales) New Revenue (₹) ${monthLabel(monthPrev)}`} value={prevC.sa_revenueThis || 0} />
-          <NumField label={`(Sales) New Revenue (₹) ${monthLabel(monthThis)}`} value={c.sa_revenueThis||0} onChange={v=>merge({ sa_revenueThis:v })}/>
+          <NumField label={`(Sales) New Revenue (₹) ${monthLabel(monthThis)}`} value={c.sa_revenueThis || 0} onChange={v => merge({ sa_revenueThis: v })} />
         </>
       )}
     </div>
@@ -2166,7 +2167,7 @@ function InternalKPIs({model, prevModel, setModel, monthPrev, monthThis}){
 /********************
  * Shared UI bits    *
  ********************/
-function Section({title, children, number, info}){
+function Section({ title, children, number, info }) {
   return (
     <section className="my-6 sm:my-8">
       <h2 className="text-lg sm:text-xl font-semibold mb-4 flex items-center gap-2 text-gray-800">
@@ -2185,66 +2186,66 @@ function Section({title, children, number, info}){
     </section>
   );
 }
-function TextField({label, value, onChange, placeholder, className, info}){
+function TextField({ label, value, onChange, placeholder, className, info }) {
   return (
-    <div className={className||''}>
+    <div className={className || ''}>
       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
         {label}
         {info && <InfoTooltip content={info} />}
       </label>
-      <input 
-        className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
-        placeholder={placeholder||""} 
-        value={value||""} 
-        onChange={e=>onChange(e.target.value)} 
+      <input
+        className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+        placeholder={placeholder || ""}
+        value={value || ""}
+        onChange={e => onChange(e.target.value)}
       />
     </div>
   );
 }
-function NumField({label, value, onChange, className, info}){
+function NumField({ label, value, onChange, className, info }) {
   return (
-    <div className={className||''}>
+    <div className={className || ''}>
       <label className="text-sm flex items-center">
         {label}
         {info && <InfoTooltip content={info} />}
       </label>
-      <input type="number" className="w-full border rounded-xl p-2" value={Number(value||0)} onChange={e=>onChange(Number(e.target.value||0))} />
+      <input type="number" className="w-full border rounded-xl p-2" value={Number(value || 0)} onChange={e => onChange(Number(e.target.value || 0))} />
     </div>
   );
 }
-function TextArea({label, value, onChange, rows=4, className, placeholder}){
+function TextArea({ label, value, onChange, rows = 4, className, placeholder }) {
   return (
-    <div className={className||''}>
+    <div className={className || ''}>
       <label className="text-sm">{label}</label>
-      <textarea className="w-full border rounded-xl p-2" rows={rows} placeholder={placeholder||""} value={value||""} onChange={e=>onChange(e.target.value)} />
+      <textarea className="w-full border rounded-xl p-2" rows={rows} placeholder={placeholder || ""} value={value || ""} onChange={e => onChange(e.target.value)} />
     </div>
   );
 }
 
-function TinyLinks({items, onAdd, onRemove}){
-  const [draft, setDraft] = useState({ label:'', url:'' });
+function TinyLinks({ items, onAdd, onRemove }) {
+  const [draft, setDraft] = useState({ label: '', url: '' });
   const { openModal, closeModal } = useModal();
-  function add(){
-    if(!draft.url) return;
-    if(!isDriveUrl(draft.url) && !isGensparkUrl(draft.url)) {
+  function add() {
+    if (!draft.url) return;
+    if (!isDriveUrl(draft.url) && !isGensparkUrl(draft.url)) {
       openModal('Invalid Link', 'Please paste a Google Drive/Docs or Genspark URL link.', closeModal);
       return;
     }
-    onAdd({ id: uid(), label: draft.label||'Link', url: draft.url });
-    setDraft({ label:'', url:'' });
+    onAdd({ id: uid(), label: draft.label || 'Link', url: draft.url });
+    setDraft({ label: '', url: '' });
   }
   return (
     <div>
       <div className="flex gap-2">
-        <input className="flex-1 border rounded-lg p-2" placeholder="Scope of Work" value={draft.label} onChange={e=>setDraft(d=>({...d, label:e.target.value}))}/>
-        <input className="flex-[2] border rounded-lg p-2" placeholder="Google Drive or Genspark URL (view access)" value={draft.url} onChange={e=>setDraft(d=>({...d, url:e.target.value}))}/>
+        <input className="flex-1 border rounded-lg p-2" placeholder="Scope of Work" value={draft.label} onChange={e => setDraft(d => ({ ...d, label: e.target.value }))} />
+        <input className="flex-[2] border rounded-lg p-2" placeholder="Google Drive or Genspark URL (view access)" value={draft.url} onChange={e => setDraft(d => ({ ...d, url: e.target.value }))} />
         <button className="px-3 rounded-lg bg-blue-600 text-white" onClick={add}>Add</button>
       </div>
       <ul className="mt-2 space-y-1 text-xs">
-        {(items||[]).map(it=> (
+        {(items || []).map(it => (
           <li key={it.id} className="border rounded-lg p-2 flex items-center justify-between">
             <div className="truncate"><b>{it.label}</b> • <a className="underline" href={it.url} target="_blank" rel="noreferrer">open</a></div>
-            <button className="text-red-600" onClick={()=>onRemove(it.id)}>Remove</button>
+            <button className="text-red-600" onClick={() => onRemove(it.id)}>Remove</button>
           </li>
         ))}
       </ul>
@@ -2255,7 +2256,7 @@ function TinyLinks({items, onAdd, onRemove}){
 /**********************
  * Manager Dashboard  *
  **********************/
-function ManagerDashboard({ onViewReport }){
+function ManagerDashboard({ onViewReport }) {
   const supabase = useSupabase();
   const [monthKey, setMonthKey] = useState(thisMonthKey());
   const [startMonth, setStartMonth] = useState(thisMonthKey());
@@ -2274,28 +2275,28 @@ function ManagerDashboard({ onViewReport }){
 
   const filteredSubmissions = useMemo(() => {
     let filtered = allSubmissions;
-    
+
     // Filter by time range
     if (timeRangeMode === 'single') {
       filtered = filtered.filter(s => s.monthKey === monthKey);
     } else {
       filtered = filtered.filter(s => s.monthKey >= startMonth && s.monthKey <= endMonth);
     }
-    
+
     // Filter by department
     if (filterDept !== "All") {
       filtered = filtered.filter(s => s.employee?.department === filterDept);
     }
-    
+
     // Filter by employee
     if (filterEmployee !== "All") {
       filtered = filtered.filter(s => s.employee?.name === filterEmployee);
     }
-    
+
     // Sort submissions
     filtered.sort((a, b) => {
       let comparison = 0;
-      
+
       switch (sortBy) {
         case 'name':
           comparison = (a.employee?.name || '').localeCompare(b.employee?.name || '');
@@ -2312,28 +2313,28 @@ function ManagerDashboard({ onViewReport }){
         default:
           comparison = (a.employee?.name || '').localeCompare(b.employee?.name || '');
       }
-      
+
       return sortOrder === 'asc' ? comparison : -comparison;
     });
-    
+
     return filtered;
   }, [allSubmissions, monthKey, startMonth, endMonth, timeRangeMode, filterDept, filterEmployee, sortBy, sortOrder]);
 
-  function openRow(r){
+  function openRow(r) {
     setOpenId(r.id);
     setNotes(r.manager?.comments || "");
     setPayload(r);
     setManagerScore(r.manager?.score || 0);
   }
 
-  async function saveNotes(){
+  async function saveNotes() {
     if (!supabase) {
-        openModal("Error", "Database connection not ready. Please wait a moment and try again.");
-        return;
+      openModal("Error", "Database connection not ready. Please wait a moment and try again.");
+      return;
     }
-    const r = allSubmissions.find(x=>x.id===openId);
-    if(!r) return;
-    
+    const r = allSubmissions.find(x => x.id === openId);
+    if (!r) return;
+
     const { data, error } = await supabase
       .from('submissions')
       .update({ manager: { ...(r.manager || {}), comments: notes, score: managerScore } })
@@ -2350,12 +2351,12 @@ function ManagerDashboard({ onViewReport }){
 
   async function deleteSubmission(submissionId, employeeName) {
     if (!supabase) {
-        openModal("Error", "Database connection not ready. Please wait a moment and try again.");
-        return;
+      openModal("Error", "Database connection not ready. Please wait a moment and try again.");
+      return;
     }
 
     openModal(
-      "Confirm Delete", 
+      "Confirm Delete",
       `Are you sure you want to delete the submission for ${employeeName}? This action cannot be undone.`,
       async () => {
         const { error } = await supabase
@@ -2376,9 +2377,9 @@ function ManagerDashboard({ onViewReport }){
     );
   }
 
-  function exportCSV(){
-    const header = ['id','month_key','employee_name','employee_phone','department','role','kpi','learning','client','overall','manager_score','missingLearning','hasEscalations','missingReports','feedback_company','feedback_hr','feedback_challenges'];
-    const rowsCsv = filteredSubmissions.map(r=> [
+  function exportCSV() {
+    const header = ['id', 'month_key', 'employee_name', 'employee_phone', 'department', 'role', 'kpi', 'learning', 'client', 'overall', 'manager_score', 'missingLearning', 'hasEscalations', 'missingReports', 'feedback_company', 'feedback_hr', 'feedback_challenges'];
+    const rowsCsv = filteredSubmissions.map(r => [
       r.id,
       r.monthKey,
       clean(r.employee?.name),
@@ -2396,13 +2397,13 @@ function ManagerDashboard({ onViewReport }){
       clean(r.feedback?.company),
       clean(r.feedback?.hr),
       clean(r.feedback?.challenges),
-    ].map(String).map(s=>`"${s.replaceAll('"','""')}"`).join(','));
-    const blob = new Blob([[header.join(',')].concat(rowsCsv).join('\n')], { type:'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`bp-submissions-${monthKey}.csv`; a.click(); URL.revokeObjectURL(url);
+    ].map(String).map(s => `"${s.replaceAll('"', '""')}"`).join(','));
+    const blob = new Blob([[header.join(',')].concat(rowsCsv).join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `bp-submissions-${monthKey}.csv`; a.click(); URL.revokeObjectURL(url);
   }
-  function exportJSON(){
-    const blob = new Blob([JSON.stringify(filteredSubmissions,null,2)], { type:'application/json' });
-    const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`bp-submissions-${monthKey}.json`; a.click(); URL.revokeObjectURL(url);
+  function exportJSON() {
+    const blob = new Blob([JSON.stringify(filteredSubmissions, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `bp-submissions-${monthKey}.json`; a.click(); URL.revokeObjectURL(url);
   }
 
   const uniqueEmployees = useMemo(() => {
@@ -2417,24 +2418,24 @@ function ManagerDashboard({ onViewReport }){
     filteredSubmissions.forEach(submission => {
       const employeeName = submission.employee?.name;
       if (!employeeName) return;
-      
+
       if (!groups[employeeName]) {
         groups[employeeName] = [];
       }
       groups[employeeName].push(submission);
     });
-    
+
     // Convert to array and calculate metrics
     let groupedArray = Object.entries(groups)
       .map(([name, submissions]) => {
         const sortedSubmissions = submissions.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
         const latestSubmission = sortedSubmissions[0];
-        
+
         // Calculate average score across all submissions
-        const avgScore = submissions.length > 0 
-          ? submissions.reduce((sum, s) => sum + (s.scores?.overall || 0), 0) / submissions.length 
+        const avgScore = submissions.length > 0
+          ? submissions.reduce((sum, s) => sum + (s.scores?.overall || 0), 0) / submissions.length
           : 0;
-        
+
         return {
           employeeName: name,
           submissions: sortedSubmissions,
@@ -2443,11 +2444,11 @@ function ManagerDashboard({ onViewReport }){
           submissionCount: submissions.length
         };
       });
-    
+
     // Sort grouped submissions
     groupedArray.sort((a, b) => {
       let comparison = 0;
-      
+
       switch (sortBy) {
         case 'name':
           comparison = a.employeeName.localeCompare(b.employeeName);
@@ -2464,13 +2465,13 @@ function ManagerDashboard({ onViewReport }){
         default:
           comparison = a.employeeName.localeCompare(b.employeeName);
       }
-      
+
       return sortOrder === 'asc' ? comparison : -comparison;
     });
-    
+
     return groupedArray;
   }, [filteredSubmissions, sortBy, sortOrder]);
-  
+
   const uniqueDepartments = useMemo(() => {
     const departments = new Set();
     allSubmissions.forEach(r => departments.add(r.employee?.department));
@@ -2492,23 +2493,23 @@ function ManagerDashboard({ onViewReport }){
     // Calculate averages and department breakdown
     let totalScore = 0;
     let scoreCount = 0;
-    
+
     groupedSubmissions.forEach(group => {
       const r = group.latestSubmission;
       const dept = r.employee?.department || 'Unknown';
-      
+
       if (!stats.departmentBreakdown[dept]) {
         stats.departmentBreakdown[dept] = { count: 0, avgScore: 0, totalScore: 0 };
       }
-      
+
       stats.departmentBreakdown[dept].count++;
-      
+
       if (r.scores?.overall) {
         totalScore += r.scores.overall;
         scoreCount++;
         stats.departmentBreakdown[dept].totalScore += r.scores.overall;
       }
-      
+
       // Top performers (score >= 8)
       if (r.scores?.overall >= 8) {
         stats.topPerformers.push({
@@ -2517,7 +2518,7 @@ function ManagerDashboard({ onViewReport }){
           department: dept
         });
       }
-      
+
       // Needs attention (score < 6 or flags)
       if (r.scores?.overall < 6 || r.flags?.missingLearningHours || r.flags?.hasEscalations) {
         stats.needsAttention.push({
@@ -2532,15 +2533,15 @@ function ManagerDashboard({ onViewReport }){
         });
       }
     });
-    
+
     stats.avgOverallScore = scoreCount > 0 ? (totalScore / scoreCount).toFixed(1) : 0;
-    
+
     // Calculate department averages
     Object.keys(stats.departmentBreakdown).forEach(dept => {
       const deptData = stats.departmentBreakdown[dept];
       deptData.avgScore = deptData.count > 0 ? (deptData.totalScore / deptData.count).toFixed(1) : 0;
     });
-    
+
     return stats;
   }, [groupedSubmissions, filteredSubmissions]);
 
@@ -2556,12 +2557,12 @@ function ManagerDashboard({ onViewReport }){
             </div>
             <div className="bg-white/20 rounded-full p-3">
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
           </div>
         </div>
-        
+
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-xl">
           <div className="flex items-center justify-between">
             <div>
@@ -2570,12 +2571,12 @@ function ManagerDashboard({ onViewReport }){
             </div>
             <div className="bg-white/20 rounded-full p-3">
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
               </svg>
             </div>
           </div>
         </div>
-        
+
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white shadow-xl">
           <div className="flex items-center justify-between">
             <div>
@@ -2584,12 +2585,12 @@ function ManagerDashboard({ onViewReport }){
             </div>
             <div className="bg-white/20 rounded-full p-3">
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
               </svg>
             </div>
           </div>
         </div>
-        
+
         <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-6 text-white shadow-xl">
           <div className="flex items-center justify-between">
             <div>
@@ -2598,7 +2599,7 @@ function ManagerDashboard({ onViewReport }){
             </div>
             <div className="bg-white/20 rounded-full p-3">
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
             </div>
           </div>
@@ -2612,11 +2613,10 @@ function ManagerDashboard({ onViewReport }){
             <div key={dept} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold text-gray-800">{dept}</h3>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  data.avgScore >= 8 ? 'bg-green-100 text-green-800' :
-                  data.avgScore >= 6 ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-red-100 text-red-800'
-                }`}>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${data.avgScore >= 8 ? 'bg-green-100 text-green-800' :
+                    data.avgScore >= 6 ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-red-100 text-red-800'
+                  }`}>
                   {data.avgScore}/10
                 </span>
               </div>
@@ -2636,44 +2636,44 @@ function ManagerDashboard({ onViewReport }){
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Mode</label>
-                <select 
-                  className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
-                  value={timeRangeMode} 
+                <select
+                  className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                  value={timeRangeMode}
                   onChange={e => setTimeRangeMode(e.target.value)}
                 >
                   <option value="single">Single Month</option>
                   <option value="range">Date Range</option>
                 </select>
               </div>
-              
+
               {timeRangeMode === 'single' ? (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Report Month</label>
-                  <input 
-                    type="month" 
-                    className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
-                    value={monthKey} 
-                    onChange={e=>setMonthKey(e.target.value)} 
+                  <input
+                    type="month"
+                    className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                    value={monthKey}
+                    onChange={e => setMonthKey(e.target.value)}
                   />
                 </div>
               ) : (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Start Month</label>
-                    <input 
-                      type="month" 
-                      className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
-                      value={startMonth} 
-                      onChange={e=>setStartMonth(e.target.value)} 
+                    <input
+                      type="month"
+                      className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                      value={startMonth}
+                      onChange={e => setStartMonth(e.target.value)}
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">End Month</label>
-                    <input 
-                      type="month" 
-                      className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
-                      value={endMonth} 
-                      onChange={e=>setEndMonth(e.target.value)} 
+                    <input
+                      type="month"
+                      className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                      value={endMonth}
+                      onChange={e => setEndMonth(e.target.value)}
                     />
                   </div>
                 </>
@@ -2685,33 +2685,33 @@ function ManagerDashboard({ onViewReport }){
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
-              <select 
-                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
-                value={filterDept} 
+              <select
+                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                value={filterDept}
                 onChange={e => setFilterDept(e.target.value)}
               >
                 <option value="All">All Departments</option>
                 {uniqueDepartments.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Employee</label>
-              <select 
-                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
-                value={filterEmployee} 
+              <select
+                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                value={filterEmployee}
                 onChange={e => setFilterEmployee(e.target.value)}
               >
                 <option value="All">All Employees</option>
                 {uniqueEmployees.map(e => <option key={e} value={e}>{e}</option>)}
               </select>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
-              <select 
-                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
-                value={sortBy} 
+              <select
+                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                value={sortBy}
                 onChange={e => setSortBy(e.target.value)}
               >
                 <option value="name">Name</option>
@@ -2720,30 +2720,30 @@ function ManagerDashboard({ onViewReport }){
                 <option value="entries">Number of Entries</option>
               </select>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Order</label>
-              <select 
-                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" 
-                value={sortOrder} 
+              <select
+                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                value={sortOrder}
                 onChange={e => setSortOrder(e.target.value)}
               >
                 <option value="asc">Ascending</option>
                 <option value="desc">Descending</option>
               </select>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Export</label>
               <div className="flex gap-2">
-                <button 
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-3 py-3 text-sm font-medium transition-colors duration-200 shadow-sm" 
+                <button
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-3 py-3 text-sm font-medium transition-colors duration-200 shadow-sm"
                   onClick={exportCSV}
                 >
                   CSV
                 </button>
-                <button 
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-xl px-3 py-3 text-sm font-medium transition-colors duration-200 shadow-sm" 
+                <button
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-xl px-3 py-3 text-sm font-medium transition-colors duration-200 shadow-sm"
                   onClick={exportJSON}
                 >
                   JSON
@@ -2754,11 +2754,11 @@ function ManagerDashboard({ onViewReport }){
         </div>
       </Section>
 
-      <Section title={loading? 'Loading…' : `Employees for ${monthLabel(monthKey)} (${groupedSubmissions.length} employees, ${filteredSubmissions.length} total submissions)`}>
+      <Section title={loading ? 'Loading…' : `Employees for ${monthLabel(monthKey)} (${groupedSubmissions.length} employees, ${filteredSubmissions.length} total submissions)`}>
         {error && <div className="text-red-600 text-sm mb-2">{error}</div>}
         {/* Desktop Table */}
         <div className="hidden lg:block overflow-auto">
-          <table className="w-full text-sm border-separate" style={{borderSpacing:0}}>
+          <table className="w-full text-sm border-separate" style={{ borderSpacing: 0 }}>
             <thead>
               <tr className="bg-gradient-to-r from-blue-50 to-indigo-50">
                 <th className="p-3 border border-gray-200 text-left font-semibold text-gray-700">Employee</th>
@@ -2798,12 +2798,12 @@ function ManagerDashboard({ onViewReport }){
                     </td>
                     <td className="p-3 border border-gray-200 text-center">
                       <div className="flex gap-1 justify-center flex-wrap">
-                        <button className="text-blue-600 hover:text-blue-800 underline text-xs transition-colors duration-200" onClick={()=>openRow(r)}>Notes</button>
-                        <button className="text-blue-600 hover:text-blue-800 underline text-xs transition-colors duration-200" onClick={()=>{
-                          console.log('Clicking Full Report for:', {name: group.employeeName, phone: r.employee?.phone, submissions: group.submissions.length});
+                        <button className="text-blue-600 hover:text-blue-800 underline text-xs transition-colors duration-200" onClick={() => openRow(r)}>Notes</button>
+                        <button className="text-blue-600 hover:text-blue-800 underline text-xs transition-colors duration-200" onClick={() => {
+                          console.log('Clicking Full Report for:', { name: group.employeeName, phone: r.employee?.phone, submissions: group.submissions.length });
                           onViewReport(group.employeeName, r.employee?.phone || 'no-phone');
                         }}>Full Report</button>
-                        <button className="text-red-600 hover:text-red-800 underline text-xs transition-colors duration-200" onClick={()=>deleteSubmission(r.id, group.employeeName)}>Delete Latest</button>
+                        <button className="text-red-600 hover:text-red-800 underline text-xs transition-colors duration-200" onClick={() => deleteSubmission(r.id, group.employeeName)}>Delete Latest</button>
                       </div>
                     </td>
                   </tr>
@@ -2834,7 +2834,7 @@ function ManagerDashboard({ onViewReport }){
                     <div className="text-xs text-gray-500">Overall Score</div>
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-3 gap-4 mb-4 text-center">
                   <div>
                     <div className="font-semibold text-gray-800">{r.scores?.kpiScore ?? 'N/A'}</div>
@@ -2859,24 +2859,24 @@ function ManagerDashboard({ onViewReport }){
                 )}
 
                 <div className="flex gap-2 flex-wrap">
-                  <button 
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 px-3 rounded-lg transition-colors duration-200" 
-                    onClick={()=>openRow(r)}
+                  <button
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 px-3 rounded-lg transition-colors duration-200"
+                    onClick={() => openRow(r)}
                   >
                     Notes
                   </button>
-                  <button 
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2 px-3 rounded-lg transition-colors duration-200" 
-                    onClick={()=>{
-                      console.log('Clicking Full Report for:', {name: group.employeeName, phone: r.employee?.phone});
+                  <button
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2 px-3 rounded-lg transition-colors duration-200"
+                    onClick={() => {
+                      console.log('Clicking Full Report for:', { name: group.employeeName, phone: r.employee?.phone });
                       onViewReport(group.employeeName, r.employee?.phone || group.employeeName);
                     }}
                   >
                     Full Report
                   </button>
-                  <button 
-                    className="bg-red-600 hover:bg-red-700 text-white text-sm py-2 px-3 rounded-lg transition-colors duration-200" 
-                    onClick={()=>deleteSubmission(r.id, group.employeeName)}
+                  <button
+                    className="bg-red-600 hover:bg-red-700 text-white text-sm py-2 px-3 rounded-lg transition-colors duration-200"
+                    onClick={() => deleteSubmission(r.id, group.employeeName)}
                   >
                     Delete
                   </button>
@@ -2892,10 +2892,10 @@ function ManagerDashboard({ onViewReport }){
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <div className="text-sm font-medium mb-1">Manager Notes</div>
-              <textarea className="w-full border rounded-xl p-2" rows={8} value={notes} onChange={e=>setNotes(e.target.value)} />
+              <textarea className="w-full border rounded-xl p-2" rows={8} value={notes} onChange={e => setNotes(e.target.value)} />
               <div className="mt-4">
-                  <label className="text-sm font-medium">Manager Score (1-10)</label>
-                  <input type="number" min={1} max={10} className="w-full border rounded-xl p-2 mt-1" value={managerScore} onChange={e=>setManagerScore(Number(e.target.value || 0))} />
+                <label className="text-sm font-medium">Manager Score (1-10)</label>
+                <input type="number" min={1} max={10} className="w-full border rounded-xl p-2 mt-1" value={managerScore} onChange={e => setManagerScore(Number(e.target.value || 0))} />
               </div>
               <button className="mt-4 bg-blue-600 text-white rounded-xl px-3 py-2" onClick={saveNotes}>Save Notes & Score</button>
             </div>
@@ -2956,7 +2956,7 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
     console.log('🎯 Filtered submissions:', filtered.length, filtered);
     return filtered;
   }, [allSubmissions, employeePhone, employeeName]);
-  
+
   const selectedReport = useMemo(() => {
     return employeeSubmissions.find(s => s.id === selectedReportId) || null;
   }, [employeeSubmissions, selectedReportId]);
@@ -2965,7 +2965,7 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
     if (!employeeSubmissions.length) {
       return null;
     }
-    
+
     let totalKpi = 0;
     let totalLearning = 0;
     let totalRelationship = 0;
@@ -2977,7 +2977,7 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
       totalLearning += s.scores?.learningScore || 0;
       totalRelationship += s.scores?.relationshipScore || 0;
       totalOverall += s.scores?.overall || 0;
-      if ((s.learning||[]).reduce((sum, e) => sum + (e.durationMins || 0), 0) < 360) {
+      if ((s.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0) < 360) {
         monthsWithLearningShortfall++;
       }
     });
@@ -3018,7 +3018,7 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
     allPhones: allSubmissions.map(s => s.employee?.phone),
     searchPhone: employeePhone
   });
-  
+
   if (!employeeSubmissions.length) {
     return (
       <div className="space-y-6">
@@ -3080,7 +3080,7 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
     const learningShortfall = yearlySummary?.monthsWithLearningShortfall > 0;
     const lowKPIScore = yearlySummary?.avgKpi < 7; // Example threshold
     const lowRelationshipScore = yearlySummary?.avgRelationship < 7; // Example threshold
-    
+
     let recommendations = [];
     if (learningShortfall) {
       recommendations.push("Focus on dedicating at least 6 hours per month to learning to avoid appraisal delays.");
@@ -3132,11 +3132,11 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
               </div>
             </div>
           </div>
-          
+
           {/* Performance Chart */}
           {employeeSubmissions.length > 1 && (
             <div className="mb-6">
-              <PerformanceChart 
+              <PerformanceChart
                 data={employeeSubmissions.map(s => ({
                   month: monthLabel(s.monthKey),
                   score: s.scores?.overall || 0
@@ -3145,7 +3145,7 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
               />
             </div>
           )}
-          
+
           <div className="mt-4">
             <h4 className="font-medium text-gray-700">Recommendations:</h4>
             <p className="text-sm text-gray-600 whitespace-pre-wrap">{getImprovementRecommendations()}</p>
@@ -3224,4 +3224,4 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
 }
 
 
-function clean(s){ return (s||'').toString(); }
+function clean(s) { return (s || '').toString(); }
