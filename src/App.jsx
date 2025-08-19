@@ -471,64 +471,319 @@ const PerformanceChart = ({ data, title }) => {
 };
 
 // PDF Download Component
-const PDFDownloadButton = ({ data, employeeName }) => {
+const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
+  const generateComprehensiveReport = () => {
+    if (!data || data.length === 0) {
+      return `
+        <div class="section">
+          <h3>No Data Available</h3>
+          <p>No submissions found for ${employeeName}.</p>
+        </div>
+      `;
+    }
+
+    // Calculate comprehensive statistics
+    const totalLearningHours = data.reduce((sum, d) => {
+      return sum + ((d.learning || []).reduce((learningSum, l) => learningSum + (l.durationMins || 0), 0) / 60);
+    }, 0);
+
+    const avgOverallScore = data.reduce((sum, d) => sum + (d.scores?.overall || 0), 0) / data.length;
+    const avgKpiScore = data.reduce((sum, d) => sum + (d.scores?.kpiScore || 0), 0) / data.length;
+    const avgLearningScore = data.reduce((sum, d) => sum + (d.scores?.learningScore || 0), 0) / data.length;
+
+    return `
+      <!-- Executive Summary -->
+      <div class="section">
+        <h3>📊 Executive Summary</h3>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="metric-value">${Math.round(avgOverallScore * 10) / 10}/10</div>
+            <div class="metric-label">Average Overall Score</div>
+          </div>
+          <div class="summary-card">
+            <div class="metric-value">${data.length}</div>
+            <div class="metric-label">Months Reported</div>
+          </div>
+          <div class="summary-card">
+            <div class="metric-value">${Math.round(totalLearningHours * 10) / 10}h</div>
+            <div class="metric-label">Total Learning Hours</div>
+          </div>
+          <div class="summary-card">
+            <div class="metric-value">${Math.round(avgKpiScore * 10) / 10}/10</div>
+            <div class="metric-label">Average KPI Score</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Performance Trends -->
+      <div class="section">
+        <h3>📈 Performance Trends</h3>
+        <table class="performance-table">
+          <tr>
+            <th>Month</th>
+            <th>Overall</th>
+            <th>KPI</th>
+            <th>Learning</th>
+            <th>Client Relations</th>
+            <th>Learning Hours</th>
+            <th>Manager Score</th>
+            <th>Manager Comments</th>
+          </tr>
+          ${data.map(d => {
+            const learningHours = ((d.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60).toFixed(1);
+            return `
+              <tr>
+                <td><strong>${monthLabel(d.monthKey)}</strong></td>
+                <td class="score-cell ${(d.scores?.overall || 0) >= 7 ? 'score-good' : 'score-poor'}">${d.scores?.overall || 'N/A'}/10</td>
+                <td class="score-cell">${d.scores?.kpiScore || 'N/A'}/10</td>
+                <td class="score-cell">${d.scores?.learningScore || 'N/A'}/10</td>
+                <td class="score-cell">${d.scores?.relationshipScore || 'N/A'}/10</td>
+                <td>${learningHours}h</td>
+                <td>${d.manager?.score || 'N/A'}/10</td>
+                <td class="comments-cell">${d.manager?.comments || 'No comments'}</td>
+              </tr>
+            `;
+          }).join('')}
+        </table>
+      </div>
+
+      <!-- Detailed Monthly Breakdown -->
+      <div class="section">
+        <h3>📋 Monthly Breakdown</h3>
+        ${data.map(d => `
+          <div class="month-section">
+            <h4>${monthLabel(d.monthKey)} Report</h4>
+            <div class="month-details">
+              <div class="detail-row">
+                <strong>Department:</strong> ${d.employee?.department || 'N/A'}
+              </div>
+              <div class="detail-row">
+                <strong>Role:</strong> ${(d.employee?.role || []).join(', ') || 'N/A'}
+              </div>
+              <div class="detail-row">
+                <strong>Attendance:</strong> WFO: ${d.meta?.attendance?.wfo || 0} days, WFH: ${d.meta?.attendance?.wfh || 0} days
+              </div>
+              <div class="detail-row">
+                <strong>Tasks Completed:</strong> ${d.meta?.tasks?.count || 0}
+              </div>
+              
+              <!-- Clients -->
+              ${(d.clients && d.clients.length > 0) ? `
+                <div class="detail-section">
+                  <strong>Client Work:</strong>
+                  <ul>
+                    ${d.clients.map(c => `
+                      <li>${c.op_clientName || 'Unnamed Client'} - ${c.op_clientStatus || 'Unknown Status'}</li>
+                    `).join('')}
+                  </ul>
+                </div>
+              ` : ''}
+              
+              <!-- Learning -->
+              ${(d.learning && d.learning.length > 0) ? `
+                <div class="detail-section">
+                  <strong>Learning Activities:</strong>
+                  <ul>
+                    ${d.learning.map(l => `
+                      <li>${l.course || 'Unknown Course'} - ${Math.round((l.durationMins || 0) / 60 * 10) / 10}h</li>
+                    `).join('')}
+                  </ul>
+                </div>
+              ` : ''}
+              
+              <!-- AI Usage -->
+              ${d.aiUsageNotes ? `
+                <div class="detail-section">
+                  <strong>AI Usage:</strong>
+                  <p>${d.aiUsageNotes}</p>
+                </div>
+              ` : ''}
+              
+              <!-- Feedback -->
+              ${(d.feedback && (d.feedback.company || d.feedback.hr || d.feedback.challenges)) ? `
+                <div class="detail-section">
+                  <strong>Employee Feedback:</strong>
+                  ${d.feedback.company ? `<p><em>Company:</em> ${d.feedback.company}</p>` : ''}
+                  ${d.feedback.hr ? `<p><em>HR:</em> ${d.feedback.hr}</p>` : ''}
+                  ${d.feedback.challenges ? `<p><em>Challenges:</em> ${d.feedback.challenges}</p>` : ''}
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  };
+
   const downloadPDF = () => {
-    // Create a simple HTML content for PDF
     const htmlContent = `
+      <!DOCTYPE html>
       <html>
         <head>
           <title>Performance Report - ${employeeName}</title>
           <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .section { margin-bottom: 20px; }
-            .score-card { display: inline-block; margin: 10px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f2f2f2; }
+            @media print {
+              body { margin: 0; }
+              .no-print { display: none; }
+              .page-break { page-break-before: always; }
+            }
+            
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+              margin: 20px; 
+              line-height: 1.6; 
+              color: #333;
+            }
+            
+            .header { 
+              text-align: center; 
+              margin-bottom: 40px; 
+              border-bottom: 3px solid #2563eb;
+              padding-bottom: 20px;
+            }
+            
+            .header h1 { 
+              color: #2563eb; 
+              margin-bottom: 5px; 
+              font-size: 28px;
+            }
+            
+            .header h2 { 
+              color: #1f2937; 
+              margin: 10px 0; 
+              font-size: 24px;
+            }
+            
+            .section { 
+              margin-bottom: 30px; 
+              break-inside: avoid;
+            }
+            
+            .section h3 { 
+              color: #1f2937; 
+              border-left: 4px solid #2563eb; 
+              padding-left: 12px; 
+              margin-bottom: 15px;
+              font-size: 20px;
+            }
+            
+            .summary-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+              gap: 15px;
+              margin: 20px 0;
+            }
+            
+            .summary-card {
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 8px;
+              padding: 20px;
+              text-align: center;
+            }
+            
+            .metric-value {
+              font-size: 32px;
+              font-weight: bold;
+              color: #2563eb;
+              margin-bottom: 5px;
+            }
+            
+            .metric-label {
+              font-size: 14px;
+              color: #64748b;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            
+            .performance-table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              margin: 15px 0; 
+              font-size: 12px;
+            }
+            
+            .performance-table th, 
+            .performance-table td { 
+              border: 1px solid #d1d5db; 
+              padding: 8px; 
+              text-align: left; 
+            }
+            
+            .performance-table th { 
+              background-color: #2563eb; 
+              color: white; 
+              font-weight: 600;
+            }
+            
+            .score-cell {
+              text-align: center;
+              font-weight: 600;
+            }
+            
+            .score-good { color: #059669; }
+            .score-poor { color: #dc2626; }
+            
+            .comments-cell {
+              max-width: 200px;
+              font-size: 11px;
+              word-wrap: break-word;
+            }
+            
+            .month-section {
+              margin: 20px 0;
+              padding: 15px;
+              background: #f9fafb;
+              border-radius: 8px;
+              border-left: 4px solid #10b981;
+            }
+            
+            .month-section h4 {
+              color: #1f2937;
+              margin-bottom: 10px;
+            }
+            
+            .detail-row {
+              margin: 8px 0;
+              padding: 4px 0;
+            }
+            
+            .detail-section {
+              margin: 12px 0;
+              padding-left: 15px;
+            }
+            
+            .detail-section ul {
+              margin: 5px 0;
+            }
+            
+            .detail-section li {
+              margin: 3px 0;
+            }
+            
+            .footer {
+              margin-top: 40px;
+              padding-top: 20px;
+              border-top: 1px solid #e5e7eb;
+              text-align: center;
+              font-size: 12px;
+              color: #6b7280;
+            }
           </style>
         </head>
         <body>
           <div class="header">
-            <h1>Performance Report</h1>
+            <h1>🏢 Branding Pioneers</h1>
+            <h2>Employee Performance Report</h2>
             <h2>${employeeName}</h2>
-            <p>Generated on ${new Date().toLocaleDateString()}</p>
+            <p>Generated on ${new Date().toLocaleString()}</p>
           </div>
           
-          <div class="section">
-            <h3>Performance Summary</h3>
-            ${data.map(d => `
-              <div class="score-card">
-                <strong>${d.monthKey}</strong><br>
-                Overall Score: ${d.scores?.overall || 'N/A'}/10<br>
-                KPI: ${d.scores?.kpiScore || 'N/A'}/10<br>
-                Learning: ${d.scores?.learningScore || 'N/A'}/10
-              </div>
-            `).join('')}
-          </div>
+          ${generateComprehensiveReport()}
           
-          <div class="section">
-            <h3>Detailed Submissions</h3>
-            <table>
-              <tr>
-                <th>Month</th>
-                <th>Department</th>
-                <th>Overall Score</th>
-                <th>KPI Score</th>
-                <th>Learning Score</th>
-                <th>Manager Score</th>
-              </tr>
-              ${data.map(d => `
-                <tr>
-                  <td>${monthLabel(d.monthKey)}</td>
-                  <td>${d.employee?.department || 'N/A'}</td>
-                  <td>${d.scores?.overall || 'N/A'}/10</td>
-                  <td>${d.scores?.kpiScore || 'N/A'}/10</td>
-                  <td>${d.scores?.learningScore || 'N/A'}/10</td>
-                  <td>${d.manager?.score || 'N/A'}/10</td>
-                </tr>
-              `).join('')}
-            </table>
+          <div class="footer">
+            <p>This report was generated by the Branding Pioneers Monthly Tactical System</p>
+            <p>For questions about this report, please contact your manager or HR department</p>
           </div>
         </body>
       </html>
@@ -539,7 +794,7 @@ const PDFDownloadButton = ({ data, employeeName }) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${employeeName.replace(/\s+/g, '_')}_Performance_Report.html`;
+    a.download = `${employeeName.replace(/\s+/g, '_')}_Complete_Performance_Report_${new Date().toISOString().split('T')[0]}.html`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -552,7 +807,7 @@ const PDFDownloadButton = ({ data, employeeName }) => {
       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
         <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
       </svg>
-      Download PDF
+      Download Complete Report
     </button>
   );
 };
@@ -808,7 +1063,15 @@ function AppContent() {
 
   const ManagerSection = () => {
     if (view === 'employeeReport' && selectedEmployee) {
-      return <EmployeeReportDashboard employeeName={selectedEmployee.name} employeePhone={selectedEmployee.phone} onBack={handleBackToDashboard} />;
+      return (
+        <div className="min-h-screen bg-white">
+          <EmployeeReportDashboard 
+            employeeName={selectedEmployee.name} 
+            employeePhone={selectedEmployee.phone} 
+            onBack={handleBackToDashboard} 
+          />
+        </div>
+      );
     }
     return <ManagerDashboard onViewReport={handleViewEmployeeReport} />;
   };
@@ -903,6 +1166,28 @@ function EmployeeForm() {
   const [currentSubmission, setCurrentSubmission] = useState({ ...EMPTY_SUBMISSION, isDraft: true });
   const [previousSubmission, setPreviousSubmission] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null); // {name, phone}
+  
+  // Wizard state
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [lastAutoSave, setLastAutoSave] = useState(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
+  // Form steps configuration
+  const FORM_STEPS = [
+    { id: 1, title: "Profile & Month", icon: "👤", description: "Basic information and reporting period" },
+    { id: 2, title: "Attendance & Tasks", icon: "📅", description: "Work attendance and task completion" },
+    { id: 3, title: "KPI & Performance", icon: "📊", description: "Department-specific metrics and achievements" },
+    { id: 4, title: "Client Management", icon: "🤝", description: "Client relationships and project status" },
+    { id: 5, title: "Learning & AI", icon: "🎓", description: "Learning activities and AI usage" },
+    { id: 6, title: "Feedback & Review", icon: "💬", description: "Company feedback and final review" },
+  ];
+
+  // Auto-save key for localStorage
+  const getAutoSaveKey = () => {
+    const employeeId = selectedEmployee ? `${selectedEmployee.name}-${selectedEmployee.phone}` : 'anonymous';
+    return `autosave-${employeeId}-${currentSubmission.monthKey}`;
+  };
 
   const uniqueEmployees = useMemo(() => {
     const employees = {};
@@ -941,6 +1226,53 @@ function EmployeeForm() {
   }, [selectedEmployee, allSubmissions]);
 
 
+  // Auto-save functionality
+  const autoSave = useCallback(async () => {
+    if (!selectedEmployee || !currentSubmission) return;
+    
+    try {
+      const autoSaveData = {
+        ...currentSubmission,
+        lastSaved: new Date().toISOString(),
+        currentStep: currentStep
+      };
+      
+      localStorage.setItem(getAutoSaveKey(), JSON.stringify(autoSaveData));
+      setLastAutoSave(new Date());
+      setHasUnsavedChanges(false);
+    } catch (error) {
+      console.error('Auto-save failed:', error);
+    }
+  }, [selectedEmployee, currentSubmission, currentStep, getAutoSaveKey]);
+
+  // Load saved draft
+  const loadDraft = useCallback(() => {
+    try {
+      const savedData = localStorage.getItem(getAutoSaveKey());
+      if (savedData) {
+        const draft = JSON.parse(savedData);
+        setCurrentSubmission(draft);
+        setCurrentStep(draft.currentStep || 1);
+        setLastAutoSave(new Date(draft.lastSaved));
+        return true;
+      }
+    } catch (error) {
+      console.error('Failed to load draft:', error);
+    }
+    return false;
+  }, [getAutoSaveKey]);
+
+  // Clear saved draft
+  const clearDraft = useCallback(() => {
+    try {
+      localStorage.removeItem(getAutoSaveKey());
+      setLastAutoSave(null);
+      setHasUnsavedChanges(false);
+    } catch (error) {
+      console.error('Failed to clear draft:', error);
+    }
+  }, [getAutoSaveKey]);
+
   const updateCurrentSubmission = useCallback((key, value) => {
     setCurrentSubmission(prev => {
       const updated = { ...prev };
@@ -955,7 +1287,48 @@ function EmployeeForm() {
       current[keyParts[keyParts.length - 1]] = value;
       return updated;
     });
+    
+    // Mark as having unsaved changes
+    setHasUnsavedChanges(true);
   }, []);
+
+  // Auto-save effect - save every 30 seconds when there are changes
+  useEffect(() => {
+    if (hasUnsavedChanges && selectedEmployee) {
+      const timer = setTimeout(autoSave, 30000); // 30 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [hasUnsavedChanges, selectedEmployee, autoSave]);
+
+  // Load draft when employee is selected
+  useEffect(() => {
+    if (selectedEmployee && getAutoSaveKey()) {
+      const hasDraft = loadDraft();
+      if (hasDraft) {
+        openModal(
+          'Draft Found',
+          `We found a saved draft for ${selectedEmployee.name} from ${lastAutoSave ? lastAutoSave.toLocaleString() : 'recently'}. Would you like to continue where you left off?`,
+          () => {
+            // User chose to keep draft - already loaded
+            closeModal();
+          },
+          () => {
+            // User chose to start fresh
+            clearDraft();
+            setCurrentSubmission(prev => ({
+              ...EMPTY_SUBMISSION,
+              employee: { ...prev.employee, name: selectedEmployee.name, phone: selectedEmployee.phone, department: previousSubmission?.employee?.department || "Web", role: previousSubmission?.employee?.role || [] },
+              monthKey: thisMonthKey(),
+            }));
+            setCurrentStep(1);
+            closeModal();
+          },
+          'Keep Draft',
+          'Start Fresh'
+        );
+      }
+    }
+  }, [selectedEmployee, loadDraft, clearDraft, openModal, closeModal, lastAutoSave, previousSubmission]);
 
   const kpiScore = useMemo(() => scoreKPIs(currentSubmission.employee, currentSubmission.clients), [currentSubmission.employee, currentSubmission.clients]);
   const learningScore = useMemo(() => scoreLearning(currentSubmission.learning), [currentSubmission.learning]);
@@ -1030,127 +1403,445 @@ function EmployeeForm() {
   const rolesForDept = ROLES_BY_DEPT[currentSubmission.employee.department] || [];
   const isNewEmployee = !selectedEmployee;
 
-  return (
-    <div>
-      <CelebrationEffect show={showCelebration} />
-      <Section
-        title="Employee & Report Month"
-        number="1"
-        info="Select your profile from existing employees or create a new one. Choose the month you're reporting for. This helps track your progress over time and ensures accurate month-over-month comparisons."
-      >
-        <div className="grid md:grid-cols-4 gap-3">
-          {/* Employee Selection dropdown */}
-          <div className="md:col-span-2">
-            <label className="text-sm">Select Employee</label>
-            <select
-              className="w-full border rounded-xl p-2"
-              value={selectedEmployee ? `${selectedEmployee.name}-${selectedEmployee.phone}` : ""}
-              onChange={(e) => {
-                if (e.target.value === "") {
-                  setSelectedEmployee(null);
-                  setCurrentSubmission({ ...EMPTY_SUBMISSION, monthKey: thisMonthKey() });
-                } else {
-                  const [name, phone] = e.target.value.split('-');
-                  setSelectedEmployee({ name, phone });
-                }
-              }}
-            >
-              <option value="">-- New Employee --</option>
-              {uniqueEmployees.map((emp) => (
-                <option key={`${emp.name}-${emp.phone}`} value={`${emp.name}-${emp.phone}`}>
-                  {emp.name} ({emp.phone})
-                </option>
-              ))}
-            </select>
+  // Navigation functions
+  const goToStep = (stepId) => {
+    setCurrentStep(stepId);
+    if (selectedEmployee) {
+      autoSave(); // Auto-save when switching steps
+    }
+  };
+
+  const nextStep = () => {
+    if (currentStep < FORM_STEPS.length) {
+      goToStep(currentStep + 1);
+    }
+  };
+
+  const prevStep = () => {
+    if (currentStep > 1) {
+      goToStep(currentStep - 1);
+    }
+  };
+
+  const getCurrentStepData = () => FORM_STEPS.find(step => step.id === currentStep);
+
+  // Progress Indicator Component
+  const ProgressIndicator = () => (
+    <div className="bg-white rounded-xl shadow-sm border p-4 mb-6">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-semibold">Monthly Report Progress</h2>
+        {lastAutoSave && (
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            Auto-saved {lastAutoSave.toLocaleTimeString()}
           </div>
-          {isNewEmployee && (
-            <TextField label="Name" placeholder="Your name" value={currentSubmission.employee.name || ""} onChange={v => updateCurrentSubmission('employee.name', v)} />
-          )}
-          {isNewEmployee && (
-            <TextField label="Phone Number" placeholder="e.g., 9876543210" value={currentSubmission.employee.phone || ""} onChange={v => updateCurrentSubmission('employee.phone', v)} />
-          )}
-          <div>
-            <label className="text-sm">Department</label>
-            <select className="w-full border rounded-xl p-2" value={currentSubmission.employee.department} onChange={e => updateCurrentSubmission('employee.department', e.target.value)}>
-              {DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm">Role(s)</label>
-            <MultiSelect
-              options={rolesForDept}
-              selected={currentSubmission.employee.role}
-              onChange={(newRoles) => updateCurrentSubmission('employee.role', newRoles)}
-              placeholder="Select roles"
-            />
-          </div>
-          <div>
-            <label className="text-sm">Report Month</label>
-            <input type="month" className="w-full border rounded-xl p-2" value={currentSubmission.monthKey} onChange={e => updateCurrentSubmission('monthKey', e.target.value)} />
-            <div className="text-xs text-gray-500 mt-1">Comparisons: {monthLabel(mPrev)} vs {monthLabel(mThis)}</div>
-          </div>
+        )}
+      </div>
+      
+      <div className="relative">
+        <div className="flex justify-between">
+          {FORM_STEPS.map((step, index) => (
+            <div key={step.id} className="flex flex-col items-center relative z-10">
+              <button
+                onClick={() => goToStep(step.id)}
+                className={`w-12 h-12 rounded-full border-2 flex items-center justify-center text-lg font-semibold transition-all duration-200 ${
+                  currentStep === step.id
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : currentStep > step.id
+                    ? 'bg-green-600 text-white border-green-600'
+                    : 'bg-gray-100 text-gray-400 border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                {currentStep > step.id ? '✓' : step.icon}
+              </button>
+              <div className="mt-2 text-center">
+                <div className={`text-xs font-medium ${currentStep === step.id ? 'text-blue-600' : currentStep > step.id ? 'text-green-600' : 'text-gray-500'}`}>
+                  {step.title}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-      </Section>
-
-      <Section
-        title="Attendance & Tasks (this month)"
-        number="1b"
-        info="Record your work attendance for the month - both Work From Office (WFO) and Work From Home (WFH) days. Also track the number of tasks completed and provide your AI task management table link with screenshot proof."
-      >
-        <div className="grid md:grid-cols-4 gap-3">
-          <NumField label="WFO days (0–31)" value={currentSubmission.meta.attendance.wfo} onChange={v => updateCurrentSubmission('meta.attendance.wfo', v)} />
-          <NumField label="WFH days (0–31)" value={currentSubmission.meta.attendance.wfh} onChange={v => updateCurrentSubmission('meta.attendance.wfh', v)} />
-          <div className="md:col-span-2 text-xs text-gray-500 self-end">
-            Total cannot exceed the number of days in {monthLabel(currentSubmission.monthKey)} ({daysInMonth(currentSubmission.monthKey)} days).
-          </div>
-          <NumField label="Tasks completed (per AI table)" value={currentSubmission.meta.tasks.count} onChange={v => updateCurrentSubmission('meta.tasks.count', v)} />
-          <TextField label="AI Table / PM link (Drive/URL)" value={currentSubmission.meta.tasks.aiTableLink} onChange={v => updateCurrentSubmission('meta.tasks.aiTableLink', v)} />
-          <TextField label="AI Table screenshot (Drive URL)" value={currentSubmission.meta.tasks.aiTableScreenshot} onChange={v => updateCurrentSubmission('meta.tasks.aiTableScreenshot', v)} />
+        
+        {/* Progress Line */}
+        <div className="absolute top-6 left-6 right-6 h-0.5 bg-gray-200 -z-10">
+          <div 
+            className="h-full bg-green-600 transition-all duration-500 ease-out"
+            style={{ width: `${((currentStep - 1) / (FORM_STEPS.length - 1)) * 100}%` }}
+          ></div>
         </div>
-      </Section>
-
-      <DeptClientsBlock currentSubmission={currentSubmission} previousSubmission={previousSubmission} setModel={setCurrentSubmission} monthPrev={mPrev} monthThis={mThis} openModal={openModal} closeModal={closeModal} />
-      <LearningBlock model={currentSubmission} setModel={setCurrentSubmission} openModal={openModal} />
-
-      <Section
-        title="AI Usage (Optional)"
-        number="4"
-        info="Describe how you used AI tools to improve your work efficiency this month. Include specific examples, tools used, and measurable improvements. This helps us understand AI adoption across the team."
-      >
-        <textarea className="w-full border rounded-xl p-3" rows={4} placeholder="List ways you used AI to work faster/better this month. Include links or examples." value={currentSubmission.aiUsageNotes} onChange={e => updateCurrentSubmission('aiUsageNotes', e.target.value)} />
-      </Section>
-
-      <Section
-        title="Employee Feedback"
-        number="5"
-        info="Share your honest feedback about the company, HR processes, and any challenges you're facing. This information helps management improve the work environment and address concerns proactively."
-      >
-        <div className="grid md:grid-cols-1 gap-4">
-          <TextArea label="General feedback about the company" placeholder="What's working well? What could be improved?" rows={3} value={currentSubmission.feedback.company} onChange={v => updateCurrentSubmission('feedback.company', v)} />
-          <TextArea label="Feedback regarding HR and policies" placeholder="Any thoughts on HR processes, communication, or company policies?" rows={3} value={currentSubmission.feedback.hr} onChange={v => updateCurrentSubmission('feedback.hr', v)} />
-          <TextArea label="Challenges you are facing" placeholder="Are there any obstacles or challenges hindering your work or growth?" rows={3} value={currentSubmission.feedback.challenges} onChange={v => updateCurrentSubmission('feedback.challenges', v)} />
-        </div>
-      </Section>
-
-      <Section
-        title="Performance Summary & Submission"
-        number="6"
-        info="Review your calculated scores based on KPIs, learning hours, and client relationships. Scores of 8+ trigger celebration effects! Submit as draft to save progress or finalize to complete your monthly report."
-      >
-        <div className="grid md:grid-cols-4 gap-3">
-          <div className="bg-blue-600 text-white rounded-2xl p-4"><div className="text-sm opacity-80">KPI</div><div className="text-3xl font-semibold">{currentSubmission.scores.kpiScore}/10</div></div>
-          <div className="bg-blue-600 text-white rounded-2xl p-4"><div className="text-sm opacity-80">Learning</div><div className="text-3xl font-semibold">{currentSubmission.scores.learningScore}/10</div></div>
-          <div className="bg-blue-600 text-white rounded-2xl p-4"><div className="text-sm opacity-80">Client Status</div><div className="text-3xl font-semibold">{currentSubmission.scores.relationshipScore}/10</div></div>
-          <div className="bg-blue-600 text-white rounded-2xl p-4"><div className="text-sm opacity-80">Overall</div><div className="text-3xl font-semibold">{currentSubmission.scores.overall}/10</div></div>
-        </div>
-        <div className="mt-4 text-sm bg-blue-50 border border-blue-100 rounded-xl p-3 whitespace-pre-wrap">{generateSummary(currentSubmission)}</div>
-      </Section>
-
-      <div className="flex items-center gap-3 mt-8">
-        <button onClick={submitFinal} className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl px-8 py-3 text-lg font-semibold disabled:bg-gray-400" disabled={!supabase}>Submit Monthly Report</button>
       </div>
     </div>
   );
+
+  // Step Content Component
+  const StepContent = () => {
+    const stepData = getCurrentStepData();
+    
+    return (
+      <div className="bg-white rounded-xl shadow-sm border p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-xl">
+            {stepData.icon}
+          </div>
+          <div>
+            <h3 className="text-xl font-semibold">{stepData.title}</h3>
+            <p className="text-gray-600 text-sm">{stepData.description}</p>
+          </div>
+        </div>
+
+        {renderStepContent()}
+      </div>
+    );
+  };
+
+  // Render content based on current step
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return renderProfileStep();
+      case 2:
+        return renderAttendanceStep();
+      case 3:
+        return renderKPIStep();
+      case 4:
+        return renderClientStep();
+      case 5:
+        return renderLearningStep();
+      case 6:
+        return renderFeedbackStep();
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      <CelebrationEffect show={showCelebration} />
+      
+      {hasUnsavedChanges && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4 flex items-center gap-2">
+          <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+          <span className="text-sm text-yellow-800">You have unsaved changes. They will be auto-saved in a moment.</span>
+        </div>
+      )}
+
+      <ProgressIndicator />
+      <StepContent />
+
+      {/* Navigation */}
+      <div className="flex justify-between items-center mt-6">
+        <button
+          onClick={prevStep}
+          disabled={currentStep === 1}
+          className="px-6 py-3 text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          ← Previous
+        </button>
+        
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">
+            Step {currentStep} of {FORM_STEPS.length}
+          </span>
+        </div>
+
+        {currentStep === FORM_STEPS.length ? (
+          <button
+            onClick={submitFinal}
+            disabled={!supabase}
+            className="bg-green-600 hover:bg-green-700 text-white rounded-xl px-8 py-3 font-semibold disabled:opacity-50 transition-colors"
+          >
+            Submit Report
+          </button>
+        ) : (
+          <button
+            onClick={nextStep}
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6 py-3 transition-colors"
+          >
+            Next →
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  // Step 1: Profile & Month
+  function renderProfileStep() {
+    return (
+      <div className="space-y-6">
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Select Employee</label>
+              <select
+                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                value={selectedEmployee ? `${selectedEmployee.name}-${selectedEmployee.phone}` : ""}
+                onChange={(e) => {
+                  if (e.target.value === "") {
+                    setSelectedEmployee(null);
+                    setCurrentSubmission({ ...EMPTY_SUBMISSION, monthKey: thisMonthKey() });
+                  } else {
+                    const [name, phone] = e.target.value.split('-');
+                    setSelectedEmployee({ name, phone });
+                  }
+                }}
+              >
+                <option value="">-- New Employee --</option>
+                {uniqueEmployees.map((emp) => (
+                  <option key={`${emp.name}-${emp.phone}`} value={`${emp.name}-${emp.phone}`}>
+                    {emp.name} ({emp.phone})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {isNewEmployee && (
+              <div className="space-y-4">
+                <TextField label="Name" placeholder="Your full name" value={currentSubmission.employee.name || ""} onChange={v => updateCurrentSubmission('employee.name', v)} />
+                <TextField label="Phone Number" placeholder="e.g., 9876543210" value={currentSubmission.employee.phone || ""} onChange={v => updateCurrentSubmission('employee.phone', v)} />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Department</label>
+              <select 
+                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                value={currentSubmission.employee.department} 
+                onChange={e => updateCurrentSubmission('employee.department', e.target.value)}
+              >
+                {DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Role(s)</label>
+              <MultiSelect
+                options={rolesForDept}
+                selected={currentSubmission.employee.role}
+                onChange={(newRoles) => updateCurrentSubmission('employee.role', newRoles)}
+                placeholder="Select your roles"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Report Month</label>
+              <input 
+                type="month" 
+                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                value={currentSubmission.monthKey} 
+                onChange={e => updateCurrentSubmission('monthKey', e.target.value)} 
+              />
+              <div className="text-xs text-gray-500 mt-2">
+                📊 Comparison: {monthLabel(mPrev)} vs {monthLabel(mThis)}
+              </div>
+            </div>
+
+            {previousSubmission && (
+              <div className="bg-blue-50 rounded-lg p-4">
+                <h4 className="font-medium text-blue-900 mb-2">Previous Report</h4>
+                <div className="text-sm text-blue-700 space-y-1">
+                  <div>📅 Month: {monthLabel(previousSubmission.monthKey)}</div>
+                  <div>⭐ Score: {previousSubmission.scores?.overall || 'N/A'}/10</div>
+                  <div>🏢 Department: {previousSubmission.employee?.department}</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 2: Attendance & Tasks  
+  function renderAttendanceStep() {
+    return (
+      <div className="space-y-6">
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <h4 className="font-medium text-gray-900 flex items-center gap-2">
+              📅 Work Attendance
+            </h4>
+            <div className="grid grid-cols-2 gap-4">
+              <NumField 
+                label="WFO days" 
+                placeholder="0-31" 
+                value={currentSubmission.meta.attendance.wfo} 
+                onChange={v => updateCurrentSubmission('meta.attendance.wfo', v)} 
+              />
+              <NumField 
+                label="WFH days" 
+                placeholder="0-31"
+                value={currentSubmission.meta.attendance.wfh} 
+                onChange={v => updateCurrentSubmission('meta.attendance.wfh', v)} 
+              />
+            </div>
+            <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+              📍 Total days in {monthLabel(currentSubmission.monthKey)}: {daysInMonth(currentSubmission.monthKey)}
+              <br />
+              Current total: {(currentSubmission.meta.attendance.wfo || 0) + (currentSubmission.meta.attendance.wfh || 0)} days
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h4 className="font-medium text-gray-900 flex items-center gap-2">
+              ✅ Task Management
+            </h4>
+            <NumField 
+              label="Tasks completed" 
+              placeholder="Number of tasks" 
+              value={currentSubmission.meta.tasks.count} 
+              onChange={v => updateCurrentSubmission('meta.tasks.count', v)} 
+            />
+            <TextField 
+              label="AI Table / PM link" 
+              placeholder="Google Drive or project management URL" 
+              value={currentSubmission.meta.tasks.aiTableLink} 
+              onChange={v => updateCurrentSubmission('meta.tasks.aiTableLink', v)} 
+            />
+            <TextField 
+              label="Screenshot proof" 
+              placeholder="Google Drive URL for screenshot" 
+              value={currentSubmission.meta.tasks.aiTableScreenshot} 
+              onChange={v => updateCurrentSubmission('meta.tasks.aiTableScreenshot', v)} 
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 3: KPI & Performance
+  function renderKPIStep() {
+    return (
+      <div className="space-y-6">
+        <DeptClientsBlock 
+          currentSubmission={currentSubmission} 
+          previousSubmission={previousSubmission} 
+          setModel={setCurrentSubmission} 
+          monthPrev={mPrev} 
+          monthThis={mThis} 
+          openModal={openModal} 
+          closeModal={closeModal} 
+        />
+      </div>
+    );
+  }
+
+  // Step 4: Client Management  
+  function renderClientStep() {
+    // This content is handled in DeptClientsBlock, so we show a summary
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-8">
+          <div className="text-6xl mb-4">🤝</div>
+          <h3 className="text-lg font-semibold mb-2">Client Management</h3>
+          <p className="text-gray-600">
+            Client information is integrated with your KPI section in Step 3.
+            <br />
+            Use the Previous/Next buttons to navigate between steps.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 5: Learning & AI
+  function renderLearningStep() {
+    return (
+      <div className="space-y-6">
+        <LearningBlock model={currentSubmission} setModel={setCurrentSubmission} openModal={openModal} />
+        
+        <div className="bg-white border rounded-xl p-6">
+          <h4 className="font-medium text-gray-900 flex items-center gap-2 mb-4">
+            🤖 AI Usage (Optional)
+          </h4>
+          <p className="text-sm text-gray-600 mb-4">
+            Describe how you used AI tools to improve your work efficiency this month.
+          </p>
+          <textarea 
+            className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+            rows={4} 
+            placeholder="List ways you used AI to work faster/better this month. Include links or examples." 
+            value={currentSubmission.aiUsageNotes} 
+            onChange={e => updateCurrentSubmission('aiUsageNotes', e.target.value)} 
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Step 6: Feedback & Review
+  function renderFeedbackStep() {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white border rounded-xl p-6">
+          <h4 className="font-medium text-gray-900 flex items-center gap-2 mb-4">
+            💬 Employee Feedback
+          </h4>
+          <p className="text-sm text-gray-600 mb-6">
+            Share your honest feedback to help improve the work environment.
+          </p>
+          <div className="space-y-4">
+            <TextArea 
+              label="General feedback about the company" 
+              placeholder="What's working well? What could be improved?" 
+              rows={3} 
+              value={currentSubmission.feedback.company} 
+              onChange={v => updateCurrentSubmission('feedback.company', v)} 
+            />
+            <TextArea 
+              label="Feedback regarding HR and policies" 
+              placeholder="Any thoughts on HR processes, communication, or company policies?" 
+              rows={3} 
+              value={currentSubmission.feedback.hr} 
+              onChange={v => updateCurrentSubmission('feedback.hr', v)} 
+            />
+            <TextArea 
+              label="Challenges you are facing" 
+              placeholder="Are there any obstacles or challenges hindering your work or growth?" 
+              rows={3} 
+              value={currentSubmission.feedback.challenges} 
+              onChange={v => updateCurrentSubmission('feedback.challenges', v)} 
+            />
+          </div>
+        </div>
+
+        {/* Performance Summary */}
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 border rounded-xl p-6">
+          <h4 className="font-medium text-gray-900 flex items-center gap-2 mb-4">
+            📊 Performance Summary
+          </h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <div className="bg-white rounded-lg p-4">
+              <div className="text-2xl font-bold text-blue-600">{kpiScore}/10</div>
+              <div className="text-sm text-gray-600">KPI Score</div>
+            </div>
+            <div className="bg-white rounded-lg p-4">
+              <div className="text-2xl font-bold text-green-600">{learningScore}/10</div>
+              <div className="text-sm text-gray-600">Learning</div>
+            </div>
+            <div className="bg-white rounded-lg p-4">
+              <div className="text-2xl font-bold text-purple-600">{relationshipScore}/10</div>
+              <div className="text-sm text-gray-600">Client Relations</div>
+            </div>
+            <div className="bg-white rounded-lg p-4">
+              <div className="text-2xl font-bold text-orange-600">{overall}/10</div>
+              <div className="text-sm text-gray-600">Overall</div>
+            </div>
+          </div>
+          
+          {overall >= 8 && (
+            <div className="mt-4 text-center">
+              <div className="text-4xl mb-2">🎉</div>
+              <div className="text-green-600 font-semibold">Excellent performance!</div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 }
 
 /***********************
@@ -2273,6 +2964,123 @@ function ManagerDashboard({ onViewReport }) {
   const [managerScore, setManagerScore] = useState(0);
   const { openModal, closeModal } = useModal();
 
+  // Direct PDF download function
+  const downloadEmployeePDF = (employeeData, employeeName) => {
+    // Calculate stats for the employee
+    const totalLearningHours = employeeData.reduce((sum, d) => {
+      return sum + ((d.learning || []).reduce((learningSum, l) => learningSum + (l.durationMins || 0), 0) / 60);
+    }, 0);
+    const avgOverallScore = employeeData.reduce((sum, d) => sum + (d.scores?.overall || 0), 0) / employeeData.length;
+    
+    // Create comprehensive HTML report
+    const generateReport = () => {
+      if (!employeeData || employeeData.length === 0) {
+        return '<div class="section"><h3>No Data Available</h3><p>No submissions found for ' + employeeName + '.</p></div>';
+      }
+
+      return `
+        <!-- Executive Summary -->
+        <div class="section">
+          <h3>📊 Executive Summary</h3>
+          <div class="summary-grid">
+            <div class="summary-card">
+              <div class="metric-value">${Math.round(avgOverallScore * 10) / 10}/10</div>
+              <div class="metric-label">Average Overall Score</div>
+            </div>
+            <div class="summary-card">
+              <div class="metric-value">${employeeData.length}</div>
+              <div class="metric-label">Months Reported</div>
+            </div>
+            <div class="summary-card">
+              <div class="metric-value">${Math.round(totalLearningHours * 10) / 10}h</div>
+              <div class="metric-label">Total Learning Hours</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Performance Table -->
+        <div class="section">
+          <h3>📈 Performance Overview</h3>
+          <table class="performance-table">
+            <tr>
+              <th>Month</th>
+              <th>Overall</th>
+              <th>KPI</th>
+              <th>Learning</th>
+              <th>Learning Hours</th>
+              <th>Manager Comments</th>
+            </tr>
+            ${employeeData.map(d => {
+              const learningHours = ((d.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60).toFixed(1);
+              return `
+                <tr>
+                  <td><strong>${monthLabel(d.monthKey)}</strong></td>
+                  <td class="score-cell ${(d.scores?.overall || 0) >= 7 ? 'score-good' : 'score-poor'}">${d.scores?.overall || 'N/A'}/10</td>
+                  <td class="score-cell">${d.scores?.kpiScore || 'N/A'}/10</td>
+                  <td class="score-cell">${d.scores?.learningScore || 'N/A'}/10</td>
+                  <td>${learningHours}h</td>
+                  <td class="comments-cell">${d.manager?.comments || 'No comments'}</td>
+                </tr>
+              `;
+            }).join('')}
+          </table>
+        </div>
+      `;
+    };
+
+    // Create and download the HTML file
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Performance Report - ${employeeName}</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 20px; line-height: 1.6; color: #333; }
+            .header { text-align: center; margin-bottom: 40px; border-bottom: 3px solid #2563eb; padding-bottom: 20px; }
+            .header h1 { color: #2563eb; margin-bottom: 5px; font-size: 28px; }
+            .header h2 { color: #1f2937; margin: 10px 0; font-size: 24px; }
+            .section { margin-bottom: 30px; break-inside: avoid; }
+            .section h3 { color: #1f2937; border-left: 4px solid #2563eb; padding-left: 12px; margin-bottom: 15px; font-size: 20px; }
+            .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+            .summary-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; text-align: center; }
+            .metric-value { font-size: 32px; font-weight: bold; color: #2563eb; margin-bottom: 5px; }
+            .metric-label { font-size: 14px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+            .performance-table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 12px; }
+            .performance-table th, .performance-table td { border: 1px solid #d1d5db; padding: 8px; text-align: left; }
+            .performance-table th { background-color: #2563eb; color: white; font-weight: 600; }
+            .score-cell { text-align: center; font-weight: 600; }
+            .score-good { color: #059669; }
+            .score-poor { color: #dc2626; }
+            .comments-cell { max-width: 200px; font-size: 11px; word-wrap: break-word; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>🏢 Branding Pioneers</h1>
+            <h2>Employee Performance Report</h2>
+            <h2>${employeeName}</h2>
+            <p>Generated on ${new Date().toLocaleString()}</p>
+          </div>
+          
+          ${generateReport()}
+          
+          <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 12px; color: #6b7280;">
+            <p>This report was generated by the Branding Pioneers Monthly Tactical System</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    // Create blob and download
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${employeeName.replace(/\s+/g, '_')}_Performance_Report_${new Date().toISOString().split('T')[0]}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const filteredSubmissions = useMemo(() => {
     let filtered = allSubmissions;
 
@@ -2811,6 +3619,10 @@ function ManagerDashboard({ onViewReport }) {
                             : 'no-phone';
                           onViewReport(group.employeeName, mostCommonPhone);
                         }}>Full Report</button>
+                        <button className="text-green-600 hover:text-green-800 underline text-xs transition-colors duration-200" onClick={() => {
+                          // Direct PDF download for this employee
+                          downloadEmployeePDF(group.submissions, group.employeeName);
+                        }}>Download PDF</button>
                         <button className="text-red-600 hover:text-red-800 underline text-xs transition-colors duration-200" onClick={() => deleteSubmission(r.id, group.employeeName)}>Delete Latest</button>
                       </div>
                     </td>
@@ -2890,6 +3702,12 @@ function ManagerDashboard({ onViewReport }) {
                     Full Report
                   </button>
                   <button
+                    className="bg-green-600 hover:bg-green-700 text-white text-sm py-2 px-3 rounded-lg transition-colors duration-200"
+                    onClick={() => downloadEmployeePDF(group.submissions, group.employeeName)}
+                  >
+                    Download PDF
+                  </button>
+                  <button
                     className="bg-red-600 hover:bg-red-700 text-white text-sm py-2 px-3 rounded-lg transition-colors duration-200"
                     onClick={() => deleteSubmission(r.id, group.employeeName)}
                   >
@@ -2945,6 +3763,12 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
   const { allSubmissions, loading } = useFetchSubmissions();
   const { openModal, closeModal } = useModal();
   const [selectedReportId, setSelectedReportId] = useState(null);
+
+  // Simple test to verify component is rendering
+  if (!employeeName) {
+    return <div className="p-8 text-red-600">Error: No employee name provided</div>;
+  }
+
 
   const employeeSubmissions = useMemo(() => {
 
@@ -3030,16 +3854,35 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
               <div><strong>Employee Name:</strong> "{employeeName}"</div>
               <div><strong>Employee Phone:</strong> "{employeePhone}"</div>
               <div><strong>Total Submissions in Database:</strong> {allSubmissions.length}</div>
+              <div><strong>Loading:</strong> {loading ? 'Yes' : 'No'}</div>
             </div>
             
             <h4 className="font-medium text-yellow-800 mt-4 mb-3">Available Employees:</h4>
             <div className="text-xs space-y-1 max-h-40 overflow-y-auto">
-              {allSubmissions.map((s, i) => (
-                <div key={i} className="flex justify-between">
-                  <span>"{s.employee?.name}"</span>
-                  <span>"{s.employee?.phone || 'No phone'}"</span>
-                </div>
-              ))}
+              {allSubmissions.length === 0 ? (
+                <div className="text-gray-500 italic">No submissions found in database</div>
+              ) : (
+                allSubmissions.map((s, i) => (
+                  <div key={i} className="flex justify-between">
+                    <span>"{s.employee?.name}"</span>
+                    <span>"{s.employee?.phone || 'No phone'}"</span>
+                  </div>
+                ))
+              )}
+            </div>
+            
+            <h4 className="font-medium text-yellow-800 mt-4 mb-3">Name Matching Test:</h4>
+            <div className="text-xs space-y-1">
+              {allSubmissions.map((s, i) => {
+                const submissionName = (s.employee?.name || '').trim().toLowerCase();
+                const searchName = (employeeName || '').trim().toLowerCase();
+                const nameMatch = submissionName === searchName;
+                return (
+                  <div key={i} className={nameMatch ? 'text-green-600' : 'text-red-600'}>
+                    "{s.employee?.name}" vs "{employeeName}" = {nameMatch ? 'MATCH' : 'NO MATCH'}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </Section>
@@ -3142,8 +3985,9 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
     return recommendations.map((r, i) => `${i + 1}. ${r}`).join('\n');
   };
 
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Report for {employeeName}</h1>
         <button onClick={onBack} className="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-xl px-4 py-2">
@@ -3201,7 +4045,7 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
             >
               Copy Full Report to Clipboard
             </button>
-            <PDFDownloadButton data={employeeSubmissions} employeeName={employeeName} />
+            <PDFDownloadButton data={employeeSubmissions} employeeName={employeeName} yearlySummary={yearlySummary} />
           </div>
         </Section>
       )}
