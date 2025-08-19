@@ -16,7 +16,14 @@ Open http://localhost:5173
 
 ---
 
-## 2) (Optional) Supabase setup
+## 2) Environment Configuration
+1. Copy `.env.example` to `.env` and fill in your values:
+   ```bash
+   cp .env.example .env
+   ```
+2. Edit `.env` with your actual credentials (never commit this file!)
+
+## 3) (Optional) Supabase setup
 1. Create a Supabase project → grab **Project URL** and **anon key**.
 2. In SQL editor, run:
 ```sql
@@ -42,13 +49,18 @@ create policy "public can insert submissions" on public.submissions
 create policy "read submissions (MVP)" on public.submissions
   for select to anon using (true);
 ```
-3. Keep these secure: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+3. Add your credentials to `.env` file (keep these secure and never commit them!):
+   ```
+   VITE_SUPABASE_URL=your_project_url
+   VITE_SUPABASE_ANON_KEY=your_anon_key
+   VITE_ADMIN_ACCESS_TOKEN=your_secure_admin_password
+   ```
 
 > If you skip Supabase, the app still works using localStorage and the admin dashboard will read local drafts.
 
 ---
 
-## 3) Push to GitHub (repo name: codex)
+## 4) Push to GitHub (repo name: codex)
 ```bash
 git init
 git add .
@@ -60,7 +72,7 @@ git push -u origin main
 
 ---
 
-## 4) Deploy on Netlify
+## 5) Deploy on Netlify
 - New Site from Git → select **codex**
 - Build: `npm run build`
 - Publish directory: `dist`
@@ -73,7 +85,7 @@ Manager Dashboard: `https://<your-site>.netlify.app/#admin` → will prompt for 
 
 ---
 
-## 5) Quick QA checklist
+## 6) Quick QA checklist
 - [ ] Add at least one Client in the KPIs section.
 - [ ] Attach Report URLs (dashboard/drive/figma/etc.).
 - [ ] Add Learning entries until you reach 6 hours.
@@ -83,14 +95,14 @@ Manager Dashboard: `https://<your-site>.netlify.app/#admin` → will prompt for 
 
 ---
 
-## 6) Common gotchas
+## 7) Common gotchas
 • **Token gate**: If `VITE_ADMIN_ACCESS_TOKEN` is empty, dashboard opens without prompt.  
 • **Supabase insert error**: Usually missing `pgcrypto` or wrong env vars. See SQL above.  
 • **SPA routing**: `netlify.toml` contains a fallback so deep links work.
 
 ---
 
-## 7) Customize branding
+## 8) Customize branding
 • Replace the inline favicon in `index.html`.  
 • Replace the header image source with your BP logo.  
 • Add colors via Tailwind in `tailwind.config.js` if desired.

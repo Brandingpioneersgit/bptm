@@ -32,8 +32,8 @@ import { Dialog, Transition } from "@headlessui/react";
 /*************************
  * Supabase Configuration *
  *************************/
-const SUPABASE_URL = "https://igwgryykglsetfvomhdj.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_SDqrksN-DTMdHP01p3z6wQ_OlX5bJ3o";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://igwgryykglsetfvomhdj.supabase.co";
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_SDqrksN-DTMdHP01p3z6wQ_OlX5bJ3o";
 
 // **IMPORTANT**: This section sets up a React Context to safely manage the Supabase client.
 // It ensures the client is initialized only after the external Supabase script has loaded,
@@ -603,7 +603,7 @@ const HeaderBrand = () => (
     </div>
   </div>
 );
-const ADMIN_TOKEN = "admin";
+const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_ACCESS_TOKEN || "admin";
 
 /****************
  * App Shell     *
@@ -2800,15 +2800,15 @@ function ManagerDashboard({ onViewReport }) {
                       <div className="flex gap-1 justify-center flex-wrap">
                         <button className="text-blue-600 hover:text-blue-800 underline text-xs transition-colors duration-200" onClick={() => openRow(r)}>Notes</button>
                         <button className="text-blue-600 hover:text-blue-800 underline text-xs transition-colors duration-200" onClick={() => {
-                          console.log('🚀 Clicking Full Report for:', { 
-                            name: group.employeeName, 
-                            phone: r.employee?.phone, 
-                            submissions: group.submissions.length,
-                            allPhones: group.submissions.map(s => s.employee?.phone)
-                          });
-                          // Use the most common phone number from submissions, or fallback to name-only matching
+                          // Find the most frequent phone number from submissions
                           const phoneNumbers = group.submissions.map(s => s.employee?.phone).filter(Boolean);
-                          const mostCommonPhone = phoneNumbers.length > 0 ? phoneNumbers[0] : 'no-phone';
+                          const phoneCounts = phoneNumbers.reduce((acc, phone) => {
+                            acc[phone] = (acc[phone] || 0) + 1;
+                            return acc;
+                          }, {});
+                          const mostCommonPhone = Object.keys(phoneCounts).length > 0 
+                            ? Object.keys(phoneCounts).reduce((a, b) => phoneCounts[a] > phoneCounts[b] ? a : b)
+                            : 'no-phone';
                           onViewReport(group.employeeName, mostCommonPhone);
                         }}>Full Report</button>
                         <button className="text-red-600 hover:text-red-800 underline text-xs transition-colors duration-200" onClick={() => deleteSubmission(r.id, group.employeeName)}>Delete Latest</button>
@@ -2876,13 +2876,14 @@ function ManagerDashboard({ onViewReport }) {
                   <button
                     className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2 px-3 rounded-lg transition-colors duration-200"
                     onClick={() => {
-                      console.log('🚀 Mobile Full Report for:', { 
-                        name: group.employeeName, 
-                        phone: r.employee?.phone,
-                        submissions: group.submissions.length 
-                      });
                       const phoneNumbers = group.submissions.map(s => s.employee?.phone).filter(Boolean);
-                      const mostCommonPhone = phoneNumbers.length > 0 ? phoneNumbers[0] : 'no-phone';
+                      const phoneCounts = phoneNumbers.reduce((acc, phone) => {
+                        acc[phone] = (acc[phone] || 0) + 1;
+                        return acc;
+                      }, {});
+                      const mostCommonPhone = Object.keys(phoneCounts).length > 0 
+                        ? Object.keys(phoneCounts).reduce((a, b) => phoneCounts[a] > phoneCounts[b] ? a : b)
+                        : 'no-phone';
                       onViewReport(group.employeeName, mostCommonPhone);
                     }}
                   >
@@ -2946,31 +2947,16 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
   const [selectedReportId, setSelectedReportId] = useState(null);
 
   const employeeSubmissions = useMemo(() => {
-    console.log('🔍 EmployeeReportDashboard Debug:', {
-      employeeName,
-      employeePhone,
-      totalSubmissions: allSubmissions.length,
-      allEmployeeNames: allSubmissions.map(s => s.employee?.name),
-      allEmployeePhones: allSubmissions.map(s => s.employee?.phone)
-    });
 
-    // Always match by name first, then optionally by phone for additional validation
+    // Primary filter: match by name (case-insensitive and trimmed)
     const filtered = allSubmissions.filter(s => {
-      const nameMatch = s.employee?.name === employeeName;
+      const submissionName = (s.employee?.name || '').trim().toLowerCase();
+      const searchName = (employeeName || '').trim().toLowerCase();
+      const nameMatch = submissionName === searchName;
       
-      // If we have a valid phone number, also check phone match
-      if (employeePhone && employeePhone !== 'undefined' && employeePhone !== 'no-phone' && s.employee?.phone) {
-        const phoneMatch = s.employee.phone === employeePhone;
-        console.log(`Employee: ${s.employee.name}, Name match: ${nameMatch}, Phone match: ${phoneMatch}`);
-        return nameMatch && phoneMatch;
-      }
-      
-      // If no valid phone, just match by name
-      console.log(`Employee: ${s.employee?.name}, Name match: ${nameMatch} (phone not available)`);
       return nameMatch;
     }).sort((a, b) => a.monthKey.localeCompare(b.monthKey));
 
-    console.log('🎯 Filtered submissions:', filtered.length, filtered);
     return filtered;
   }, [allSubmissions, employeePhone, employeeName]);
 
@@ -3026,15 +3012,6 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
     return <div className="text-center p-8">Loading employee report...</div>;
   }
 
-  // DEBUG: Add temporary debugging info
-  console.log('Debug Info:', {
-    employeeName,
-    employeePhone,
-    totalSubmissions: allSubmissions.length,
-    filteredSubmissions: employeeSubmissions.length,
-    allPhones: allSubmissions.map(s => s.employee?.phone),
-    searchPhone: employeePhone
-  });
 
   if (!employeeSubmissions.length) {
     return (
@@ -3111,21 +3088,36 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
     return reportText;
   }, [employeeSubmissions, yearlySummary, employeeName]);
 
-  const handleCopyReport = () => {
-    // Fallback for clipboard access
-    const textArea = document.createElement("textarea");
-    textArea.value = formattedReport;
-    document.body.appendChild(textArea);
-    textArea.focus();
-    textArea.select();
+  const handleCopyReport = async () => {
     try {
-      document.execCommand('copy');
-      openModal('Copied', 'The report text has been copied to your clipboard. You can now paste it into a document or email.', closeModal);
+      // Modern clipboard API
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(formattedReport);
+        openModal('Copied', 'The report text has been copied to your clipboard. You can now paste it into a document or email.', closeModal);
+      } else {
+        // Fallback for older browsers - create a temporary textarea
+        const textArea = document.createElement("textarea");
+        textArea.value = formattedReport;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        textArea.style.top = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        // Use deprecated execCommand as fallback only
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        if (successful) {
+          openModal('Copied', 'The report text has been copied to your clipboard. You can now paste it into a document or email.', closeModal);
+        } else {
+          throw new Error('Fallback copy failed');
+        }
+      }
     } catch (err) {
-      console.error('Fallback: Oops, unable to copy', err);
-      openModal('Error', 'Failed to copy report text. Your browser may not support this feature.', closeModal);
+      openModal('Error', 'Failed to copy report text. Please try selecting and copying the text manually.', closeModal);
     }
-    document.body.removeChild(textArea);
   };
 
   const getImprovementRecommendations = () => {
