@@ -32,10 +32,18 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     { id: 5, title: "Feedback & Review", icon: "💬", description: "Company feedback and final review" },
   ];
 
-  const getAutoSaveKey = () => {
-    const employeeId = selectedEmployee ? `${selectedEmployee.name}-${selectedEmployee.phone}` : 'anonymous';
-    return `autosave-${employeeId}-${currentSubmission.monthKey}`;
-  };
+  const getAutoSaveKey = useCallback(() => {
+    // Use form data for key if employee not selected yet but form has data
+    const employeeName = selectedEmployee?.name || currentSubmission.employee?.name || 'anonymous';
+    const employeePhone = selectedEmployee?.phone || currentSubmission.employee?.phone || 'new';
+    const monthKey = currentSubmission.monthKey || thisMonthKey();
+    
+    const employeeId = `${employeeName}-${employeePhone}`;
+    const key = `autosave-${employeeId}-${monthKey}`;
+    
+    console.log('🔑 Auto-save key generated:', key);
+    return key;
+  }, [selectedEmployee, currentSubmission.employee?.name, currentSubmission.employee?.phone, currentSubmission.monthKey]);
 
   const uniqueEmployees = useMemo(() => {
     const employees = {};
@@ -95,6 +103,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   useEffect(() => {
     if (!selectedEmployee) {
       setPreviousSubmission(null);
+      // Don't reset the entire submission - preserve any entered data
       setCurrentSubmission(prev => ({
         ...prev,
         employee: { ...prev.employee, name: "", phone: "" }
@@ -108,59 +117,170 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
 
     setPreviousSubmission(prevSub);
 
-    setCurrentSubmission(prev => ({
-      ...EMPTY_SUBMISSION,
-      employee: { ...prev.employee, name: selectedEmployee.name, phone: selectedEmployee.phone, department: prevSub?.employee?.department || "Web", role: prevSub?.employee?.role || [] },
-      monthKey: prevMonthKey(thisMonthKey()), // Default to previous month for reporting
-    }));
+    // CRITICAL FIX: Only update employee info, preserve all other form data
+    setCurrentSubmission(prev => {
+      // If this is the first time selecting an employee and form is empty, populate defaults
+      const isFormEmpty = !prev.employee?.name && !prev.employee?.phone;
+      
+      if (isFormEmpty) {
+        return {
+          ...EMPTY_SUBMISSION,
+          employee: { 
+            name: selectedEmployee.name, 
+            phone: selectedEmployee.phone, 
+            department: prevSub?.employee?.department || "Web", 
+            role: prevSub?.employee?.role || [] 
+          },
+          monthKey: prevMonthKey(thisMonthKey()),
+        };
+      } else {
+        // Preserve existing form data, just update employee info if needed
+        return {
+          ...prev,
+          employee: {
+            ...prev.employee,
+            name: prev.employee.name || selectedEmployee.name,
+            phone: prev.employee.phone || selectedEmployee.phone,
+            department: prev.employee.department || prevSub?.employee?.department || "Web",
+            role: prev.employee.role?.length ? prev.employee.role : (prevSub?.employee?.role || [])
+          }
+        };
+      }
+    });
   }, [selectedEmployee, allSubmissions]);
 
 
   const autoSave = useCallback(async () => {
-    if (!selectedEmployee || !currentSubmission) return;
+    // Check if there's meaningful data to save
+    const hasEmployeeData = currentSubmission.employee?.name || currentSubmission.employee?.phone;
+    const hasFormData = currentSubmission.monthKey || hasEmployeeData;
+    
+    if (!hasFormData) {
+      console.log('💾 Skipping auto-save: no meaningful data to save');
+      return;
+    }
     
     try {
+      const autoSaveKey = getAutoSaveKey();
       const autoSaveData = {
         ...currentSubmission,
         lastSaved: new Date().toISOString(),
-        currentStep: currentStep
+        currentStep: currentStep,
+        autoSaveKey: autoSaveKey // Store the key used for debugging
       };
       
-      localStorage.setItem(getAutoSaveKey(), JSON.stringify(autoSaveData));
+      console.log('💾 Auto-saving form data:', {
+        key: autoSaveKey,
+        employee: autoSaveData.employee,
+        step: currentStep,
+        hasName: !!autoSaveData.employee?.name,
+        hasPhone: !!autoSaveData.employee?.phone,
+        monthKey: autoSaveData.monthKey
+      });
+      
+      localStorage.setItem(autoSaveKey, JSON.stringify(autoSaveData));
       setLastAutoSave(new Date());
       setHasUnsavedChanges(false);
+      
+      // Verify the save worked
+      const verification = localStorage.getItem(autoSaveKey);
+      if (!verification) {
+        throw new Error('Auto-save verification failed - data not found in localStorage');
+      }
+      
+      console.log('✅ Auto-save successful and verified');
     } catch (error) {
-      console.error('Auto-save failed:', error);
+      console.error('❌ Auto-save failed:', error);
+      // Don't reset hasUnsavedChanges if save failed
     }
-  }, [selectedEmployee, currentSubmission, currentStep, getAutoSaveKey]);
+  }, [currentSubmission, currentStep, getAutoSaveKey]);
 
   const loadDraft = useCallback(() => {
     try {
-      const savedData = localStorage.getItem(getAutoSaveKey());
+      const autoSaveKey = getAutoSaveKey();
+      const savedData = localStorage.getItem(autoSaveKey);
+      
       if (savedData) {
         const draft = JSON.parse(savedData);
-        setCurrentSubmission(draft);
-        setCurrentStep(draft.currentStep || 1);
-        setLastAutoSave(new Date(draft.lastSaved));
-        return true;
+        
+        // Validate the draft data
+        if (!draft.employee && !draft.monthKey) {
+          console.log('📄 Draft found but appears empty, skipping load');
+          return false;
+        }
+        
+        console.log('📄 Loading draft:', {
+          key: autoSaveKey,
+          employee: draft.employee,
+          step: draft.currentStep,
+          hasName: !!draft.employee?.name,
+          hasPhone: !!draft.employee?.phone,
+          monthKey: draft.monthKey,
+          lastSaved: draft.lastSaved
+        });
+        
+        // Only load draft if it has meaningful data
+        const hasEmployeeData = draft.employee?.name || draft.employee?.phone;
+        if (hasEmployeeData || draft.monthKey) {
+          setCurrentSubmission(draft);
+          setCurrentStep(draft.currentStep || 1);
+          if (draft.lastSaved) {
+            setLastAutoSave(new Date(draft.lastSaved));
+          }
+          setHasUnsavedChanges(false); // Draft is considered saved
+          return true;
+        }
       }
+      
+      console.log('📄 No valid draft found for key:', autoSaveKey);
     } catch (error) {
-      console.error('Failed to load draft:', error);
+      console.error('❌ Failed to load draft:', error);
     }
     return false;
   }, [getAutoSaveKey]);
 
   const clearDraft = useCallback(() => {
     try {
-      localStorage.removeItem(getAutoSaveKey());
+      const key = getAutoSaveKey();
+      localStorage.removeItem(key);
+      console.log('🗑️ Cleared draft for key:', key);
       setLastAutoSave(null);
       setHasUnsavedChanges(false);
     } catch (error) {
       console.error('Failed to clear draft:', error);
     }
   }, [getAutoSaveKey]);
+  
+  // Debug function to check localStorage status
+  const debugAutoSave = useCallback(() => {
+    const key = getAutoSaveKey();
+    const savedData = localStorage.getItem(key);
+    console.log('🔍 Auto-save debug:', {
+      key,
+      hasSavedData: !!savedData,
+      savedDataSize: savedData ? savedData.length : 0,
+      lastAutoSave,
+      hasUnsavedChanges,
+      currentSubmissionEmployee: currentSubmission.employee
+    });
+    
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        console.log('📋 Saved data preview:', {
+          employee: parsed.employee,
+          monthKey: parsed.monthKey,
+          lastSaved: parsed.lastSaved,
+          currentStep: parsed.currentStep
+        });
+      } catch (e) {
+        console.error('❌ Failed to parse saved data:', e);
+      }
+    }
+  }, [getAutoSaveKey, lastAutoSave, hasUnsavedChanges, currentSubmission.employee]);
 
   const updateCurrentSubmission = useCallback((key, value) => {
+    console.log(`📝 Updating form field: ${key} = ${value}`);
     setCurrentSubmission(prev => {
       const updated = { ...prev };
       let current = updated;
@@ -171,11 +291,21 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
         current = current[part];
       }
       current[keyParts[keyParts.length - 1]] = value;
+      console.log(`📋 Form state after ${key} update:`, updated.employee);
       return updated;
     });
     
     setHasUnsavedChanges(true);
-  }, []);
+    
+    // Force immediate auto-save for critical fields to prevent data loss
+    const criticalFields = ['employee.name', 'employee.phone', 'employee.department', 'employee.role', 'monthKey'];
+    if (criticalFields.includes(key)) {
+      console.log(`🚨 Critical field ${key} updated - forcing immediate auto-save`);
+      setTimeout(() => {
+        autoSave();
+      }, 100); // Small delay to ensure state update is processed
+    }
+  }, [autoSave]);
 
   // Wrapper for setModel that tracks unsaved changes
   const setModelWithTracking = useCallback((updaterOrValue) => {
@@ -216,33 +346,29 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   });
 
   // Manual save function for section-based saving
-  const saveCurrentSection = useCallback(() => {
-    const employee = selectedEmployeeRef.current;
-    const submission = currentSubmissionRef.current;
-    const step = currentStepRef.current;
-    
-    if (employee && submission) {
-      try {
-        const autoSaveData = {
-          ...submission,
-          lastSaved: new Date().toISOString(),
-          currentStep: step
-        };
-        
-        const employeeId = `${employee.name}-${employee.phone}`;
-        const autoSaveKey = `autosave-${employeeId}-${submission.monthKey}`;
-        localStorage.setItem(autoSaveKey, JSON.stringify(autoSaveData));
-        setLastAutoSave(new Date());
-        setHasUnsavedChanges(false);
-        
-        // Show save confirmation
-        openModal('Section Saved', `Section ${FORM_STEPS.find(s => s.id === step)?.title || step} data has been saved successfully.`, closeModal);
-      } catch (error) {
-        console.error('Section save failed:', error);
-        openModal('Save Error', 'Failed to save section data. Please try again.', closeModal);
+  const saveCurrentSection = useCallback(async () => {
+    try {
+      // Use the current state instead of refs for more reliability
+      const hasData = currentSubmission.employee?.name || currentSubmission.employee?.phone || currentSubmission.monthKey;
+      
+      if (!hasData) {
+        openModal('Nothing to Save', 'Please enter some information before saving.', closeModal);
+        return;
       }
+      
+      console.log('💾 Manual save triggered for section:', FORM_STEPS.find(s => s.id === currentStep)?.title);
+      
+      await autoSave(); // Use the robust autoSave function
+      
+      // Show save confirmation
+      const sectionTitle = FORM_STEPS.find(s => s.id === currentStep)?.title || `Step ${currentStep}`;
+      openModal('Section Saved', `${sectionTitle} data has been saved successfully.`, closeModal);
+      
+    } catch (error) {
+      console.error('❌ Section save failed:', error);
+      openModal('Save Error', 'Failed to save section data. Please try again.', closeModal);
     }
-  }, [openModal, closeModal]); // Stable callback with minimal dependencies
+  }, [currentSubmission, currentStep, autoSave, openModal, closeModal]);
 
   // Enhanced validation with field highlighting and progressive validation
   const [fieldErrors, setFieldErrors] = useState({});
@@ -318,11 +444,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     return { errors, warnings };
   }, [currentSubmission]);
   
-  // Progressive validation - always allow navigation but show issues
-  const canProgressToStep = useCallback((stepNumber) => {
-    // Always allow navigation for better UX - show warnings instead of blocking
-    return true;
-  }, []);
+  // Note: Removed canProgressToStep function as navigation is now always allowed
 
   // Enhanced autosave with validation updates
   const prevStepRef = useRef(currentStep);
@@ -350,32 +472,66 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     return () => clearInterval(timer);
   }, [currentStep, selectedEmployee, getStepValidation]);
 
+  // Enhanced draft loading - only on initial mount or when meaningful employee change occurs
+  const loadedDraftRef = useRef(new Set());
+  
   useEffect(() => {
-    if (selectedEmployee && getAutoSaveKey()) {
+    const autoSaveKey = getAutoSaveKey();
+    
+    // Prevent loading the same draft multiple times
+    if (loadedDraftRef.current.has(autoSaveKey)) {
+      return;
+    }
+    
+    // Only load draft if we have a meaningful key and haven't loaded already
+    if (autoSaveKey && autoSaveKey !== 'autosave-anonymous-new-undefined') {
       const hasDraft = loadDraft();
       if (hasDraft) {
-        openModal(
-          'Draft Found',
-          `We found a saved draft for ${selectedEmployee.name} from ${lastAutoSave ? lastAutoSave.toLocaleString() : 'recently'}. Would you like to continue where you left off?`,
-          () => {
-            closeModal();
-          },
-          () => {
-            clearDraft();
-            setCurrentSubmission(prev => ({
-              ...EMPTY_SUBMISSION,
-              employee: { ...prev.employee, name: selectedEmployee.name, phone: selectedEmployee.phone, department: previousSubmission?.employee?.department || "Web", role: previousSubmission?.employee?.role || [] },
-              monthKey: prevMonthKey(thisMonthKey()),
-            }));
-            setCurrentStep(1);
-            closeModal();
-          },
-          'Keep Draft',
-          'Start Fresh'
-        );
+        console.log('📄 Loaded draft for key:', autoSaveKey);
+        loadedDraftRef.current.add(autoSaveKey);
+        setHasUnsavedChanges(false); // Draft is considered saved
+        
+        console.log('✨ Draft automatically restored');
       }
     }
-  }, [selectedEmployee, loadDraft, clearDraft, openModal, closeModal, lastAutoSave, previousSubmission]);
+  }, [getAutoSaveKey, loadDraft]);
+  
+  // Auto-save on any form change to prevent data loss - removed autoSave from deps to prevent infinite loops
+  useEffect(() => {
+    if (hasUnsavedChanges) {
+      const timer = setTimeout(() => {
+        autoSave();
+        console.log('💾 Auto-saved form data');
+      }, 2000); // Reduced to 2 seconds for better responsiveness
+      
+      return () => clearTimeout(timer);
+    }
+  }, [hasUnsavedChanges]); // Removed autoSave from dependencies
+  
+  // Save on page unload to prevent data loss
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (selectedEmployee && hasUnsavedChanges) {
+        autoSave();
+        console.log('💾 Saved on page unload');
+      }
+    };
+    
+    const handleVisibilityChange = () => {
+      if (document.hidden && selectedEmployee && hasUnsavedChanges) {
+        autoSave();
+        console.log('💾 Saved on tab switch');
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [selectedEmployee, hasUnsavedChanges, autoSave]);
 
   // Debounce score calculations to prevent constant re-renders
   const [debouncedSubmission, setDebouncedSubmission] = useState(currentSubmission);
@@ -565,9 +721,25 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
     
     if (criticalErrors.length > 0) {
       console.log('❌ Critical validation failed:', criticalErrors);
+      console.log('📋 Current form data for debugging:', {
+        employee: currentSubmission.employee,
+        monthKey: currentSubmission.monthKey
+      });
+      
+      // Provide more helpful error message with navigation guidance
+      const helpText = criticalErrors.length === 1 && criticalErrors[0].includes('Name') 
+        ? '\n\nTip: Go back to Step 1 (Profile & Month) to enter your name.'
+        : criticalErrors.length <= 2 
+        ? '\n\nTip: These can be completed in Step 1 (Profile & Month).'
+        : '\n\nTip: Most required fields are in Step 1 (Profile & Month). You can click on any step in the progress bar to navigate there.';
+      
       openModal(
         "Required Information Missing",
-        `Please complete these required fields:\n\n${criticalErrors.map((e, i) => `${i + 1}. ${e}`).join('\n')}`,
+        `Please complete these required fields before submitting:
+
+${criticalErrors.map((e, i) => `${i + 1}. ${e}`).join('\n')}${helpText}
+
+Your progress has been automatically saved, so you won't lose any other information you've entered.`,
         closeModal
       );
       return;
@@ -660,10 +832,11 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
   const isNewEmployee = !selectedEmployee;
 
   // Enhanced navigation with auto-save and validation feedback
-  const goToStep = (stepId) => {
-    // Always save when changing steps
-    if (selectedEmployee && hasUnsavedChanges) {
-      autoSave();
+  const goToStep = useCallback(async (stepId) => {
+    // Always save when changing steps if there are unsaved changes
+    if (hasUnsavedChanges) {
+      console.log('🔄 Saving before step navigation...');
+      await autoSave();
     }
     
     // Update validation state for current step
@@ -671,32 +844,42 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
     setFieldErrors(validation.errors);
     setValidationWarnings(validation.warnings);
     
+    console.log(`📍 Navigating from step ${currentStep} to step ${stepId}`);
     setCurrentStep(stepId);
-  };
+  }, [hasUnsavedChanges, autoSave, getStepValidation, currentStep]);
 
   const nextStep = () => {
     const nextStepNumber = currentStep + 1;
     if (nextStepNumber <= FORM_STEPS.length) {
-      // Get current step validation
+      // Get current step validation for display purposes only
       const validation = getStepValidation(currentStep);
-      const hasBlockingErrors = Object.keys(validation.errors).length > 0;
+      const hasErrors = Object.keys(validation.errors).length > 0;
+      const hasWarnings = Object.keys(validation.warnings).length > 0;
       
-      if (hasBlockingErrors && currentStep === 1) {
-        // Only block on step 1 for essential profile info
-        openModal(
-          'Complete Required Fields',
-          `Please complete the required fields:\n\n${Object.values(validation.errors).join('\n')}`,
-          closeModal
-        );
-        return;
-      }
-      
-      // For other steps, show validation but allow progression
-      if (hasBlockingErrors || Object.keys(validation.warnings).length > 0) {
+      // Always allow navigation but show helpful guidance
+      if (hasErrors || hasWarnings) {
         setFieldErrors(validation.errors);
         setValidationWarnings(validation.warnings);
+        
+        // Show a gentle reminder for step 1 critical fields, but don't block
+        if (hasErrors && currentStep === 1) {
+          console.log('⚠️ Step 1 has validation errors, but allowing navigation:', validation.errors);
+          // Optional: Show a non-blocking notification
+          // Can be uncommented if user wants gentle reminders
+          /*
+          openModal(
+            'Reminder: Required Fields',
+            `You can continue, but please remember to complete these fields before final submission:\n\n${Object.values(validation.errors).join('\n')}\n\nYou can return to this step anytime to complete them.`,
+            closeModal,
+            null,
+            'OK, Continue',
+            ''
+          );
+          */
+        }
       }
       
+      // Always allow progression
       goToStep(nextStepNumber);
     }
   };
@@ -707,12 +890,18 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
     }
   };
 
-  const getCurrentStepData = () => FORM_STEPS.find(step => step.id === currentStep);
+  const getCurrentStepData = () => {
+    const validStep = Math.max(1, Math.min(currentStep || 1, FORM_STEPS.length));
+    return FORM_STEPS.find(step => step.id === validStep) || FORM_STEPS[0];
+  };
 
   const ProgressIndicator = () => (
     <div className="bg-white rounded-xl shadow-sm border p-4 mb-6">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold">Monthly Report Progress</h2>
+        <div>
+          <h2 className="text-lg font-semibold">Monthly Report Progress</h2>
+          <p className="text-xs text-gray-500 mt-1">💡 Click any step to navigate freely - no blocking!</p>
+        </div>
         {lastAutoSave && (
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -723,17 +912,10 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
       
       <div className="relative">
         <div className="flex justify-between">
-          {FORM_STEPS.map((step, index) => (
+          {FORM_STEPS.map((step) => (
             <div key={step.id} className="flex flex-col items-center relative z-10">
               <button
-                onClick={() => {
-                  if (canProgressToStep(step.id)) {
-                    goToStep(step.id);
-                  } else {
-                    const { errors } = validateSubmission(currentSubmission);
-                    openModal('Complete Previous Steps', errors.slice(0, 3).join('\n'), closeModal);
-                  }
-                }}
+                onClick={() => goToStep(step.id)}
                 className={`w-12 h-12 rounded-full border-2 flex items-center justify-center text-lg font-semibold transition-all duration-200 ${ currentStep === step.id
                     ? 'bg-blue-600 text-white border-blue-600'
                     : currentStep > step.id
@@ -852,7 +1034,8 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
                       if (isFormDisabled) return;
                       if (e.target.value === "") {
                         setSelectedEmployee(null);
-                        setCurrentSubmission({ ...EMPTY_SUBMISSION, monthKey: prevMonthKey(thisMonthKey()) });
+                        // Don't reset form data - preserve what user entered
+                        console.log('🔄 Employee deselected, preserving form data');
                       } else {
                         const [name, phone] = e.target.value.split('-');
                         setSelectedEmployee({ name, phone });
@@ -907,14 +1090,64 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Role(s)</label>
-                  <MultiSelect
-                    options={rolesForDept}
-                    selected={currentSubmission.employee.role}
-                    onChange={(newRoles) => isFormDisabled ? null : updateCurrentSubmission('employee.role', newRoles)}
-                    placeholder="Select your roles"
-                    disabled={isFormDisabled}
-                  />
+                  <label className="block text-sm font-medium mb-2 flex items-center">
+                    Role(s)
+                    {fieldErrors['employee.role'] && <span className="ml-2 text-red-500 text-xs">⚠️ Required</span>}
+                  </label>
+                  <div className={`${fieldErrors['employee.role'] ? 'ring-2 ring-red-300 rounded-xl' : ''}`}>
+                    <MultiSelect
+                      options={rolesForDept}
+                      selected={currentSubmission.employee.role}
+                      onChange={(newRoles) => {
+                        console.log('🎯 Role selection onChange triggered:', newRoles);
+                        if (isFormDisabled) {
+                          console.log('❌ Form is disabled, skipping role update');
+                          return null;
+                        }
+                        updateCurrentSubmission('employee.role', newRoles);
+                      }}
+                      placeholder="Select your roles"
+                      disabled={isFormDisabled}
+                      error={fieldErrors['employee.role']}
+                    />
+                  </div>
+                  {fieldErrors['employee.role'] && (
+                    <p className="mt-1 text-sm text-red-600">{fieldErrors['employee.role']}</p>
+                  )}
+                  {/* Debug info and test buttons */}
+                  <div className="text-xs text-gray-500 mt-1">
+                    Debug: Department={currentSubmission.employee.department}, 
+                    Options={rolesForDept.length}, 
+                    Selected={currentSubmission.employee.role?.length || 0}
+                    <br/>
+                    Available roles: {rolesForDept.join(', ') || 'None'}
+                    <br/>
+                    Selected roles: {currentSubmission.employee.role?.join(', ') || 'None'}
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        console.log('🧪 Test: Adding first role');
+                        if (rolesForDept.length > 0) {
+                          updateCurrentSubmission('employee.role', [rolesForDept[0]]);
+                        }
+                      }}
+                      className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded"
+                    >
+                      Test: Select First Role
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        console.log('🧪 Test: Clearing all roles');
+                        updateCurrentSubmission('employee.role', []);
+                      }}
+                      className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded"
+                    >
+                      Test: Clear Roles
+                    </button>
+                  </div>
                 </div>
               </>
             )}
@@ -1222,11 +1455,20 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
       )}
       
       {!hasUnsavedChanges && lastAutoSave && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4 flex items-center gap-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-          <span className="text-sm text-green-800">
-            ✓ Section saved at {lastAutoSave.toLocaleTimeString()}
-          </span>
+        <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <span className="text-sm text-green-800">
+              ✓ Section saved at {lastAutoSave.toLocaleTimeString()}
+            </span>
+          </div>
+          <button
+            onClick={debugAutoSave}
+            className="text-xs text-green-600 hover:text-green-800 underline"
+            title="Click to see auto-save debug info in browser console"
+          >
+            Debug Info
+          </button>
         </div>
       )}
 

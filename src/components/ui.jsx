@@ -146,17 +146,34 @@ export function TinyLinks({ items, onAdd, onRemove }) {
   );
 }
 
-export function MultiSelect({ options, selected, onChange, placeholder }) {
+export function MultiSelect({ options = [], selected = [], onChange, placeholder = "Select options", disabled = false, error = null }) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = React.useRef(null);
 
-  const toggleDropdown = () => setIsOpen(!isOpen);
+  // Ensure selected is always an array
+  const safeSelected = Array.isArray(selected) ? selected : [];
+  const safeOptions = Array.isArray(options) ? options : [];
+
+  const toggleDropdown = () => {
+    if (disabled) return;
+    console.log('🔄 MultiSelect dropdown toggled, isOpen:', !isOpen);
+    setIsOpen(!isOpen);
+  };
 
   const handleSelect = (option) => {
-    if (selected.includes(option)) {
-      onChange(selected.filter(item => item !== option));
+    if (disabled) return;
+    
+    console.log('📝 MultiSelect option selected:', option);
+    console.log('📋 Current selected:', safeSelected);
+    
+    if (safeSelected.includes(option)) {
+      const newSelected = safeSelected.filter(item => item !== option);
+      console.log('➖ Removing option, new selection:', newSelected);
+      onChange(newSelected);
     } else {
-      onChange([...selected, option]);
+      const newSelected = [...safeSelected, option];
+      console.log('➕ Adding option, new selection:', newSelected);
+      onChange(newSelected);
     }
   };
 
@@ -172,28 +189,65 @@ export function MultiSelect({ options, selected, onChange, placeholder }) {
     };
   }, [dropdownRef]);
 
-  const displayValue = selected.length > 0 ? selected.join(", ") : placeholder;
+  const displayValue = safeSelected.length > 0 ? safeSelected.join(", ") : placeholder;
+
+  console.log('🎯 MultiSelect render:', {
+    options: safeOptions,
+    selected: safeSelected,
+    disabled,
+    isOpen,
+    displayValue
+  });
 
   return (
     <div className="relative" ref={dropdownRef}>
       <button
         type="button"
-        className="w-full border rounded-xl p-2 text-left"
+        className={`w-full border rounded-xl p-3 text-left focus:ring-2 transition-colors ${
+          error
+            ? 'border-red-300 focus:ring-red-500 focus:border-red-500 bg-red-50'
+            : disabled 
+            ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
+            : 'border-gray-300 hover:border-gray-400 bg-white text-gray-900 focus:ring-blue-500 focus:border-blue-500'
+        } ${
+          safeSelected.length > 0 ? 'text-gray-900' : 'text-gray-500'
+        }`}
         onClick={toggleDropdown}
+        disabled={disabled}
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
       >
-        {displayValue}
+        <div className="flex justify-between items-center">
+          <span className="truncate">{displayValue}</span>
+          <span className={`ml-2 transform transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
+            ▼
+          </span>
+        </div>
       </button>
-      {isOpen && (
-        <ul className="absolute z-10 w-full bg-white border rounded-xl mt-1 max-h-60 overflow-y-auto shadow-lg">
-          {options.map((option) => (
-            <li
-              key={option}
-              onClick={() => handleSelect(option)}
-              className={`p-2 cursor-pointer hover:bg-blue-100 ${selected.includes(option) ? 'bg-blue-50 font-semibold' : ''}`}
-            >
-              {option}
-            </li>
-          ))}
+      {isOpen && !disabled && (
+        <ul className="absolute z-50 w-full bg-white border border-gray-300 rounded-xl mt-1 max-h-60 overflow-y-auto shadow-lg" role="listbox">
+          {safeOptions.length === 0 ? (
+            <li className="p-3 text-gray-500 text-center">No options available</li>
+          ) : (
+            safeOptions.map((option) => (
+              <li
+                key={option}
+                onClick={() => handleSelect(option)}
+                className={`p-3 cursor-pointer transition-colors hover:bg-blue-100 ${
+                  safeSelected.includes(option) 
+                    ? 'bg-blue-50 text-blue-900 font-semibold' 
+                    : 'text-gray-900'
+                }`}
+                role="option"
+                aria-selected={safeSelected.includes(option)}
+              >
+                <div className="flex justify-between items-center">
+                  <span>{option}</span>
+                  {safeSelected.includes(option) && <span className="text-blue-600">✓</span>}
+                </div>
+              </li>
+            ))
+          )}
         </ul>
       )}
     </div>
@@ -297,16 +351,17 @@ export function StepValidationIndicator({ errors = {}, warnings = {}, stepTitle 
   }
   
   return (
-    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
       <div className="flex items-start gap-2">
-        <span className="text-yellow-500 mt-0.5">⚠️</span>
+        <span className="text-blue-500 mt-0.5">ℹ️</span>
         <div className="flex-1">
-          <div className="text-sm font-medium text-yellow-800 mb-1">
-            {stepTitle} - {errorCount > 0 ? `${errorCount} issue${errorCount > 1 ? 's' : ''} require attention` : `${warningCount} suggestion${warningCount > 1 ? 's' : ''}`}
+          <div className="text-sm font-medium text-blue-800 mb-1">
+            {stepTitle} - {errorCount > 0 ? `${errorCount} field${errorCount > 1 ? 's' : ''} need${errorCount === 1 ? 's' : ''} attention` : `${warningCount} suggestion${warningCount > 1 ? 's' : ''}`}
           </div>
+          
           {errorCount > 0 && (
             <div className="text-xs text-red-700 mb-2">
-              <div className="font-medium mb-1">Required fields:</div>
+              <div className="font-medium mb-1">Complete before final submission:</div>
               <ul className="list-disc list-inside space-y-1">
                 {Object.entries(errors).map(([field, message]) => (
                   <li key={field}>{message}</li>
@@ -314,9 +369,10 @@ export function StepValidationIndicator({ errors = {}, warnings = {}, stepTitle 
               </ul>
             </div>
           )}
+          
           {warningCount > 0 && (
-            <div className="text-xs text-yellow-700">
-              <div className="font-medium mb-1">Suggestions:</div>
+            <div className="text-xs text-yellow-700 mb-2">
+              <div className="font-medium mb-1">Suggestions for better reporting:</div>
               <ul className="list-disc list-inside space-y-1">
                 {Object.entries(warnings).map(([field, message]) => (
                   <li key={field}>{message}</li>
@@ -324,6 +380,10 @@ export function StepValidationIndicator({ errors = {}, warnings = {}, stepTitle 
               </ul>
             </div>
           )}
+          
+          <div className="text-xs text-blue-600 mt-2 font-medium">
+            💡 You can continue to other steps and return here anytime to complete these fields.
+          </div>
         </div>
       </div>
     </div>
