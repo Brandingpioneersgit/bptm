@@ -39,8 +39,33 @@ create table if not exists public.submissions (
   payload jsonb not null,
   scores jsonb not null,
   flags  jsonb not null,
+  manager_remarks text,
+  manager_edited_at timestamptz,
+  manager_edited_by text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
+);
+
+create table if not exists public.clients (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  client_type text not null check (client_type in ('Standard', 'Premium', 'Enterprise')),
+  team text not null check (team in ('Web', 'Marketing')),
+  scope_of_work text,
+  status text default 'Active' check (status in ('Active', 'Departed')),
+  departed_reason text,
+  departed_employees jsonb, -- array of employee names who caused departure
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create table if not exists public.client_assignments (
+  id uuid primary key default gen_random_uuid(),
+  client_id uuid references public.clients(id) on delete cascade,
+  employee_name text not null,
+  employee_phone text not null,
+  assigned_at timestamptz default now(),
+  status text default 'Active' check (status in ('Active', 'Inactive'))
 );
 
 alter table public.submissions enable row level security;
@@ -48,6 +73,28 @@ create policy "public can insert submissions" on public.submissions
   for insert to anon with check (true);
 create policy "read submissions (MVP)" on public.submissions
   for select to anon using (true);
+create policy "public can update submissions" on public.submissions
+  for update to anon using (true);
+
+alter table public.clients enable row level security;
+create policy "public can insert clients" on public.clients
+  for insert to anon with check (true);
+create policy "read clients" on public.clients
+  for select to anon using (true);
+create policy "public can update clients" on public.clients
+  for update to anon using (true);
+create policy "public can delete clients" on public.clients
+  for delete to anon using (true);
+
+alter table public.client_assignments enable row level security;
+create policy "public can insert client_assignments" on public.client_assignments
+  for insert to anon with check (true);
+create policy "read client_assignments" on public.client_assignments
+  for select to anon using (true);
+create policy "public can update client_assignments" on public.client_assignments
+  for update to anon using (true);
+create policy "public can delete client_assignments" on public.client_assignments
+  for delete to anon using (true);
 ```
 3. Add your credentials to `.env` file (keep these secure and never commit them!):
    ```
@@ -112,12 +159,47 @@ Manager Dashboard: `https://<your-site>.netlify.app/#admin` → will prompt for 
 - 📊 **Performance Feedback**: Detailed performance report generated after submission
 - 🎯 **Improvement Insights**: Automatic analysis with suggestions for next month
 
-## 8) Quick QA checklist
+## 8) Manager Editing Capabilities
+**NEW:** Comprehensive manager editing system for employee data:
+
+- 🔧 **Edit Employee Data**: Managers can edit any employee's submission data
+- 💬 **Manager Remarks**: Add and edit manager remarks on employee submissions  
+- 🗑️ **Delete Submissions**: Managers can delete employee submissions when needed
+- 📝 **Edit Tracking**: All manager edits are tracked with timestamps and editor info
+- 🎯 **Easy Access**: Edit buttons directly in the manager dashboard for quick access
+
+## 8.1) Client Management System
+**NEW:** Comprehensive client management with team-specific organization:
+
+- 📋 **Master Client Database**: Centralized client management for Web and Marketing teams
+- 🏷️ **Client Classification**: Standard, Premium, and Enterprise client types with scope of work
+- 🎯 **Team Separation**: Separate client lists for Web team and Marketing team
+- ➕ **Easy Client Creation**: Employees can select from agency clients or create new ones
+- 📊 **Client Progress Tracking**: Detailed dashboard showing employee progress per client
+- 🚪 **Departure Management**: Track client departures with reasons and responsible employees
+- 📈 **Employee Client Reports**: Employees can view their own client work history and performance trends
+
+## 9) Quick QA checklist
 **Authentication Testing:**
 - [ ] Test employee login with name + phone number
 - [ ] Test manager login with admin token
 - [ ] Verify employee personal dashboard shows correct data
 - [ ] Test logout functionality for both user types
+
+**Manager Editing Testing:**
+- [ ] Test manager can access Edit Employee button in dashboard
+- [ ] Verify manager can add/edit remarks on employee submissions
+- [ ] Test manager can delete employee submissions
+- [ ] Check that manager edits are properly tracked with timestamps
+
+**Client Management Testing:**
+- [ ] Test creating new clients with different types (Standard, Premium, Enterprise)
+- [ ] Verify team-specific client filtering (Web vs Marketing)
+- [ ] Test employee client selection dropdown shows correct team clients
+- [ ] Verify employee can create new clients from form
+- [ ] Test client progress dashboard shows employee assignments and metrics
+- [ ] Test client departure tracking with reason and employee attribution
+- [ ] Verify employee personal dashboard shows client work history and trends
 
 **Form & Submission Testing:**
 - [ ] Add at least one Client in the KPIs section.

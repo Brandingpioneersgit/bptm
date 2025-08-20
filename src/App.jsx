@@ -1023,8 +1023,9 @@ function AppContent() {
     phone: '',
     userType: 'employee' // 'employee' or 'manager'
   });
-  const [view, setView] = useState('main'); // 'main', 'employeeReport', 'employeeDashboard'
+  const [view, setView] = useState('form'); // 'form', 'employeeReport', 'employeeDashboard', 'managerDashboard'
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: null, onCancel: null, inputLabel: '', inputValue: '', onClose: () => setModalState(s => ({ ...s, isOpen: false })) });
   const openModal = (title, message, onConfirm = null, onCancel = null, inputLabel = '', inputValue = '') => {
     setModalState({ isOpen: true, title, message, onConfirm, onCancel, inputLabel, inputValue, onClose: () => setModalState(s => ({ ...s, isOpen: false })) });
@@ -1033,14 +1034,28 @@ function AppContent() {
     setModalState({ ...modalState, isOpen: false });
   };
 
-  // Auto-login if the URL hash is set
+  // Handle URL hash navigation
   useEffect(() => {
     if (hash === '#/manager') {
-      setLoginForm(prev => ({ ...prev, userType: 'manager' }));
+      if (!showLoginModal || loginForm.userType !== 'manager') {
+        setLoginForm(prev => ({ ...prev, userType: 'manager' }));
+        setShowLoginModal(true);
+      }
     } else if (hash === '#/employee') {
-      setLoginForm(prev => ({ ...prev, userType: 'employee' }));
+      if (!showLoginModal || loginForm.userType !== 'employee') {
+        setLoginForm(prev => ({ ...prev, userType: 'employee' }));
+        setShowLoginModal(true);
+      }
+    } else if (hash === '#/dashboard' && authState.isLoggedIn) {
+      if (authState.userType === 'manager') {
+        setView('managerDashboard');
+      } else {
+        setView('employeeDashboard');
+      }
+    } else {
+      setView('form');
     }
-  }, [hash]);
+  }, [hash, authState.isLoggedIn, authState.userType, showLoginModal, loginForm.userType]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -1055,7 +1070,9 @@ function AppContent() {
           currentUser: { name: 'Manager', role: 'Administrator' },
           loginError: ''
         });
-        window.location.hash = '#/manager';
+        setShowLoginModal(false);
+        setView('managerDashboard');
+        window.location.hash = '#/dashboard';
       } else {
         setAuthState(prev => ({ ...prev, loginError: 'Invalid manager credentials. Please check your admin token.' }));
       }
@@ -1067,26 +1084,32 @@ function AppContent() {
       }
 
       try {
-        // Verify employee exists in submissions
-        const employeeExists = allSubmissions.find(s => 
+        // Verify employee exists in submissions and has at least one completed submission
+        const employeeSubmissions = allSubmissions.filter(s => 
           s.employee?.name?.toLowerCase().trim() === loginForm.name.toLowerCase().trim() &&
           s.employee?.phone === loginForm.phone
         );
 
-        if (employeeExists) {
+        const hasCompletedSubmission = employeeSubmissions.some(s => !s.isDraft);
+
+        if (employeeSubmissions.length > 0 && hasCompletedSubmission) {
           setAuthState({
             isLoggedIn: true,
             userType: 'employee',
             currentUser: {
-              name: employeeExists.employee.name,
-              phone: employeeExists.employee.phone,
-              department: employeeExists.employee.department
+              name: employeeSubmissions[0].employee.name,
+              phone: employeeSubmissions[0].employee.phone,
+              department: employeeSubmissions[0].employee.department
             },
             loginError: ''
           });
-          window.location.hash = '#/employee';
+          setShowLoginModal(false);
+          setView('employeeDashboard');
+          window.location.hash = '#/dashboard';
+        } else if (employeeSubmissions.length > 0) {
+          setAuthState(prev => ({ ...prev, loginError: 'You need to complete at least one form submission before accessing your dashboard.' }));
         } else {
-          setAuthState(prev => ({ ...prev, loginError: 'Employee not found. Please check your name and phone number, or contact your manager.' }));
+          setAuthState(prev => ({ ...prev, loginError: 'Employee not found. Please submit a form first, then use your details to login.' }));
         }
       } catch (error) {
         setAuthState(prev => ({ ...prev, loginError: 'Login failed. Please try again.' }));
@@ -1106,8 +1129,9 @@ function AppContent() {
       phone: '',
       userType: 'employee'
     });
-    setView('main');
+    setView('form');
     setSelectedEmployee(null);
+    setShowLoginModal(false);
     window.location.hash = '';
   };
 
@@ -1121,42 +1145,55 @@ function AppContent() {
     setSelectedEmployee(null);
   }, []);
 
-  const ManagerSection = () => {
-    if (view === 'employeeReport' && selectedEmployee) {
-      return (
-        <div className="min-h-screen bg-white">
+  const handleEditEmployee = useCallback((employeeName, employeePhone) => {
+    setSelectedEmployee({ name: employeeName, phone: employeePhone });
+    setView('editEmployee');
+  }, []);
+
+  const renderCurrentView = () => {
+    switch (view) {
+      case 'managerDashboard':
+        return <ManagerDashboard onViewReport={handleViewEmployeeReport} onEditEmployee={handleEditEmployee} />;
+      case 'employeeReport':
+        return (
           <EmployeeReportDashboard 
             employeeName={selectedEmployee.name} 
             employeePhone={selectedEmployee.phone} 
             onBack={handleBackToDashboard} 
           />
-        </div>
-      );
-    }
-    return <ManagerDashboard onViewReport={handleViewEmployeeReport} />;
-  };
-
-  const EmployeeSection = () => {
-    if (view === 'employeeDashboard') {
-      return (
-        <div className="min-h-screen bg-white">
+        );
+      case 'editEmployee':
+        return (
+          <ManagerEditEmployee 
+            employee={selectedEmployee}
+            onBack={handleBackToDashboard}
+          />
+        );
+      case 'employeeDashboard':
+        return (
           <EmployeePersonalDashboard 
             employee={authState.currentUser}
-            onBack={() => setView('main')}
+            onBack={() => {
+              setView('form');
+              window.location.hash = '';
+            }}
           />
-        </div>
-      );
+        );
+      default:
+        return <EmployeeForm currentUser={null} />;
     }
-    return <EmployeeForm currentUser={authState.currentUser} />;
   };
 
-  const LoginSection = () => {
-    return <LoginForm 
-      loginForm={loginForm}
-      setLoginForm={setLoginForm}
-      onLogin={handleLogin}
-      loginError={authState.loginError}
-    />;
+  const openLoginModal = (userType) => {
+    setLoginForm(prev => ({ 
+      ...prev, 
+      userType, 
+      // Only reset fields if switching user types, preserve them otherwise
+      ...(prev.userType !== userType ? { name: '', phone: '' } : {})
+    }));
+    setAuthState(prev => ({ ...prev, loginError: '' }));
+    setShowLoginModal(true);
+    window.location.hash = userType === 'manager' ? '#/manager' : '#/employee';
   };
 
   return (
@@ -1168,7 +1205,7 @@ function AppContent() {
             <div className="flex items-center justify-between">
               <HeaderBrand />
               <div className="flex items-center gap-2 sm:gap-3">
-                {authState.isLoggedIn && (
+                {authState.isLoggedIn ? (
                   <>
                     <div className="hidden lg:flex items-center gap-2 text-sm text-gray-600">
                       <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -1183,15 +1220,32 @@ function AppContent() {
                       </span>
                     </div>
                     
-                    {authState.userType === 'employee' && (
+                    {authState.userType === 'employee' && view !== 'employeeDashboard' && (
                       <button
-                        onClick={() => setView(view === 'employeeDashboard' ? 'main' : 'employeeDashboard')}
+                        onClick={() => {
+                          setView('employeeDashboard');
+                          window.location.hash = '#/dashboard';
+                        }}
                         className="text-xs sm:text-sm px-2 sm:px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 active:from-blue-700 active:to-blue-800 transition-all duration-200 shadow-md hover:shadow-lg touch-manipulation"
                       >
-                        <span className="hidden sm:inline">{view === 'employeeDashboard' ? 'Submit Report' : 'My Dashboard'}</span>
-                        <span className="sm:hidden">{view === 'employeeDashboard' ? 'Form' : 'Stats'}</span>
+                        <span className="hidden sm:inline">My Dashboard</span>
+                        <span className="sm:hidden">Dashboard</span>
                       </button>
                     )}
+                    
+                    {view !== 'form' && (
+                      <button
+                        onClick={() => {
+                          setView('form');
+                          window.location.hash = '';
+                        }}
+                        className="text-xs sm:text-sm px-2 sm:px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 active:from-green-700 active:to-green-800 transition-all duration-200 shadow-md hover:shadow-lg touch-manipulation"
+                      >
+                        <span className="hidden sm:inline">Submit Report</span>
+                        <span className="sm:hidden">Form</span>
+                      </button>
+                    )}
+                    
                     <button
                       onClick={handleLogout}
                       className="text-xs sm:text-sm px-2 sm:px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 active:from-red-700 active:to-red-800 transition-all duration-200 shadow-md hover:shadow-lg touch-manipulation"
@@ -1200,40 +1254,71 @@ function AppContent() {
                       <span className="sm:hidden">Exit</span>
                     </button>
                   </>
+                ) : (
+                  <div className="text-xs sm:text-sm text-gray-600">
+                    Have an account? Check footer to login
+                  </div>
                 )}
               </div>
             </div>
           </div>
         </header>
         <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
-          {!authState.isLoggedIn ? (
-            <LoginSection />
-          ) : authState.userType === 'manager' ? (
-            <ManagerSection />
-          ) : (
-            <EmployeeSection />
-          )}
+          {renderCurrentView()}
         </main>
         <footer className="bg-white/90 backdrop-blur-lg border-t border-gray-200 mt-auto py-6 sm:py-8">
           <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-            <div className="text-center">
+            <div className="text-center space-y-4">
               <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-xs sm:text-sm text-gray-600">
                 <span>Created for Branding Pioneers Agency</span>
                 <span className="hidden sm:inline text-gray-400">•</span>
                 <span>Employee Performance Management System</span>
                 <span className="hidden sm:inline text-gray-400">•</span>
-                <span>v11 (Auth + Mobile)</span>
+                <span>v12 (Form-First)</span>
               </div>
+              
               {!authState.isLoggedIn && (
-                <div className="mt-4">
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-gray-700">
+                    Already submitted a form? Login to view your dashboard:
+                  </p>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <button
+                      onClick={() => openLoginModal('employee')}
+                      className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 active:from-blue-700 active:to-blue-800 transition-all duration-200 shadow-md hover:shadow-lg touch-manipulation font-medium"
+                    >
+                      👥 Employee Login
+                    </button>
+                    <button
+                      onClick={() => openLoginModal('manager')}
+                      className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-lg hover:from-gray-700 hover:to-gray-800 active:from-gray-800 active:to-gray-900 transition-all duration-200 shadow-md hover:shadow-lg touch-manipulation font-medium"
+                    >
+                      📋 Manager Login
+                    </button>
+                  </div>
                   <p className="text-xs text-gray-500">
-                    Employee or Manager? Use the login form above to access your dashboard.
+                    Note: You need to complete at least one form submission before you can login to your employee dashboard.
                   </p>
                 </div>
               )}
             </div>
           </div>
         </footer>
+        
+        {/* Login Modal */}
+        {showLoginModal && (
+          <LoginModal 
+            loginForm={loginForm}
+            setLoginForm={setLoginForm}
+            onLogin={handleLogin}
+            loginError={authState.loginError}
+            onClose={() => {
+              setShowLoginModal(false);
+              setAuthState(prev => ({ ...prev, loginError: '' }));
+              window.location.hash = '';
+            }}
+          />
+        )}
       </div>
     </ModalContext.Provider>
   );
@@ -2325,7 +2410,16 @@ function DeptClientsBlock({ currentSubmission, previousSubmission, setModel, mon
 }
 
 function ClientTable({ currentSubmission, previousSubmission, setModel, monthPrev, monthThis, openModal, closeModal }) {
+  const supabase = useSupabase();
   const [draftRow, setDraftRow] = useState({ name: "", scopeOfWork: "", url: "" });
+  const [masterClients, setMasterClients] = useState([]);
+  const [showNewClientForm, setShowNewClientForm] = useState(false);
+  const [newClientForm, setNewClientForm] = useState({
+    name: '',
+    client_type: 'Standard',
+    team: 'Web',
+    scope_of_work: ''
+  });
   const isOpsHead = currentSubmission.employee.department === "Operations Head";
   const isWebHead = currentSubmission.employee.department === "Web Head";
   const isGraphicDesigner = currentSubmission.employee.role?.includes("Graphic Designer");
@@ -2366,15 +2460,127 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
   }
 
   const prevClients = previousSubmission?.clients || [];
+  
+  // Fetch master client list
+  useEffect(() => {
+    const fetchMasterClients = async () => {
+      if (!supabase) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('status', 'Active')
+          .order('name');
+        
+        if (error) throw error;
+        setMasterClients(data || []);
+      } catch (error) {
+        console.error('Error fetching master clients:', error);
+      }
+    };
+    
+    fetchMasterClients();
+  }, [supabase]);
+
+  // Determine current employee's team
+  const currentTeam = currentSubmission.employee.department === "Social Media" ? "Marketing" : "Web";
+  
+  // Combine master clients and previous clients for the dropdown
   const clientNames = useMemo(() => {
-    const names = new Set(prevClients.map(c => c.name));
+    const names = new Set();
+    
+    // Add master clients from the current team
+    masterClients
+      .filter(client => client.team === currentTeam)
+      .forEach(client => names.add(client.name));
+    
+    // Add previous clients (for backward compatibility)
+    prevClients.forEach(client => names.add(client.name));
+    
     return [...names].sort();
-  }, [prevClients]);
+  }, [masterClients, prevClients, currentTeam]);
 
   const addClientFromDropdown = (clientName) => {
+    // First try to find in previous clients for backward compatibility
     const prevClient = prevClients.find(c => c.name === clientName);
-    const newClient = prevClient ? { ...prevClient, id: uid(), reports: [] } : { id: uid(), name: clientName, reports: [], relationship: {} };
+    if (prevClient) {
+      const newClient = { ...prevClient, id: uid(), reports: [] };
+      setModel(m => ({ ...m, clients: [...m.clients, newClient] }));
+      return;
+    }
+    
+    // Check master clients for additional data like type and scope
+    const masterClient = masterClients.find(c => c.name === clientName);
+    const newClient = masterClient 
+      ? { 
+          id: uid(), 
+          name: masterClient.name, 
+          reports: [], 
+          relationship: {},
+          client_type: masterClient.client_type,
+          team: masterClient.team,
+          scope_of_work: masterClient.scope_of_work
+        }
+      : { 
+          id: uid(), 
+          name: clientName, 
+          reports: [], 
+          relationship: {} 
+        };
+    
     setModel(m => ({ ...m, clients: [...m.clients, newClient] }));
+  };
+
+  const handleCreateNewClient = async (e) => {
+    e.preventDefault();
+    if (!supabase || !newClientForm.name.trim()) return;
+
+    try {
+      // Create client in database
+      const { data: newClient, error } = await supabase
+        .from('clients')
+        .insert([{
+          name: newClientForm.name.trim(),
+          client_type: newClientForm.client_type,
+          team: newClientForm.team,
+          scope_of_work: newClientForm.scope_of_work,
+          status: 'Active'
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Add to form clients
+      const formClient = {
+        id: uid(),
+        name: newClient.name,
+        reports: [],
+        relationship: {},
+        client_type: newClient.client_type,
+        team: newClient.team,
+        scope_of_work: newClient.scope_of_work
+      };
+
+      setModel(m => ({ ...m, clients: [...m.clients, formClient] }));
+      
+      // Refresh master clients list
+      setMasterClients(prev => [...prev, newClient]);
+      
+      // Reset form
+      setNewClientForm({
+        name: '',
+        client_type: 'Standard',
+        team: currentTeam,
+        scope_of_work: ''
+      });
+      setShowNewClientForm(false);
+
+    } catch (error) {
+      console.error('Error creating client:', error);
+      alert('Failed to create client. Please try again.');
+    }
   };
 
   return (
@@ -2387,12 +2593,21 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
           onChange={(e) => addClientFromDropdown(e.target.value)}
           value=""
         >
-          <option value="" disabled>Select a previous client...</option>
+          <option value="" disabled>Select from agency clients ({currentTeam} team)...</option>
           {clientNames.map(name => (
             <option key={name} value={name}>{name}</option>
           ))}
         </select>
-        <div className="flex-1 border rounded-xl p-2 text-sm text-gray-500">or enter a new client below.</div>
+        <button
+          type="button"
+          onClick={() => setShowNewClientForm(true)}
+          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-1"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Create New
+        </button>
       </div>
       <div className="overflow-auto">
         <table className="w-full text-sm border-separate" style={{ borderSpacing: 0 }}>
@@ -2478,6 +2693,93 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
           </div>
         )
       })}
+
+      {/* Create New Client Modal */}
+      {showNewClientForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Create New Client</h3>
+                <button
+                  onClick={() => setShowNewClientForm(false)}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateNewClient} className="px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Client Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={newClientForm.name}
+                  onChange={(e) => setNewClientForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  placeholder="Enter client name"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Client Type *</label>
+                <select
+                  value={newClientForm.client_type}
+                  onChange={(e) => setNewClientForm(prev => ({ ...prev, client_type: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                >
+                  <option value="Standard">Standard</option>
+                  <option value="Premium">Premium</option>
+                  <option value="Enterprise">Enterprise</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Team *</label>
+                <select
+                  value={newClientForm.team}
+                  onChange={(e) => setNewClientForm(prev => ({ ...prev, team: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                >
+                  <option value="Web">Web Team</option>
+                  <option value="Marketing">Marketing Team</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Scope of Work</label>
+                <textarea
+                  rows={3}
+                  value={newClientForm.scope_of_work}
+                  onChange={(e) => setNewClientForm(prev => ({ ...prev, scope_of_work: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  placeholder="Describe the client's scope of work..."
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowNewClientForm(false)}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                >
+                  Create Client
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3300,125 +3602,332 @@ function TinyLinks({ items, onAdd, onRemove }) {
 }
 
 /*******************
- * Login Component *
+ * Login Modal    *
  *******************/
-function LoginForm({ loginForm, setLoginForm, onLogin, loginError }) {
-  const switchUserType = (userType) => {
-    setLoginForm(prev => ({ ...prev, userType, name: '', phone: '' }));
-    window.location.hash = userType === 'manager' ? '#/manager' : '#/employee';
+function LoginModal({ loginForm, setLoginForm, onLogin, loginError, onClose }) {
+  return (
+    <Transition appear show={true} as={Fragment}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-black bg-opacity-25" />
+        </Transition.Child>
+
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+              enterTo="opacity-100 translate-y-0 sm:scale-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+              leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+            >
+              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-t-2xl sm:rounded-2xl bg-white p-4 sm:p-6 shadow-xl transition-all">
+                <div className="flex items-center justify-between mb-4">
+                  <Dialog.Title className="text-lg sm:text-xl font-bold text-gray-900">
+                    {loginForm.userType === 'manager' ? '📋 Manager Login' : '👥 Employee Login'}
+                  </Dialog.Title>
+                  <button
+                    onClick={onClose}
+                    className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <form onSubmit={onLogin} className="space-y-4">
+                  {loginForm.userType === 'employee' ? (
+                    <>
+                      <div>
+                        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                          Full Name
+                        </label>
+                        <input
+                          id="name"
+                          type="text"
+                          required
+                          className="w-full px-3 py-3 text-base border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors touch-manipulation"
+                          placeholder="Enter your full name"
+                          value={loginForm.name}
+                          onChange={(e) => setLoginForm(prev => ({ ...prev, name: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                          Phone Number (Password)
+                        </label>
+                        <input
+                          id="phone"
+                          type="tel"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          required
+                          className="w-full px-3 py-3 text-base border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors touch-manipulation"
+                          placeholder="Enter your phone number"
+                          value={loginForm.phone}
+                          onChange={(e) => setLoginForm(prev => ({ ...prev, phone: e.target.value }))}
+                        />
+                        <p className="mt-1 text-xs text-gray-500">
+                          Use the phone number from your submitted form
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      <label htmlFor="adminToken" className="block text-sm font-medium text-gray-700 mb-2">
+                        Admin Access Token
+                      </label>
+                      <input
+                        id="adminToken"
+                        type="password"
+                        required
+                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors touch-manipulation"
+                        placeholder="Enter admin access token"
+                        value={loginForm.phone}
+                        onChange={(e) => setLoginForm(prev => ({ ...prev, phone: e.target.value }))}
+                      />
+                    </div>
+                  )}
+
+                  {loginError && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-3">
+                      <div className="text-red-600 flex-shrink-0 mt-0.5">⚠️</div>
+                      <div className="text-sm text-red-700 leading-relaxed">{loginError}</div>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="w-full sm:w-auto px-4 py-3 text-base border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="w-full sm:w-auto px-6 py-3 text-base font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl hover:from-blue-700 hover:to-blue-800 active:from-blue-800 active:to-blue-900 transition-all duration-200 touch-manipulation"
+                    >
+                      Sign In
+                    </button>
+                  </div>
+                </form>
+
+                {loginForm.userType === 'employee' && (
+                  <p className="text-xs text-gray-500 text-center mt-4">
+                    New employee? Submit a form first, then login with your details.
+                  </p>
+                )}
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
+        </div>
+      </Dialog>
+    </Transition>
+  );
+}
+
+/***********************
+ * Manager Edit Employee *
+ ***********************/
+function ManagerEditEmployee({ employee, onBack }) {
+  const supabase = useSupabase();
+  const { allSubmissions, refreshSubmissions } = useFetchSubmissions();
+  const { openModal, closeModal } = useModal();
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
+  const [managerRemarks, setManagerRemarks] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Get employee submissions
+  const employeeSubmissions = useMemo(() => {
+    return allSubmissions.filter(s => 
+      s.employee?.name === employee.name && 
+      s.employee?.phone === employee.phone &&
+      !s.isDraft
+    ).sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+  }, [allSubmissions, employee]);
+
+  const handleEditSubmission = (submission) => {
+    setSelectedSubmission(submission);
+    setManagerRemarks(submission.manager_remarks || '');
+    setIsEditing(true);
+  };
+
+  const saveManagerRemarks = async () => {
+    if (!selectedSubmission || !supabase) return;
+
+    try {
+      const { error } = await supabase
+        .from('submissions')
+        .update({
+          manager_remarks: managerRemarks,
+          manager_edited_at: new Date().toISOString(),
+          manager_edited_by: 'Manager'
+        })
+        .eq('id', selectedSubmission.id);
+
+      if (error) throw error;
+
+      openModal('Success', 'Manager remarks saved successfully!', () => {
+        closeModal();
+        setIsEditing(false);
+        setSelectedSubmission(null);
+        refreshSubmissions();
+      });
+    } catch (error) {
+      openModal('Error', `Failed to save remarks: ${error.message}`, closeModal);
+    }
+  };
+
+  const deleteSubmission = async (submission) => {
+    if (!supabase) return;
+
+    openModal(
+      'Confirm Delete',
+      `Are you sure you want to delete ${employee.name}'s submission for ${monthLabel(submission.monthKey)}? This action cannot be undone.`,
+      async () => {
+        try {
+          const { error } = await supabase
+            .from('submissions')
+            .delete()
+            .eq('id', submission.id);
+
+          if (error) throw error;
+
+          openModal('Success', 'Submission deleted successfully!', () => {
+            closeModal();
+            refreshSubmissions();
+          });
+        } catch (error) {
+          openModal('Error', `Failed to delete submission: ${error.message}`, closeModal);
+        }
+      },
+      closeModal
+    );
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <div className="text-6xl mb-4">🔑</div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h2>
-          <p className="text-gray-600">Sign in to access your dashboard</p>
-        </div>
-
-        {/* User Type Selector */}
-        <div className="flex rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
-          <button
-            onClick={() => switchUserType('employee')}
-            className={`flex-1 py-3 px-4 text-center font-medium transition-all duration-200 ${
-              loginForm.userType === 'employee'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            👥 Employee
-          </button>
-          <button
-            onClick={() => switchUserType('manager')}
-            className={`flex-1 py-3 px-4 text-center font-medium transition-all duration-200 ${
-              loginForm.userType === 'manager'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            📋 Manager
-          </button>
-        </div>
-
-        {/* Login Form */}
-        <form onSubmit={onLogin} className="mt-8 space-y-6">
-          <div className="space-y-4">
-            {loginForm.userType === 'employee' ? (
-              <>
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                    Full Name
-                  </label>
-                  <input
-                    id="name"
-                    type="text"
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    placeholder="Enter your full name"
-                    value={loginForm.name}
-                    onChange={(e) => setLoginForm(prev => ({ ...prev, name: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone Number (Password)
-                  </label>
-                  <input
-                    id="phone"
-                    type="tel"
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    placeholder="Enter your phone number"
-                    value={loginForm.phone}
-                    onChange={(e) => setLoginForm(prev => ({ ...prev, phone: e.target.value }))}
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Use the phone number you registered with
-                  </p>
-                </div>
-              </>
-            ) : (
-              <div>
-                <label htmlFor="adminToken" className="block text-sm font-medium text-gray-700 mb-2">
-                  Admin Access Token
-                </label>
-                <input
-                  id="adminToken"
-                  type="password"
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder="Enter admin access token"
-                  value={loginForm.phone}
-                  onChange={(e) => setLoginForm(prev => ({ ...prev, phone: e.target.value }))}
-                />
-              </div>
-            )}
+    <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
+      {/* Header */}
+      <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Edit Employee Data</h1>
+            <p className="text-gray-600">{employee.name} - {employee.phone}</p>
           </div>
-
-          {loginError && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-3 sm:p-4 flex items-start gap-3">
-              <div className="text-red-600 flex-shrink-0 mt-0.5">⚠️</div>
-              <div className="text-sm text-red-700 leading-relaxed">{loginError}</div>
-            </div>
-          )}
-
           <button
-            type="submit"
-            className="w-full flex justify-center py-3 sm:py-3 px-4 border border-transparent rounded-xl shadow-sm text-base font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 active:from-blue-800 active:to-blue-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 touch-manipulation"
+            onClick={onBack}
+            className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            Sign In
+            ← Back to Dashboard
           </button>
-        </form>
+        </div>
+      </div>
 
-        {loginForm.userType === 'employee' && (
-          <div className="text-center px-4">
-            <p className="text-sm text-gray-500 leading-relaxed">
-              New employee? Contact your manager to get registered.
-            </p>
+      {/* Submissions List */}
+      <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
+        <h3 className="text-lg font-semibold mb-4">Employee Submissions</h3>
+        
+        {employeeSubmissions.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="text-4xl mb-4">📊</div>
+            <p className="text-gray-600">No completed submissions found for this employee.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {employeeSubmissions.map((submission, index) => (
+              <div key={submission.id || index} className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h4 className="font-medium">{monthLabel(submission.monthKey)}</h4>
+                    <p className="text-sm text-gray-600">
+                      Score: {submission.scores?.overall?.toFixed(1) || 'N/A'}/10 • 
+                      Submitted: {new Date(submission.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEditSubmission(submission)}
+                      className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                    >
+                      ✏️ Edit Remarks
+                    </button>
+                    <button
+                      onClick={() => deleteSubmission(submission)}
+                      className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                    >
+                      🗑️ Delete
+                    </button>
+                  </div>
+                </div>
+                
+                {submission.manager_remarks && (
+                  <div className="bg-blue-50 border border-blue-200 rounded p-3 mt-3">
+                    <p className="text-sm font-medium text-blue-800 mb-1">Manager Remarks:</p>
+                    <p className="text-sm text-blue-700 whitespace-pre-wrap">{submission.manager_remarks}</p>
+                    {submission.manager_edited_at && (
+                      <p className="text-xs text-blue-600 mt-2">
+                        Last edited: {new Date(submission.manager_edited_at).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
+
+      {/* Edit Remarks Modal */}
+      {isEditing && selectedSubmission && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-2xl w-full p-6">
+            <h3 className="text-lg font-semibold mb-4">
+              Edit Remarks - {monthLabel(selectedSubmission.monthKey)}
+            </h3>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Manager Remarks
+              </label>
+              <textarea
+                value={managerRemarks}
+                onChange={(e) => setManagerRemarks(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg p-3 text-base resize-y"
+                rows={6}
+                placeholder="Add your feedback, suggestions, or remarks for this employee's performance..."
+              />
+            </div>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setIsEditing(false);
+                  setSelectedSubmission(null);
+                }}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveManagerRemarks}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Save Remarks
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3426,6 +3935,237 @@ function LoginForm({ loginForm, setLoginForm, onLogin, loginError }) {
 /**********************
  * Manager Dashboard  *
  **********************/
+
+function ClientReportsView({ employee, employeeSubmissions }) {
+  const supabase = useSupabase();
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch master client list for employee's team
+  useEffect(() => {
+    const fetchClients = async () => {
+      if (!supabase) return;
+      
+      try {
+        setLoading(true);
+        const employeeTeam = employee.department === "Social Media" ? "Marketing" : "Web";
+        const { data, error } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('team', employeeTeam)
+          .order('name');
+        
+        if (error) throw error;
+        setClients(data || []);
+      } catch (error) {
+        console.error('Error fetching clients:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchClients();
+  }, [supabase, employee.department]);
+
+  // Process client data for this employee
+  const employeeClientData = useMemo(() => {
+    // Get all unique clients the employee has worked on
+    const workedClients = new Map();
+    
+    employeeSubmissions.forEach(submission => {
+      if (submission.payload?.clients) {
+        submission.payload.clients.forEach(client => {
+          if (!workedClients.has(client.name)) {
+            workedClients.set(client.name, {
+              name: client.name,
+              submissions: [],
+              totalKPIs: 0,
+              avgScore: 0,
+              latestWork: null,
+              masterClient: null
+            });
+          }
+          
+          const clientData = workedClients.get(client.name);
+          clientData.submissions.push({
+            ...submission,
+            clientData: client
+          });
+          
+          // Update latest work
+          if (!clientData.latestWork || submission.created_at > clientData.latestWork.created_at) {
+            clientData.latestWork = submission;
+          }
+        });
+      }
+    });
+
+    // Enhance with master client data and calculate metrics
+    Array.from(workedClients.values()).forEach(clientData => {
+      const masterClient = clients.find(c => c.name === clientData.name);
+      clientData.masterClient = masterClient;
+      
+      // Calculate metrics
+      clientData.totalKPIs = clientData.submissions.length;
+      if (clientData.totalKPIs > 0) {
+        const totalScore = clientData.submissions.reduce((sum, sub) => sum + (sub.scores?.kpiScore || 0), 0);
+        clientData.avgScore = (totalScore / clientData.totalKPIs).toFixed(1);
+      }
+    });
+
+    return Array.from(workedClients.values()).sort((a, b) => 
+      new Date(b.latestWork?.created_at || 0) - new Date(a.latestWork?.created_at || 0)
+    );
+  }, [employeeSubmissions, clients]);
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
+        <h3 className="text-base sm:text-lg font-semibold mb-4 flex items-center gap-2">
+          📊 My Client Reports & Progress
+        </h3>
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (employeeClientData.length === 0) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
+        <h3 className="text-base sm:text-lg font-semibold mb-4 flex items-center gap-2">
+          📊 My Client Reports & Progress
+        </h3>
+        <div className="text-center py-6 sm:py-8">
+          <div className="text-3xl sm:text-4xl mb-3 sm:mb-4">🎯</div>
+          <p className="text-sm sm:text-base text-gray-600 px-4">No client work reported yet. Add client KPIs in your submissions to track progress here.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
+      <h3 className="text-base sm:text-lg font-semibold mb-4 flex items-center gap-2">
+        📊 My Client Reports & Progress
+      </h3>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {employeeClientData.map((clientData, index) => (
+          <div key={clientData.name} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex-1">
+                <h4 className="font-medium text-gray-900 text-sm sm:text-base">{clientData.name}</h4>
+                <div className="flex items-center gap-2 mt-1">
+                  {clientData.masterClient && (
+                    <>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        clientData.masterClient.client_type === 'Enterprise' 
+                          ? 'bg-purple-100 text-purple-800'
+                          : clientData.masterClient.client_type === 'Premium'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {clientData.masterClient.client_type}
+                      </span>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        clientData.masterClient.team === 'Web' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'
+                      }`}>
+                        {clientData.masterClient.team}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-lg font-semibold text-blue-600">{clientData.avgScore}/10</div>
+                <div className="text-xs text-gray-500">Avg Score</div>
+              </div>
+            </div>
+
+            {/* Client Scope */}
+            {clientData.masterClient?.scope_of_work && (
+              <div className="mb-3">
+                <p className="text-xs text-gray-600 line-clamp-2" title={clientData.masterClient.scope_of_work}>
+                  {clientData.masterClient.scope_of_work}
+                </p>
+              </div>
+            )}
+
+            {/* Metrics */}
+            <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
+              <div>
+                <span className="text-gray-500">Total Reports:</span>
+                <div className="font-medium">{clientData.totalKPIs}</div>
+              </div>
+              <div>
+                <span className="text-gray-500">Latest Work:</span>
+                <div className="font-medium text-xs">
+                  {clientData.latestWork 
+                    ? new Date(clientData.latestWork.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                    : 'N/A'
+                  }
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Activity */}
+            <div>
+              <span className="text-xs text-gray-500">Recent Activity:</span>
+              <div className="mt-1 space-y-1">
+                {clientData.submissions.slice(0, 3).map((submission, idx) => (
+                  <div key={idx} className="flex items-center gap-2 text-xs text-gray-600">
+                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full flex-shrink-0"></div>
+                    <span>{submission.month_key}</span>
+                    <span>•</span>
+                    <span>KPI: {submission.scores?.kpiScore || 'N/A'}/10</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Performance Trend */}
+            {clientData.submissions.length >= 2 && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <div className="flex items-center gap-2">
+                  {(() => {
+                    const latest = clientData.submissions[0].scores?.kpiScore || 0;
+                    const previous = clientData.submissions[1].scores?.kpiScore || 0;
+                    const trend = latest - previous;
+                    
+                    return trend > 0 ? (
+                      <>
+                        <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-xs text-green-600">+{trend.toFixed(1)} improvement</span>
+                      </>
+                    ) : trend < 0 ? (
+                      <>
+                        <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-xs text-red-600">{trend.toFixed(1)} decline</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-xs text-gray-600">No change</span>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /********************************
  * Employee Personal Dashboard *
@@ -3470,6 +4210,42 @@ function EmployeePersonalDashboard({ employee, onBack }) {
         ((employeeSubmissions[0].scores?.overall || 0) - (employeeSubmissions[1].scores?.overall || 0)).toFixed(1) : '0'
     };
   }, [employeeSubmissions]);
+
+  const generateAndDownloadPDF = (submission, employeeName) => {
+    const pdfContent = `
+      EMPLOYEE PERFORMANCE REPORT\n\n
+      Employee: ${employeeName}\n
+      Month: ${monthLabel(submission.monthKey)}\n
+      Department: ${submission.employee?.department || 'N/A'}\n\n
+      
+      PERFORMANCE SCORES:\n
+      Overall Score: ${submission.scores?.overall?.toFixed(1) || 'N/A'}/10\n
+      KPI Score: ${submission.scores?.kpiScore?.toFixed(1) || 'N/A'}/10\n
+      Learning Score: ${submission.scores?.learningScore?.toFixed(1) || 'N/A'}/10\n
+      Client Relations: ${submission.scores?.relationshipScore?.toFixed(1) || 'N/A'}/10\n\n
+      
+      ${submission.manager_remarks ? `MANAGER FEEDBACK:\n${submission.manager_remarks}\n\n` : ''}
+      
+      Generated on: ${new Date().toLocaleDateString()}\n
+      
+      © Branding Pioneers Agency - Employee Performance Management System
+    `;
+    
+    const blob = new Blob([pdfContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${employeeName.replace(/\s+/g, '_')}_${submission.monthKey}_Report.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const getSubmissionSummary = (submission) => {
+    return `📈 PERFORMANCE SUMMARY - ${monthLabel(submission.monthKey)}\n\n★ Overall Score: ${submission.scores?.overall?.toFixed(1) || 'N/A'}/10\n\n🎯 KPI Performance: ${submission.scores?.kpiScore?.toFixed(1) || 'N/A'}/10\n🎓 Learning Activities: ${submission.scores?.learningScore?.toFixed(1) || 'N/A'}/10\n🤝 Client Relations: ${submission.scores?.relationshipScore?.toFixed(1) || 'N/A'}/10\n\n${submission.flags?.missingLearningHours ? '⚠️ Action needed: Complete learning hours requirement\n' : ''}
+${submission.flags?.hasEscalations ? '⚠️ Action needed: Address client escalations\n' : ''}
+${submission.flags?.missingReports ? '⚠️ Action needed: Submit missing client reports\n' : ''}
+${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_remarks}` : '\n📝 No manager feedback yet'}`;
+  };
 
   if (loading) {
     return (
@@ -3596,9 +4372,44 @@ function EmployeePersonalDashboard({ employee, onBack }) {
         </div>
       )}
 
+      {/* Manager Remarks Section */}
+      {employeeSubmissions.some(s => s.manager_remarks) && (
+        <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold mb-4 flex items-center gap-2">
+            📝 Manager Feedback
+          </h3>
+          <div className="space-y-4">
+            {employeeSubmissions
+              .filter(s => s.manager_remarks)
+              .map((submission, index) => (
+                <div key={submission.id || index} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium text-blue-900">{monthLabel(submission.monthKey)}</h4>
+                    <span className="text-xs text-blue-600">
+                      {submission.manager_edited_at ? new Date(submission.manager_edited_at).toLocaleDateString() : ''}
+                    </span>
+                  </div>
+                  <p className="text-sm text-blue-800 leading-relaxed whitespace-pre-wrap">
+                    {submission.manager_remarks}
+                  </p>
+                  {submission.manager_edited_by && (
+                    <p className="text-xs text-blue-600 mt-2">
+                      — {submission.manager_edited_by}
+                    </p>
+                  )}
+                </div>
+              ))
+            }
+          </div>
+        </div>
+      )}
+
+      {/* Client Reports & Progress */}
+      <ClientReportsView employee={employee} employeeSubmissions={employeeSubmissions} />
+
       {/* Submission History */}
       <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
-        <h3 className="text-base sm:text-lg font-semibold mb-4">Submission History</h3>
+        <h3 className="text-base sm:text-lg font-semibold mb-4">Submission History & Reports</h3>
         {employeeSubmissions.length === 0 ? (
           <div className="text-center py-6 sm:py-8">
             <div className="text-3xl sm:text-4xl mb-3 sm:mb-4">📊</div>
@@ -3607,24 +4418,43 @@ function EmployeePersonalDashboard({ employee, onBack }) {
         ) : (
           <div className="space-y-3">
             {employeeSubmissions.map((submission, index) => (
-              <div key={submission.id || index} className="flex items-center justify-between p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation">
-                <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-                  <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 text-sm sm:text-base ${
-                    submission.isDraft ? 'bg-orange-500' : 'bg-green-500'
-                  }`}>
-                    {submission.isDraft ? '📋' : '✓'}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium text-sm sm:text-base truncate">{monthLabel(submission.monthKey)}</div>
-                    <div className="text-xs sm:text-sm text-gray-600">
-                      {submission.isDraft ? 'Draft' : 'Submitted'} • Score: {submission.scores?.overall?.toFixed(1) || 'N/A'}/10
+              <div key={submission.id || index} className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 text-sm sm:text-base ${
+                      submission.isDraft ? 'bg-orange-500' : 'bg-green-500'
+                    }`}>
+                      {submission.isDraft ? '📋' : '✓'}
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm sm:text-base">{monthLabel(submission.monthKey)}</div>
+                      <div className="text-xs sm:text-sm text-gray-600">
+                        {submission.isDraft ? 'Draft' : 'Submitted'} • Score: {submission.scores?.overall?.toFixed(1) || 'N/A'}/10
+                      </div>
                     </div>
                   </div>
+                  <div className="text-xs sm:text-sm text-gray-500">
+                    <span className="hidden sm:inline">{new Date(submission.created_at || submission.updated_at).toLocaleDateString()}</span>
+                    <span className="sm:hidden">{new Date(submission.created_at || submission.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                  </div>
                 </div>
-                <div className="text-xs sm:text-sm text-gray-500 flex-shrink-0">
-                  <span className="hidden sm:inline">{new Date(submission.created_at || submission.updated_at).toLocaleDateString()}</span>
-                  <span className="sm:hidden">{new Date(submission.created_at || submission.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                </div>
+                
+                {!submission.isDraft && (
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button
+                      onClick={() => generateAndDownloadPDF(submission, employee.name)}
+                      className="flex-1 px-3 py-2 text-xs sm:text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors touch-manipulation"
+                    >
+                      📊 Download Report
+                    </button>
+                    <button
+                      onClick={() => openModal('Submission Details', getSubmissionSummary(submission), closeModal)}
+                      className="flex-1 px-3 py-2 text-xs sm:text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation"
+                    >
+                      🔍 View Summary
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -3991,7 +4821,824 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
 
 
 function clean(s) { return (s || '').toString(); }
-function ManagerDashboard({ onViewReport }) {
+
+function ClientManagementView() {
+  const supabase = useSupabase();
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState('All');
+  const [selectedStatus, setSelectedStatus] = useState('Active');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // New client form state
+  const [newClient, setNewClient] = useState({
+    name: '',
+    client_type: 'Standard',
+    team: 'Web',
+    scope_of_work: '',
+    status: 'Active'
+  });
+
+  // Client departure form state
+  const [departureForm, setDepartureForm] = useState({
+    isOpen: false,
+    clientId: null,
+    reason: '',
+    employees: []
+  });
+
+  const fetchClients = async () => {
+    if (!supabase) return;
+    
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setClients(data || []);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchClients();
+  }, [supabase]);
+
+  const handleCreateClient = async (e) => {
+    e.preventDefault();
+    if (!supabase) return;
+
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .insert([newClient]);
+      
+      if (error) throw error;
+      
+      setNewClient({
+        name: '',
+        client_type: 'Standard',
+        team: 'Web',
+        scope_of_work: '',
+        status: 'Active'
+      });
+      setShowCreateForm(false);
+      fetchClients();
+    } catch (error) {
+      console.error('Error creating client:', error);
+      alert('Failed to create client. Please try again.');
+    }
+  };
+
+  const handleClientDeparture = async () => {
+    if (!supabase || !departureForm.clientId) return;
+
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update({
+          status: 'Departed',
+          departed_reason: departureForm.reason,
+          departed_employees: departureForm.employees,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', departureForm.clientId);
+      
+      if (error) throw error;
+      
+      setDepartureForm({
+        isOpen: false,
+        clientId: null,
+        reason: '',
+        employees: []
+      });
+      fetchClients();
+    } catch (error) {
+      console.error('Error updating client departure:', error);
+      alert('Failed to update client status. Please try again.');
+    }
+  };
+
+  const filteredClients = clients.filter(client => {
+    const matchesSearch = client.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesTeam = selectedTeam === 'All' || client.team === selectedTeam;
+    const matchesStatus = client.status === selectedStatus;
+    return matchesSearch && matchesTeam && matchesStatus;
+  });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="text-gray-600">Loading clients...</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header and Actions */}
+      <div className="bg-white rounded-xl shadow-sm border p-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Client Management</h2>
+            <p className="text-gray-600">Manage web and marketing team clients</p>
+          </div>
+          
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add New Client
+          </button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white rounded-xl shadow-sm border p-6">
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search clients..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+          
+          <select
+            value={selectedTeam}
+            onChange={(e) => setSelectedTeam(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="All">All Teams</option>
+            <option value="Web">Web Team</option>
+            <option value="Marketing">Marketing Team</option>
+          </select>
+          
+          <select
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="Active">Active Clients</option>
+            <option value="Departed">Departed Clients</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Client Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-white rounded-xl shadow-sm border p-6">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-blue-100">
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H9m0 0H5m0 0h2M7 7h10M7 11h4" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-500">Total Active</h3>
+              <p className="text-2xl font-semibold text-gray-900">{clients.filter(c => c.status === 'Active').length}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border p-6">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-green-100">
+              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-500">Premium Clients</h3>
+              <p className="text-2xl font-semibold text-gray-900">{clients.filter(c => c.client_type === 'Premium' && c.status === 'Active').length}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border p-6">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-purple-100">
+              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-500">Enterprise</h3>
+              <p className="text-2xl font-semibold text-gray-900">{clients.filter(c => c.client_type === 'Enterprise' && c.status === 'Active').length}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border p-6">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-red-100">
+              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-500">Departed</h3>
+              <p className="text-2xl font-semibold text-gray-900">{clients.filter(c => c.status === 'Departed').length}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Clients Table */}
+      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scope</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredClients.map((client) => (
+                <tr key={client.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{client.name}</div>
+                      <div className="text-sm text-gray-500">Created {new Date(client.created_at).toLocaleDateString()}</div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      client.client_type === 'Enterprise' 
+                        ? 'bg-purple-100 text-purple-800'
+                        : client.client_type === 'Premium'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {client.client_type}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      client.team === 'Web' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'
+                    }`}>
+                      {client.team}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-gray-900 max-w-xs truncate" title={client.scope_of_work}>
+                      {client.scope_of_work || 'No scope defined'}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      client.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {client.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex items-center gap-2">
+                      {client.status === 'Active' && (
+                        <button
+                          onClick={() => setDepartureForm({
+                            isOpen: true,
+                            clientId: client.id,
+                            reason: '',
+                            employees: []
+                          })}
+                          className="text-red-600 hover:text-red-900 hover:bg-red-50 px-3 py-1 rounded transition-colors"
+                        >
+                          Mark Departed
+                        </button>
+                      )}
+                      {client.status === 'Departed' && client.departed_reason && (
+                        <div className="text-xs text-gray-500">
+                          Reason: {client.departed_reason}
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        
+        {filteredClients.length === 0 && (
+          <div className="text-center py-12">
+            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H9m0 0H5m0 0h2M7 7h10M7 11h4" />
+            </svg>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No clients found</h3>
+            <p className="mt-1 text-sm text-gray-500">Try adjusting your search or filters.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Create Client Modal */}
+      {showCreateForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Add New Client</h3>
+                <button
+                  onClick={() => setShowCreateForm(false)}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateClient} className="px-6 py-4 space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Client Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={newClient.name}
+                  onChange={(e) => setNewClient(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter client name"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Client Type *</label>
+                  <select
+                    value={newClient.client_type}
+                    onChange={(e) => setNewClient(prev => ({ ...prev, client_type: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="Standard">Standard</option>
+                    <option value="Premium">Premium</option>
+                    <option value="Enterprise">Enterprise</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Team *</label>
+                  <select
+                    value={newClient.team}
+                    onChange={(e) => setNewClient(prev => ({ ...prev, team: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="Web">Web Team</option>
+                    <option value="Marketing">Marketing Team</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Scope of Work</label>
+                <textarea
+                  rows={4}
+                  value={newClient.scope_of_work}
+                  onChange={(e) => setNewClient(prev => ({ ...prev, scope_of_work: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Describe the client's scope of work, requirements, etc."
+                />
+              </div>
+
+              <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateForm(false)}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Create Client
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Client Departure Modal */}
+      {departureForm.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Mark Client as Departed</h3>
+                <button
+                  onClick={() => setDepartureForm(prev => ({ ...prev, isOpen: false }))}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Reason for Departure *</label>
+                <textarea
+                  rows={3}
+                  required
+                  value={departureForm.reason}
+                  onChange={(e) => setDepartureForm(prev => ({ ...prev, reason: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Explain why the client left..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Employees Responsible (Optional)</label>
+                <input
+                  type="text"
+                  value={departureForm.employees.join(', ')}
+                  onChange={(e) => setDepartureForm(prev => ({ 
+                    ...prev, 
+                    employees: e.target.value.split(',').map(name => name.trim()).filter(Boolean)
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter employee names separated by commas"
+                />
+                <p className="text-xs text-gray-500 mt-1">Separate multiple names with commas</p>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => setDepartureForm(prev => ({ ...prev, isOpen: false }))}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleClientDeparture}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Mark as Departed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ClientDashboardView() {
+  const supabase = useSupabase();
+  const { allSubmissions } = useFetchSubmissions();
+  const [clients, setClients] = useState([]);
+  const [selectedTeam, setSelectedTeam] = useState('All');
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch clients
+  useEffect(() => {
+    const fetchClients = async () => {
+      if (!supabase) return;
+      
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('status', 'Active')
+          .order('name');
+        
+        if (error) throw error;
+        setClients(data || []);
+      } catch (error) {
+        console.error('Error fetching clients:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchClients();
+  }, [supabase]);
+
+  // Process client data with employee assignments
+  const processedClients = useMemo(() => {
+    return clients.map(client => {
+      // Find all submissions that include this client
+      const clientSubmissions = allSubmissions.filter(submission => 
+        submission.payload?.clients?.some(c => c.name === client.name)
+      );
+
+      // Get unique employees working on this client
+      const employees = clientSubmissions.reduce((acc, submission) => {
+        const employeeKey = `${submission.employee_name}-${submission.employee_email}`;
+        if (!acc[employeeKey]) {
+          acc[employeeKey] = {
+            name: submission.employee_name,
+            email: submission.employee_email,
+            department: submission.department,
+            role: submission.role,
+            submissions: []
+          };
+        }
+        acc[employeeKey].submissions.push(submission);
+        return acc;
+      }, {});
+
+      // Calculate client metrics
+      const totalSubmissions = clientSubmissions.length;
+      const activeEmployees = Object.keys(employees).length;
+      const avgScore = totalSubmissions > 0 
+        ? clientSubmissions.reduce((sum, sub) => sum + (sub.scores?.overall || 0), 0) / totalSubmissions
+        : 0;
+
+      return {
+        ...client,
+        employees: Object.values(employees),
+        totalSubmissions,
+        activeEmployees,
+        avgScore: Math.round(avgScore * 10) / 10
+      };
+    });
+  }, [clients, allSubmissions]);
+
+  const filteredClients = processedClients.filter(client => 
+    selectedTeam === 'All' || client.team === selectedTeam
+  );
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="text-gray-600">Loading client data...</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-white rounded-xl shadow-sm border p-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Client Progress Dashboard</h2>
+            <p className="text-gray-600">Track employee progress and performance for each client</p>
+          </div>
+          
+          <select
+            value={selectedTeam}
+            onChange={(e) => setSelectedTeam(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="All">All Teams</option>
+            <option value="Web">Web Team</option>
+            <option value="Marketing">Marketing Team</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Client Overview Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredClients.map((client) => (
+          <div key={client.id} className="bg-white rounded-xl shadow-sm border p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">{client.name}</h3>
+                <div className="flex items-center gap-2">
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                    client.client_type === 'Enterprise' 
+                      ? 'bg-purple-100 text-purple-800'
+                      : client.client_type === 'Premium'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {client.client_type}
+                  </span>
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                    client.team === 'Web' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'
+                  }`}>
+                    {client.team}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Client Metrics */}
+            <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{client.activeEmployees}</div>
+                <div className="text-xs text-gray-500">Employees</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">{client.totalSubmissions}</div>
+                <div className="text-xs text-gray-500">Submissions</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600">{client.avgScore}/10</div>
+                <div className="text-xs text-gray-500">Avg Score</div>
+              </div>
+            </div>
+
+            {/* Scope of Work */}
+            {client.scope_of_work && (
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 line-clamp-2" title={client.scope_of_work}>
+                  {client.scope_of_work}
+                </p>
+              </div>
+            )}
+
+            {/* Quick Employee List */}
+            <div className="mb-4">
+              <div className="text-sm font-medium text-gray-700 mb-2">Working Employees:</div>
+              <div className="space-y-1">
+                {client.employees.slice(0, 3).map((employee, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">{employee.name}</span>
+                    <span className="text-xs text-gray-500">{employee.submissions.length} submissions</span>
+                  </div>
+                ))}
+                {client.employees.length > 3 && (
+                  <div className="text-xs text-gray-500">+{client.employees.length - 3} more...</div>
+                )}
+              </div>
+            </div>
+
+            {/* View Details Button */}
+            <button
+              onClick={() => setSelectedClient(client)}
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+            >
+              View Progress Details
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {filteredClients.length === 0 && (
+        <div className="text-center py-12">
+          <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H9m0 0H5m0 0h2M7 7h10M7 11h4" />
+          </svg>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No clients found</h3>
+          <p className="mt-1 text-sm text-gray-500">Try adjusting your team filter.</p>
+        </div>
+      )}
+
+      {/* Client Detail Modal */}
+      {selectedClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">{selectedClient.name}</h3>
+                  <p className="text-sm text-gray-600">{selectedClient.client_type} • {selectedClient.team} Team</p>
+                </div>
+                <button
+                  onClick={() => setSelectedClient(null)}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="px-6 py-4">
+              {/* Client Info */}
+              <div className="mb-6">
+                <h4 className="text-lg font-medium text-gray-900 mb-2">Client Information</h4>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Type:</span>
+                      <span className="ml-2 text-sm text-gray-900">{selectedClient.client_type}</span>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Team:</span>
+                      <span className="ml-2 text-sm text-gray-900">{selectedClient.team}</span>
+                    </div>
+                    <div className="md:col-span-2">
+                      <span className="text-sm font-medium text-gray-700">Scope of Work:</span>
+                      <p className="mt-1 text-sm text-gray-900">{selectedClient.scope_of_work || 'No scope defined'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Employee Progress */}
+              <div>
+                <h4 className="text-lg font-medium text-gray-900 mb-4">Employee Progress</h4>
+                <div className="space-y-4">
+                  {selectedClient.employees.map((employee, idx) => {
+                    const latestSubmission = employee.submissions[0]; // Most recent
+                    const avgScore = employee.submissions.length > 0
+                      ? employee.submissions.reduce((sum, sub) => sum + (sub.scores?.overall || 0), 0) / employee.submissions.length
+                      : 0;
+
+                    return (
+                      <div key={idx} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <h5 className="font-medium text-gray-900">{employee.name}</h5>
+                            <p className="text-sm text-gray-600">{employee.department} • {employee.role}</p>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-semibold text-blue-600">{Math.round(avgScore * 10) / 10}/10</div>
+                            <div className="text-xs text-gray-500">Avg Score</div>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-500">Total Submissions:</span>
+                            <div className="font-medium">{employee.submissions.length}</div>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Latest:</span>
+                            <div className="font-medium">
+                              {latestSubmission 
+                                ? new Date(latestSubmission.created_at).toLocaleDateString()
+                                : 'N/A'
+                              }
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">KPI Score:</span>
+                            <div className="font-medium">{latestSubmission?.scores?.kpiScore || 'N/A'}/10</div>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Learning:</span>
+                            <div className="font-medium">{latestSubmission?.scores?.learningScore || 'N/A'}/10</div>
+                          </div>
+                        </div>
+
+                        {/* Recent Submissions Timeline */}
+                        <div className="mt-4">
+                          <span className="text-sm text-gray-500">Recent Activity:</span>
+                          <div className="mt-2 space-y-1">
+                            {employee.submissions.slice(0, 3).map((submission, subIdx) => (
+                              <div key={subIdx} className="flex items-center gap-2 text-xs text-gray-600">
+                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                <span>{submission.month_key}</span>
+                                <span>•</span>
+                                <span>Score: {submission.scores?.overall || 'N/A'}/10</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setSelectedClient(null)}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ManagerDashboard({ onViewReport, onEditEmployee }) {
   const supabase = useSupabase();
   const { allSubmissions, loading, error, refreshSubmissions } = useFetchSubmissions();
   const { openModal, closeModal } = useModal();
@@ -4391,7 +6038,48 @@ function ManagerDashboard({ onViewReport }) {
         </div>
       </div>
 
-      {/* Statistics Cards */}
+      {/* Navigation Tabs */}
+      <div className="bg-white rounded-xl shadow-sm border">
+        <div className="px-6 py-0">
+          <nav className="flex space-x-8">
+            <button
+              onClick={() => setActiveView('dashboard')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeView === 'dashboard'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Employee Dashboard
+            </button>
+            <button
+              onClick={() => setActiveView('clients')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeView === 'clients'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Client Management
+            </button>
+            <button
+              onClick={() => setActiveView('clientDashboard')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeView === 'clientDashboard'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Client Progress
+            </button>
+          </nav>
+        </div>
+      </div>
+
+      {/* Conditional View Rendering */}
+      {activeView === 'dashboard' && (
+        <>
+          {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white rounded-xl shadow-sm border p-6">
           <div className="flex items-center">
@@ -4606,6 +6294,12 @@ function ManagerDashboard({ onViewReport }) {
                         >
                           Download PDF
                         </button>
+                        <button
+                          onClick={() => onEditEmployee(employee.name, employee.phone)}
+                          className="text-orange-600 hover:text-orange-900 hover:bg-orange-50 px-3 py-1 rounded transition-colors"
+                        >
+                          Edit Employee
+                        </button>
                         {employee.latestSubmission && (
                           <button
                             onClick={() => openEvaluation(employee.latestSubmission)}
@@ -4623,6 +6317,18 @@ function ManagerDashboard({ onViewReport }) {
           </div>
         )}
       </div>
+        </>
+      )}
+
+      {/* Client Management View */}
+      {activeView === 'clients' && (
+        <ClientManagementView />
+      )}
+
+      {/* Client Dashboard View */}
+      {activeView === 'clientDashboard' && (
+        <ClientDashboardView />
+      )}
 
       {/* Evaluation Panel */}
       {evaluationPanel.isOpen && (
