@@ -177,6 +177,20 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     setHasUnsavedChanges(true);
   }, []);
 
+  // Wrapper for setModel that tracks unsaved changes
+  const setModelWithTracking = useCallback((updaterOrValue) => {
+    if (typeof updaterOrValue === 'function') {
+      setCurrentSubmission(prev => {
+        const updated = updaterOrValue(prev);
+        setHasUnsavedChanges(true);
+        return updated;
+      });
+    } else {
+      setCurrentSubmission(updaterOrValue);
+      setHasUnsavedChanges(true);
+    }
+  }, []);
+
   // Create stable onChange handlers to prevent re-renders
   const handleNameChange = useCallback((value) => updateCurrentSubmission('employee.name', value), [updateCurrentSubmission]);
   const handlePhoneChange = useCallback((value) => updateCurrentSubmission('employee.phone', value), [updateCurrentSubmission]);
@@ -201,8 +215,8 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     currentStepRef.current = currentStep;
   });
 
-  // Function to trigger autosave manually (for onBlur events)
-  const triggerAutosave = useCallback(() => {
+  // Manual save function for section-based saving
+  const saveCurrentSection = useCallback(() => {
     const employee = selectedEmployeeRef.current;
     const submission = currentSubmissionRef.current;
     const step = currentStepRef.current;
@@ -220,11 +234,15 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
         localStorage.setItem(autoSaveKey, JSON.stringify(autoSaveData));
         setLastAutoSave(new Date());
         setHasUnsavedChanges(false);
+        
+        // Show save confirmation
+        openModal('Section Saved', `Section ${FORM_STEPS.find(s => s.id === step)?.title || step} data has been saved successfully.`, closeModal);
       } catch (error) {
-        console.error('Manual autosave failed:', error);
+        console.error('Section save failed:', error);
+        openModal('Save Error', 'Failed to save section data. Please try again.', closeModal);
       }
     }
-  }, []); // Stable callback with no dependencies
+  }, [openModal, closeModal]); // Stable callback with minimal dependencies
 
   // Validation for step progression - only validate what's needed for each step
   const canProgressToStep = useCallback((stepNumber) => {
@@ -256,19 +274,12 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     return true;
   }, [currentSubmission]);
 
-  // Autosave on step change or periodic intervals (not on every keystroke)
-  useEffect(() => {
-    if (hasUnsavedChanges && selectedEmployee) {
-      const timer = setTimeout(autoSave, 120000); // Autosave every 2 minutes instead of 30 seconds
-      return () => clearTimeout(timer);
-    }
-  }, [selectedEmployee, autoSave]); // Remove hasUnsavedChanges from dependencies
-
-  // Autosave when changing steps
+  // Remove periodic autosave - only save when moving between sections
+  // Section-based save: save when step changes (moving between sections)
   const prevStepRef = useRef(currentStep);
   useEffect(() => {
     if (prevStepRef.current !== currentStep && hasUnsavedChanges && selectedEmployee) {
-      autoSave();
+      autoSave(); // Save when moving between sections
       prevStepRef.current = currentStep;
     }
   }, [currentStep, hasUnsavedChanges, selectedEmployee, autoSave]);
@@ -440,23 +451,37 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
   };
 
   async function submitFinal() {
+    console.log('🔍 Submit Final called with:', {
+      supabase: !!supabase,
+      isSubmissionFinalized,
+      isPreviousMonth,
+      currentSubmission: currentSubmission
+    });
+
     if (!supabase) {
-      openModal("Error", "Database connection not ready. Please wait a moment and try again.");
+      console.error('❌ No Supabase connection');
+      openModal("Error", "Database connection not ready. Please wait a moment and try again.", closeModal);
       return;
     }
 
     if (isSubmissionFinalized) {
+      console.log('❌ Submission already finalized');
       openModal("Submission Already Completed", "This month's submission has already been finalized and cannot be edited.", closeModal);
       return;
     }
 
     if (isPreviousMonth) {
+      console.log('❌ Previous month editing restricted');
       openModal("Previous Month Editing Restricted", "You can only edit the current month's submission. Previous months cannot be modified.", closeModal);
       return;
     }
 
+    console.log('🔍 Validating submission...');
     const check = validateSubmission(currentSubmission);
+    console.log('📋 Validation result:', check);
+    
     if (!check.ok) {
+      console.log('❌ Validation failed:', check.errors);
       openModal(
         "Validation Errors",
         `Please fix the following before submitting:\n\n${check.errors.map((e, i) => `${i + 1}. ${e}`).join('\n')}`,
@@ -722,7 +747,6 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
                       placeholder="Your full name" 
                       value={currentSubmission.employee.name || ""} 
                       onChange={handleNameChange}
-                      onBlur={triggerAutosave}
                       disabled={isFormDisabled}
                     />
                     <TextField 
@@ -730,7 +754,6 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
                       placeholder="e.g., 9876543210" 
                       value={currentSubmission.employee.phone || ""} 
                       onChange={handlePhoneChange}
-                      onBlur={triggerAutosave}
                       disabled={isFormDisabled}
                     />
                   </div>
@@ -811,15 +834,13 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
                 placeholder="0-31" 
                 value={currentSubmission.meta.attendance.wfo} 
                 onChange={handleWFOChange} 
-                onBlur={triggerAutosave}
-              />
+                />
               <NumField 
                 label="WFH days" 
                 placeholder="0-31"
                 value={currentSubmission.meta.attendance.wfh} 
                 onChange={handleWFHChange} 
-                onBlur={triggerAutosave}
-              />
+                />
             </div>
             <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
               📍 Total days in {monthLabel(currentSubmission.monthKey)}: {daysInMonth(currentSubmission.monthKey)}
@@ -837,21 +858,18 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
               placeholder="Number of tasks" 
               value={currentSubmission.meta.tasks.count} 
               onChange={handleTasksChange} 
-              onBlur={triggerAutosave}
             />
             <TextField 
               label="AI Table / PM link" 
               placeholder="Google Drive or project management URL" 
               value={currentSubmission.meta.tasks.aiTableLink} 
               onChange={handleAITableLinkChange} 
-              onBlur={triggerAutosave}
             />
             <TextField 
               label="Screenshot proof" 
               placeholder="Google Drive URL for screenshot" 
               value={currentSubmission.meta.tasks.aiTableScreenshot} 
               onChange={handleAITableScreenshotChange} 
-              onBlur={triggerAutosave}
             />
           </div>
         </div>
@@ -865,12 +883,11 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
         <DeptClientsBlock 
           currentSubmission={currentSubmission} 
           previousSubmission={previousSubmission} 
-          setModel={setCurrentSubmission} 
+          setModel={setModelWithTracking} 
           monthPrev={mPrev} 
           monthThis={mThis} 
           openModal={openModal} 
           closeModal={closeModal} 
-          triggerAutosave={triggerAutosave}
         />
       </div>
     );
@@ -880,7 +897,7 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
   function renderLearningStep() {
     return (
       <div className="space-y-6">
-        <LearningBlock model={currentSubmission} setModel={setCurrentSubmission} openModal={openModal} triggerAutosave={triggerAutosave} />
+        <LearningBlock model={currentSubmission} setModel={setModelWithTracking} openModal={openModal} />
         
         <div className="bg-white border rounded-xl p-6">
           <h4 className="font-medium text-gray-900 flex items-center gap-2 mb-4">
@@ -895,7 +912,6 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
             placeholder="List ways you used AI to work faster/better this month. Include links or examples."
             value={currentSubmission.aiUsageNotes}
             onChange={e => handleAIUsageChange(e.target.value)}
-            onBlur={triggerAutosave}
           />
         </div>
       </div>
@@ -919,7 +935,6 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
               rows={3}
               value={currentSubmission.feedback.company}
               onChange={handleCompanyFeedbackChange}
-              onBlur={triggerAutosave}
             />
             <TextArea 
               label="Feedback regarding HR and policies" 
@@ -927,7 +942,6 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
               rows={3}
               value={currentSubmission.feedback.hr}
               onChange={handleHRFeedbackChange}
-              onBlur={triggerAutosave}
             />
             <TextArea 
               label="Challenges you are facing" 
@@ -935,7 +949,6 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
               rows={3}
               value={currentSubmission.feedback.challenges}
               onChange={handleChallengesChange}
-              onBlur={triggerAutosave}
             />
           </div>
         </div>
@@ -1034,9 +1047,18 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
       )}
       
       {hasUnsavedChanges && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4 flex items-center gap-2">
-          <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
-          <span className="text-sm text-yellow-800">You have unsaved changes. They will be auto-saved in a moment.</span>
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+            <span className="text-sm text-yellow-800">You have unsaved changes in this section.</span>
+          </div>
+          <button
+            onClick={saveCurrentSection}
+            disabled={!selectedEmployee}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            💾 Save Section
+          </button>
         </div>
       )}
 
@@ -1053,7 +1075,16 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
           <span className="sm:hidden">← Back</span>
         </button>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {hasUnsavedChanges && (
+            <button
+              onClick={saveCurrentSection}
+              disabled={!selectedEmployee}
+              className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
+            >
+              💾 <span className="hidden sm:inline">Save Section</span>
+            </button>
+          )}
           <span className="text-xs sm:text-sm text-gray-500">
             <span className="hidden sm:inline">Step </span>{currentStep} of {FORM_STEPS.length}
           </span>

@@ -681,7 +681,7 @@ function KPIsOperationsHead({ client, onChange }) {
   );
 }
 
-export function DeptClientsBlock({ currentSubmission, previousSubmission, setModel, monthPrev, monthThis, openModal, closeModal, triggerAutosave }) {
+export function DeptClientsBlock({ currentSubmission, previousSubmission, setModel, monthPrev, monthThis, openModal, closeModal }) {
   const isInternal = ["HR", "Accounts", "Sales", "Blended (HR + Sales)"].includes(currentSubmission.employee.department);
   const isWebHead = currentSubmission.employee.department === "Web Head";
   const isOpsHead = currentSubmission.employee.department === "Operations Head";
@@ -722,8 +722,15 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
   const hasClientStatusSection = ["SEO", "Social Media", "Ads", "Operations Head"].includes(currentSubmission.employee.department);
 
   function pushDraft() {
-    if (!draftRow.name.trim()) return;
+    console.log('🔍 pushDraft called with:', draftRow);
+    
+    if (!draftRow.name.trim()) {
+      console.log('❌ No client name provided');
+      return;
+    }
+    
     if (draftRow.url && !isDriveUrl(draftRow.url) && !isGensparkUrl(draftRow.url)) {
+      console.log('❌ Invalid URL:', draftRow.url);
       openModal('Invalid Link', 'Please paste a Google Drive, Google Docs, or Genspark URL.', closeModal);
       return;
     }
@@ -751,8 +758,17 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
       withReport.web_onTimeThis = 0;
     }
 
-    setModel(m => ({ ...m, clients: [...m.clients, withReport] }));
+    console.log('✅ Adding client:', withReport);
+    console.log('📄 Current clients before update:', currentSubmission.clients);
+    
+    setModel(m => {
+      const updated = { ...m, clients: [...m.clients, withReport] };
+      console.log('📄 Updated model with new client:', updated.clients);
+      return updated;
+    });
+    
     setDraftRow({ name: "", scopeOfWork: "", url: "" });
+    console.log('✅ Draft row cleared');
   }
 
   const prevClients = previousSubmission?.clients || [];
