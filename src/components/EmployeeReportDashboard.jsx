@@ -34,6 +34,10 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
     return employeeSubmissions.find(s => s.id === selectedReportId) || null;
   }, [employeeSubmissions, selectedReportId]);
 
+  const reportSummary = useMemo(() => {
+    return selectedReport ? generateSummary(selectedReport) : null;
+  }, [selectedReport]);
+
   const yearlySummary = useMemo(() => {
     if (!employeeSubmissions.length) {
       return null;
@@ -333,10 +337,48 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
                 <div className="font-bold text-xl">{(selectedReport.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0) / 60}h</div>
               </div>
             </div>
-            <div className="mt-4">
-              <h4 className="font-medium text-gray-700">AI-Generated Summary:</h4>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap">{generateSummary(selectedReport)}</p>
-            </div>
+            {reportSummary && (
+              <div className="mt-4 space-y-2">
+                <h4 className="font-medium text-gray-700">AI-Generated Summary:</h4>
+                <p className="text-sm text-gray-600 whitespace-pre-wrap">{reportSummary.overview}</p>
+                <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <h5 className="font-medium text-green-700">Strengths</h5>
+                    <ul className="list-disc pl-5">
+                      {reportSummary.strengths.length
+                        ? reportSummary.strengths.map((s, i) => <li key={i}>{s}</li>)
+                        : <li>None</li>}
+                    </ul>
+                  </div>
+                  <div>
+                    <h5 className="font-medium text-red-700">Weaknesses</h5>
+                    <ul className="list-disc pl-5">
+                      {reportSummary.weaknesses.length
+                        ? reportSummary.weaknesses.map((w, i) => <li key={i}>{w}</li>)
+                        : <li>None</li>}
+                    </ul>
+                  </div>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <h5 className="font-medium text-yellow-700">Missed Tasks</h5>
+                    <ul className="list-disc pl-5">
+                      {reportSummary.missed.length
+                        ? reportSummary.missed.map((m, i) => <li key={i}>{m}</li>)
+                        : <li>None</li>}
+                    </ul>
+                  </div>
+                  <div>
+                    <h5 className="font-medium text-blue-700">Next Month Tips</h5>
+                    <ul className="list-disc pl-5">
+                      {reportSummary.tips.length
+                        ? reportSummary.tips.map((t, i) => <li key={i}>{t}</li>)
+                        : <li>Keep up the good work</li>}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
             <details className="mt-4 cursor-pointer">
               <summary className="font-medium text-blue-600 hover:text-blue-800">
                 View Full Submission Data

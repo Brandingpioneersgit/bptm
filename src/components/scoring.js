@@ -209,15 +209,57 @@ export function generateSummary(model) {
   const esc = (model.clients || []).reduce((s, c) => s + (c.relationship?.escalations?.length || 0), 0);
   const appr = (model.clients || []).reduce((s, c) => s + (c.relationship?.appreciations?.length || 0), 0);
   const learnMin = (model.learning || []).reduce((s, e) => s + (e.durationMins || 0), 0);
-  const parts = [];
-  parts.push(`Handled ${names.length} client(s): ${names.join(', ') || '—'}.`);
-  parts.push(`Meetings ${meet}, Appreciations ${appr}, Escalations ${esc}.`);
-  parts.push(`Learning: ${(learnMin / 60).toFixed(1)}h (${learnMin >= 360 ? 'Meets 6h' : 'Below 6h'}).`);
-  if (model.flags?.missingReports) parts.push('⚠️ Missing report links for some clients.');
-  if (model.flags?.hasEscalations) parts.push('⚠️ Escalations present — investigate.');
-  parts.push(`Scores — KPI ${model.scores?.kpiScore}/10, Learning ${model.scores?.learningScore}/10, Client Status ${model.scores?.relationshipScore}/10, Overall ${model.scores?.overall}/10.`);
-  if (model.manager?.score) parts.push(`Manager Score: ${model.manager.score}/10`);
-  return parts.join(' ');
+
+  const overviewParts = [];
+  overviewParts.push(`Handled ${names.length} client(s): ${names.join(', ') || '—'}.`);
+  overviewParts.push(`Meetings ${meet}, Appreciations ${appr}, Escalations ${esc}.`);
+  overviewParts.push(`Learning: ${(learnMin / 60).toFixed(1)}h (${learnMin >= 360 ? 'Meets 6h' : 'Below 6h'}).`);
+
+  const strengths = [];
+  const weaknesses = [];
+  const missed = [];
+  const tips = [];
+  const scores = model.scores || {};
+  const flags = model.flags || {};
+
+  if (scores.kpiScore >= 8) strengths.push('KPIs on track or exceeding targets');
+  else if (scores.kpiScore < 6) {
+    weaknesses.push('KPI performance below expectations');
+    tips.push('Review KPI strategy and focus on underperforming metrics');
+  }
+
+  if (scores.learningScore >= 8) strengths.push('Strong commitment to learning');
+  else if (scores.learningScore < 6) {
+    weaknesses.push('Learning hours below goal');
+    missed.push('Below 6h learning');
+    tips.push('Schedule weekly learning sessions to reach 6h');
+  }
+
+  if (scores.relationshipScore >= 8) strengths.push('Healthy client relationships');
+  else if (scores.relationshipScore < 6) {
+    weaknesses.push('Client relationship management needs work');
+    tips.push('Increase client touchpoints and follow-ups');
+  }
+
+  if (flags.missingReports) {
+    missed.push('Missing report links for some clients');
+    tips.push('Ensure all client reports are submitted on time');
+  }
+  if (flags.hasEscalations) {
+    weaknesses.push('Client escalations present');
+    tips.push('Investigate escalations promptly and resolve issues');
+  }
+
+  overviewParts.push(`Scores — KPI ${scores.kpiScore}/10, Learning ${scores.learningScore}/10, Client Status ${scores.relationshipScore}/10, Overall ${scores.overall}/10.`);
+  if (model.manager?.score) overviewParts.push(`Manager Score: ${model.manager.score}/10`);
+
+  return {
+    overview: overviewParts.join(' '),
+    strengths,
+    weaknesses,
+    missed,
+    tips
+  };
 }
 
 function calculateScopeCompletion(client, service) {
