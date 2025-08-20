@@ -22,25 +22,45 @@ export function EmployeePersonalDashboard({ employee, onBack }) {
 
   const overallStats = useMemo(() => {
     if (employeeSubmissions.length === 0) return null;
-    
-    const avgOverallScore = employeeSubmissions.reduce((sum, s) => sum + (s.scores?.overall || 0), 0) / employeeSubmissions.length;
-    const avgKpiScore = employeeSubmissions.reduce((sum, s) => sum + (s.scores?.kpiScore || 0), 0) / employeeSubmissions.length;
-    const avgLearningScore = employeeSubmissions.reduce((sum, s) => sum + (s.scores?.learningScore || 0), 0) / employeeSubmissions.length;
-    const avgRelationshipScore = employeeSubmissions.reduce((sum, s) => sum + (s.scores?.relationshipScore || 0), 0) / employeeSubmissions.length;
-    
-    const totalLearningHours = employeeSubmissions.reduce((sum, s) => {
-      return sum + (s.learning || []).reduce((learningSum, l) => learningSum + (l.durationMins || 0), 0);
-    }, 0) / 60;
-    
+
+    let totalOverall = 0, countOverall = 0;
+    let totalKpi = 0, countKpi = 0;
+    let totalLearning = 0, countLearning = 0;
+    let totalRelationship = 0, countRelationship = 0;
+    let totalLearningMins = 0;
+
+    employeeSubmissions.forEach(s => {
+      const o = s.scores?.overall;
+      if (o != null) { totalOverall += o; countOverall++; }
+      const k = s.scores?.kpiScore;
+      if (k != null) { totalKpi += k; countKpi++; }
+      const l = s.scores?.learningScore;
+      if (l != null) { totalLearning += l; countLearning++; }
+      const r = s.scores?.relationshipScore;
+      if (r != null) { totalRelationship += r; countRelationship++; }
+      totalLearningMins += (s.learning || []).reduce((learningSum, l) => learningSum + (l.durationMins || 0), 0);
+    });
+
+    const avgOverallScore = countOverall ? (totalOverall / countOverall).toFixed(1) : null;
+    const avgKpiScore = countKpi ? (totalKpi / countKpi).toFixed(1) : null;
+    const avgLearningScore = countLearning ? (totalLearning / countLearning).toFixed(1) : null;
+    const avgRelationshipScore = countRelationship ? (totalRelationship / countRelationship).toFixed(1) : null;
+    const totalLearningHours = totalLearningMins > 0 ? (totalLearningMins / 60).toFixed(1) : null;
+
+    const improvementTrend = (employeeSubmissions.length >= 2 &&
+      employeeSubmissions[0].scores?.overall != null &&
+      employeeSubmissions[1].scores?.overall != null)
+      ? (employeeSubmissions[0].scores.overall - employeeSubmissions[1].scores.overall).toFixed(1)
+      : null;
+
     return {
-      avgOverallScore: avgOverallScore.toFixed(1),
-      avgKpiScore: avgKpiScore.toFixed(1),
-      avgLearningScore: avgLearningScore.toFixed(1),
-      avgRelationshipScore: avgRelationshipScore.toFixed(1),
+      avgOverallScore,
+      avgKpiScore,
+      avgLearningScore,
+      avgRelationshipScore,
       totalSubmissions: employeeSubmissions.length,
-      totalLearningHours: totalLearningHours.toFixed(1),
-      improvementTrend: employeeSubmissions.length >= 2 ? 
-        ((employeeSubmissions[0].scores?.overall || 0) - (employeeSubmissions[1].scores?.overall || 0)).toFixed(1) : '0'
+      totalLearningHours,
+      improvementTrend
     };
   }, [employeeSubmissions]);
 
@@ -136,7 +156,9 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
       {overallStats && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6 text-center">
-            <div className="text-2xl sm:text-3xl font-bold text-blue-600">{overallStats.avgOverallScore}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-blue-600">
+              {overallStats.avgOverallScore ?? 'N/A'}
+            </div>
             <div className="text-xs sm:text-sm text-gray-600 mt-1">Average Score</div>
           </div>
           <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6 text-center">
@@ -144,15 +166,21 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
             <div className="text-xs sm:text-sm text-gray-600 mt-1">Total Reports</div>
           </div>
           <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6 text-center">
-            <div className="text-2xl sm:text-3xl font-bold text-purple-600">{overallStats.totalLearningHours}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-purple-600">
+              {overallStats.totalLearningHours ?? 'No learning hours'}
+            </div>
             <div className="text-xs sm:text-sm text-gray-600 mt-1">Learning Hours</div>
           </div>
           <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6 text-center">
-            <div className={`text-2xl sm:text-3xl font-bold ${ 
-              parseFloat(overallStats.improvementTrend) > 0 ? 'text-green-600' : 
-              parseFloat(overallStats.improvementTrend) < 0 ? 'text-red-600' : 'text-gray-600'
+            <div className={`text-2xl sm:text-3xl font-bold ${
+              overallStats.improvementTrend != null ? (
+                parseFloat(overallStats.improvementTrend) > 0 ? 'text-green-600' :
+                parseFloat(overallStats.improvementTrend) < 0 ? 'text-red-600' : 'text-gray-600'
+              ) : 'text-gray-600'
             }`}>
-              {parseFloat(overallStats.improvementTrend) > 0 ? '+' : ''}{overallStats.improvementTrend}
+              {overallStats.improvementTrend != null ? (
+                (parseFloat(overallStats.improvementTrend) > 0 ? '+' : '') + overallStats.improvementTrend
+              ) : 'N/A'}
             </div>
             <div className="text-xs sm:text-sm text-gray-600 mt-1">Trend</div>
           </div>
@@ -166,36 +194,36 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">KPI Performance</span>
-                <span className="font-medium text-sm">{overallStats.avgKpiScore}/10</span>
+                <span className="font-medium text-sm">{overallStats.avgKpiScore != null ? `${overallStats.avgKpiScore}/10` : 'N/A'}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
+                <div
                   className="bg-blue-600 h-2 rounded-full transition-all duration-500"
-                  style={{ width: `${(parseFloat(overallStats.avgKpiScore) / 10) * 100}%` }}
+                  style={{ width: `${overallStats.avgKpiScore != null ? (parseFloat(overallStats.avgKpiScore) / 10) * 100 : 0}%` }}
                 ></div>
               </div>
             </div>
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Learning Score</span>
-                <span className="font-medium text-sm">{overallStats.avgLearningScore}/10</span>
+                <span className="font-medium text-sm">{overallStats.avgLearningScore != null ? `${overallStats.avgLearningScore}/10` : 'N/A'}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
+                <div
                   className="bg-green-600 h-2 rounded-full transition-all duration-500"
-                  style={{ width: `${(parseFloat(overallStats.avgLearningScore) / 10) * 100}%` }}
+                  style={{ width: `${overallStats.avgLearningScore != null ? (parseFloat(overallStats.avgLearningScore) / 10) * 100 : 0}%` }}
                 ></div>
               </div>
             </div>
             <div className="space-y-2 sm:col-span-2 lg:col-span-1">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Client Relations</span>
-                <span className="font-medium text-sm">{overallStats.avgRelationshipScore}/10</span>
+                <span className="font-medium text-sm">{overallStats.avgRelationshipScore != null ? `${overallStats.avgRelationshipScore}/10` : 'N/A'}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
+                <div
                   className="bg-purple-600 h-2 rounded-full transition-all duration-500"
-                  style={{ width: `${(parseFloat(overallStats.avgRelationshipScore) / 10) * 100}%` }}
+                  style={{ width: `${overallStats.avgRelationshipScore != null ? (parseFloat(overallStats.avgRelationshipScore) / 10) * 100 : 0}%` }}
                 ></div>
               </div>
             </div>

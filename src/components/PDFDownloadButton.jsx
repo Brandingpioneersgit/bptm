@@ -13,13 +13,24 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
     }
 
     // Calculate comprehensive statistics
-    const totalLearningHours = data.reduce((sum, d) => {
-      return sum + ((d.learning || []).reduce((learningSum, l) => learningSum + (l.durationMins || 0), 0) / 60);
-    }, 0);
+    let totalLearningMins = 0;
+    let sumOverall = 0, countOverall = 0;
+    let sumKpi = 0, countKpi = 0;
+    let sumLearningScore = 0, countLearningScore = 0;
+    data.forEach(d => {
+      totalLearningMins += (d.learning || []).reduce((learningSum, l) => learningSum + (l.durationMins || 0), 0);
+      const o = d.scores?.overall;
+      if (o != null) { sumOverall += o; countOverall++; }
+      const k = d.scores?.kpiScore;
+      if (k != null) { sumKpi += k; countKpi++; }
+      const l = d.scores?.learningScore;
+      if (l != null) { sumLearningScore += l; countLearningScore++; }
+    });
 
-    const avgOverallScore = data.reduce((sum, d) => sum + (d.scores?.overall || 0), 0) / data.length;
-    const avgKpiScore = data.reduce((sum, d) => sum + (d.scores?.kpiScore || 0), 0) / data.length;
-    const avgLearningScore = data.reduce((sum, d) => sum + (d.scores?.learningScore || 0), 0) / data.length;
+    const totalLearningHours = totalLearningMins > 0 ? totalLearningMins / 60 : null;
+    const avgOverallScore = countOverall ? sumOverall / countOverall : null;
+    const avgKpiScore = countKpi ? sumKpi / countKpi : null;
+    const avgLearningScore = countLearningScore ? sumLearningScore / countLearningScore : null;
 
     return `
       <!-- Executive Summary -->
@@ -27,7 +38,7 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
         <h3>📊 Executive Summary</h3>
         <div class="summary-grid">
           <div class="summary-card">
-            <div class="metric-value">${Math.round(avgOverallScore * 10) / 10}/10</div>
+            <div class="metric-value">${avgOverallScore != null ? Math.round(avgOverallScore * 10) / 10 + '/10' : 'N/A'}</div>
             <div class="metric-label">Average Overall Score</div>
           </div>
           <div class="summary-card">
@@ -35,11 +46,11 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
             <div class="metric-label">Months Reported</div>
           </div>
           <div class="summary-card">
-            <div class="metric-value">${Math.round(totalLearningHours * 10) / 10}h</div>
+            <div class="metric-value">${totalLearningHours != null ? Math.round(totalLearningHours * 10) / 10 + 'h' : 'N/A'}</div>
             <div class="metric-label">Total Learning Hours</div>
           </div>
           <div class="summary-card">
-            <div class="metric-value">${Math.round(avgKpiScore * 10) / 10}/10</div>
+            <div class="metric-value">${avgKpiScore != null ? Math.round(avgKpiScore * 10) / 10 + '/10' : 'N/A'}</div>
             <div class="metric-label">Average KPI Score</div>
           </div>
         </div>
@@ -60,16 +71,19 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
             <th>Manager Comments</th>
           </tr>
           ${data.map(d => {
-            const learningHours = ((d.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60).toFixed(1);
+            const learningMins = (d.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0);
+            const learningHours = learningMins > 0 ? (learningMins / 60).toFixed(1) : null;
+            const overall = d.scores?.overall;
+            const overallClass = overall != null && overall >= 7 ? 'score-good' : overall != null ? 'score-poor' : '';
             return `
               <tr>
                 <td><strong>${monthLabel(d.monthKey)}</strong></td>
-                <td class="score-cell ${(d.scores?.overall || 0) >= 7 ? 'score-good' : 'score-poor'}">${d.scores?.overall || 'N/A'}/10</td>
-                <td class="score-cell">${d.scores?.kpiScore || 'N/A'}/10</td>
-                <td class="score-cell">${d.scores?.learningScore || 'N/A'}/10</td>
-                <td class="score-cell">${d.scores?.relationshipScore || 'N/A'}/10</td>
-                <td>${learningHours}h</td>
-                <td>${d.manager?.score || 'N/A'}/10</td>
+                <td class="score-cell ${overallClass}">${overall ?? 'N/A'}/10</td>
+                <td class="score-cell">${d.scores?.kpiScore ?? 'N/A'}/10</td>
+                <td class="score-cell">${d.scores?.learningScore ?? 'N/A'}/10</td>
+                <td class="score-cell">${d.scores?.relationshipScore ?? 'N/A'}/10</td>
+                <td>${learningHours != null ? learningHours + 'h' : 'N/A'}</td>
+                <td>${d.manager?.score ?? 'N/A'}/10</td>
                 <td class="comments-cell">${d.manager?.comments || 'No comments'}</td>
               </tr>
             `;

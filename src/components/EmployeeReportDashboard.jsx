@@ -43,23 +43,44 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
     let totalLearning = 0;
     let totalRelationship = 0;
     let totalOverall = 0;
+    let countKpi = 0;
+    let countLearning = 0;
+    let countRelationship = 0;
+    let countOverall = 0;
     let monthsWithLearningShortfall = 0;
 
     employeeSubmissions.forEach(s => {
-      totalKpi += s.scores?.kpiScore || 0;
-      totalLearning += s.scores?.learningScore || 0;
-      totalRelationship += s.scores?.relationshipScore || 0;
-      totalOverall += s.scores?.overall || 0;
-      if ((s.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0) < 360) {
+      const kpi = s.scores?.kpiScore;
+      if (kpi != null) {
+        totalKpi += kpi;
+        countKpi++;
+      }
+      const learningScore = s.scores?.learningScore;
+      if (learningScore != null) {
+        totalLearning += learningScore;
+        countLearning++;
+      }
+      const relationship = s.scores?.relationshipScore;
+      if (relationship != null) {
+        totalRelationship += relationship;
+        countRelationship++;
+      }
+      const overall = s.scores?.overall;
+      if (overall != null) {
+        totalOverall += overall;
+        countOverall++;
+      }
+      const learningMins = (s.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0);
+      if (learningMins < 360) {
         monthsWithLearningShortfall++;
       }
     });
 
     const totalMonths = employeeSubmissions.length;
-    const avgKpi = round1(totalKpi / totalMonths);
-    const avgLearning = round1(totalLearning / totalMonths);
-    const avgRelationship = round1(totalRelationship / totalMonths);
-    const avgOverall = round1(totalOverall / totalMonths);
+    const avgKpi = countKpi ? round1(totalKpi / countKpi) : null;
+    const avgLearning = countLearning ? round1(totalLearning / countLearning) : null;
+    const avgRelationship = countRelationship ? round1(totalRelationship / countRelationship) : null;
+    const avgOverall = countOverall ? round1(totalOverall / countOverall) : null;
 
     return {
       avgKpi,
@@ -156,20 +177,21 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
     let reportText = `---
 ### Employee Performance Report for ${employeeName}
 -   **Total Months Submitted:** ${yearlySummary.totalMonths}
--   **Average Overall Score:** ${yearlySummary.avgOverall}/10
+-   **Average Overall Score:** ${yearlySummary.avgOverall != null ? yearlySummary.avgOverall + '/10' : 'N/A'}
 -   **Months with Learning Shortfall:** ${yearlySummary.monthsWithLearningShortfall}
 ---
 
 `;
     employeeSubmissions.forEach(s => {
+      const learningMins = (s.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0);
       reportText += `#### ${monthLabel(s.monthKey)} Report
--   **Overall Score:** ${s.scores.overall}/10
--   **KPI Score:** ${s.scores.kpiScore}/10
--   **Learning Score:** ${s.scores.learningScore}/10
--   **Learning Hours:** ${(s.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0) / 60}h
--   **Client Relationship Score:** ${s.scores.relationshipScore}/10
+-   **Overall Score:** ${s.scores?.overall != null ? s.scores.overall + '/10' : 'No overall score entered'}
+-   **KPI Score:** ${s.scores?.kpiScore != null ? s.scores.kpiScore + '/10' : 'No KPI entered this month'}
+-   **Learning Score:** ${s.scores?.learningScore != null ? s.scores.learningScore + '/10' : 'No learning score'}
+-   **Learning Hours:** ${learningMins > 0 ? learningMins / 60 + 'h' : 'No learning hours this month'}
+-   **Client Relationship Score:** ${s.scores?.relationshipScore != null ? s.scores.relationshipScore + '/10' : 'No relationship score'}
 -   **Manager Notes:** ${s.manager?.comments || 'N/A'}
--   **Manager Score:** ${s.manager?.score || 'N/A'}
+-   **Manager Score:** ${s.manager?.score ?? 'N/A'}
 ---
 `;
     });
@@ -207,8 +229,8 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
 
   const getImprovementRecommendations = () => {
     const learningShortfall = yearlySummary?.monthsWithLearningShortfall > 0;
-    const lowKPIScore = yearlySummary?.avgKpi < 7;
-    const lowRelationshipScore = yearlySummary?.avgRelationship < 7;
+    const lowKPIScore = yearlySummary?.avgKpi != null && yearlySummary.avgKpi < 7;
+    const lowRelationshipScore = yearlySummary?.avgRelationship != null && yearlySummary.avgRelationship < 7;
 
     let recommendations = [];
     if (learningShortfall) {
@@ -244,15 +266,21 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
           <div className="grid md:grid-cols-4 gap-4 text-center mb-6">
             <div className="bg-blue-600 text-white rounded-2xl p-4">
               <div className="text-sm opacity-80">Average Overall</div>
-              <div className="text-3xl font-semibold">{yearlySummary.avgOverall}/10</div>
+              <div className="text-3xl font-semibold">
+                {yearlySummary.avgOverall != null ? `${yearlySummary.avgOverall}/10` : <span className="text-gray-500 text-base">No overall scores</span>}
+              </div>
             </div>
             <div className="bg-white border rounded-2xl p-4 shadow-sm">
               <div className="text-sm opacity-80">Average KPI</div>
-              <div className="text-3xl font-semibold">{yearlySummary.avgKpi}/10</div>
+              <div className="text-3xl font-semibold">
+                {yearlySummary.avgKpi != null ? `${yearlySummary.avgKpi}/10` : <span className="text-gray-500 text-base">No KPI scores</span>}
+              </div>
             </div>
             <div className="bg-white border rounded-2xl p-4 shadow-sm">
               <div className="text-sm opacity-80">Average Learning</div>
-              <div className="font-bold text-3xl">{yearlySummary.avgLearning}/10</div>
+              <div className="font-bold text-3xl">
+                {yearlySummary.avgLearning != null ? `${yearlySummary.avgLearning}/10` : <span className="text-gray-500 text-base">No learning scores</span>}
+              </div>
             </div>
             <div className="bg-white border rounded-2xl p-4 shadow-sm">
               <div className="text-sm opacity-80">Learning Shortfall</div>
@@ -311,26 +339,45 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
           <div className="border rounded-2xl p-4 shadow-sm bg-blue-50/50">
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-semibold text-lg">{monthLabel(selectedReport.monthKey)} Report</h3>
-              <span className={`text-sm font-semibold ${selectedReport.scores.overall >= 7 ? 'text-emerald-600' : 'text-red-600'}`}>
-                Overall Score: {selectedReport.scores.overall}/10
+              <span className={`text-sm font-semibold ${selectedReport.scores?.overall >= 7 ? 'text-emerald-600' : 'text-red-600'}`}>
+                {selectedReport.scores?.overall != null ? `Overall Score: ${selectedReport.scores.overall}/10` : 'No overall score entered this month'}
               </span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center text-sm">
               <div className="bg-white rounded-xl p-2 border">
                 <div className="font-medium text-gray-700">KPI</div>
-                <div className="font-bold text-xl">{selectedReport.scores.kpiScore}/10</div>
+                <div className="font-bold text-xl">
+                  {selectedReport.scores?.kpiScore != null ? `${selectedReport.scores.kpiScore}/10` : (
+                    <span className="text-gray-500 text-sm">No KPI entered this month</span>
+                  )}
+                </div>
               </div>
               <div className="bg-white rounded-xl p-2 border">
                 <div className="font-medium text-gray-700">Learning</div>
-                <div className="font-bold text-xl">{selectedReport.scores.learningScore}/10</div>
+                <div className="font-bold text-xl">
+                  {selectedReport.scores?.learningScore != null ? `${selectedReport.scores.learningScore}/10` : (
+                    <span className="text-gray-500 text-sm">No learning score this month</span>
+                  )}
+                </div>
               </div>
               <div className="bg-white rounded-xl p-2 border">
                 <div className="font-medium text-gray-700">Client Status</div>
-                <div className="font-bold text-xl">{selectedReport.scores.relationshipScore}/10</div>
+                <div className="font-bold text-xl">
+                  {selectedReport.scores?.relationshipScore != null ? `${selectedReport.scores.relationshipScore}/10` : (
+                    <span className="text-gray-500 text-sm">No relationship score</span>
+                  )}
+                </div>
               </div>
               <div className="bg-white rounded-xl p-2 border">
                 <div className="font-medium text-gray-700">Learning Hours</div>
-                <div className="font-bold text-xl">{(selectedReport.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0) / 60}h</div>
+                <div className="font-bold text-xl">
+                  {(() => {
+                    const mins = (selectedReport.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0);
+                    return mins > 0 ? `${mins / 60}h` : (
+                      <span className="text-gray-500 text-sm">No learning hours this month</span>
+                    );
+                  })()}
+                </div>
               </div>
             </div>
             <div className="mt-4">
