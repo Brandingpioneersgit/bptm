@@ -1,9 +1,10 @@
 import React from 'react';
-import { monthLabel } from './constants';
+import { monthLabel, migrateSubmission } from './constants';
 
 export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
   const generateComprehensiveReport = () => {
-    if (!data || data.length === 0) {
+    const submissions = (data || []).map(migrateSubmission);
+    if (!submissions.length) {
       return `
         <div class="section">
           <h3>No Data Available</h3>
@@ -13,13 +14,13 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
     }
 
     // Calculate comprehensive statistics
-    const totalLearningHours = data.reduce((sum, d) => {
+    const totalLearningHours = submissions.reduce((sum, d) => {
       return sum + ((d.learning || []).reduce((learningSum, l) => learningSum + (l.durationMins || 0), 0) / 60);
     }, 0);
 
-    const avgOverallScore = data.reduce((sum, d) => sum + (d.scores?.overall || 0), 0) / data.length;
-    const avgKpiScore = data.reduce((sum, d) => sum + (d.scores?.kpiScore || 0), 0) / data.length;
-    const avgLearningScore = data.reduce((sum, d) => sum + (d.scores?.learningScore || 0), 0) / data.length;
+    const avgOverallScore = submissions.reduce((sum, d) => sum + (d.scores?.overall || 0), 0) / submissions.length;
+    const avgKpiScore = submissions.reduce((sum, d) => sum + (d.scores?.kpiScore || 0), 0) / submissions.length;
+    const avgLearningScore = submissions.reduce((sum, d) => sum + (d.scores?.learningScore || 0), 0) / submissions.length;
 
     return `
       <!-- Executive Summary -->
@@ -59,7 +60,7 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
             <th>Manager Score</th>
             <th>Manager Comments</th>
           </tr>
-          ${data.map(d => {
+          ${submissions.map(d => {
             const learningHours = ((d.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60).toFixed(1);
             return `
               <tr>
@@ -80,7 +81,7 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
       <!-- Detailed Monthly Breakdown -->
       <div class="section">
         <h3>📋 Monthly Breakdown</h3>
-        ${data.map(d => `
+        ${submissions.map(d => `
           <div class="month-section">
             <h4>${monthLabel(d.monthKey)} Report</h4>
             <div class="month-details">
@@ -130,12 +131,12 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
               ` : ''}
               
               <!-- Feedback -->
-              ${(d.feedback && (d.feedback.company || d.feedback.hr || d.feedback.challenges)) ? `
+              ${(d.feedback && (d.feedback.team || d.feedback.manager || d.feedback.hr)) ? `
                 <div class="detail-section">
                   <strong>Employee Feedback:</strong>
-                  ${d.feedback.company ? `<p><em>Company:</em> ${d.feedback.company}</p>` : ''}
+                  ${d.feedback.team ? `<p><em>Team:</em> ${d.feedback.team}</p>` : ''}
+                  ${d.feedback.manager ? `<p><em>Manager:</em> ${d.feedback.manager}</p>` : ''}
                   ${d.feedback.hr ? `<p><em>HR:</em> ${d.feedback.hr}</p>` : ''}
-                  ${d.feedback.challenges ? `<p><em>Challenges:</em> ${d.feedback.challenges}</p>` : ''}
                 </div>
               ` : ''}
             </div>

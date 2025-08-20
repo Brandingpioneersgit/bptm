@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useSupabase } from './SupabaseProvider';
+import { migrateSubmission } from './constants';
 
 export function useFetchSubmissions() {
   const supabase = useSupabase();
@@ -34,7 +35,8 @@ export function useFetchSubmissions() {
         
         if (error) throw error;
 
-        setAllSubmissions(data || []);
+        const migrated = (data || []).map(migrateSubmission);
+        setAllSubmissions(migrated);
         setError(null);
         break; // Success, exit retry loop
         

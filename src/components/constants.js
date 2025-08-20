@@ -74,8 +74,21 @@ export const EMPTY_SUBMISSION = {
   clients: [],
   learning: [],
   aiUsageNotes: "",
-  feedback: { company: "", hr: "", challenges: "" },
+  feedback: { team: "", manager: "", hr: "" },
   flags: { missingLearningHours: false, hasEscalations: false, missingReports: false },
   manager: { verified: false, comments: "", score: 0, hiddenDataFlag: false },
   scores: { kpiScore: 0, learningScore: 0, relationshipScore: 0, overall: 0 },
+};
+
+export const migrateFeedback = (feedback = {}) => {
+  const { team, manager, hr, company, challenges } = feedback || {};
+  return {
+    team: team || company || "",
+    manager: manager || challenges || "",
+    hr: hr || "",
+  };
+};
+
+export const migrateSubmission = (submission = {}) => {
+  return { ...submission, feedback: migrateFeedback(submission.feedback) };
 };
