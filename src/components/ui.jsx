@@ -146,7 +146,7 @@ export function TinyLinks({ items, onAdd, onRemove }) {
   );
 }
 
-export function MultiSelect({ options = [], selected = [], onChange, placeholder = "Select options", disabled = false, error = null }) {
+export function MultiSelect({ options = [], selected = [], onChange, placeholder = "Select options", disabled = false, error = null, onBlur = null }) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = React.useRef(null);
 
@@ -206,8 +206,8 @@ export function MultiSelect({ options = [], selected = [], onChange, placeholder
         className={`w-full border rounded-xl p-3 text-left focus:ring-2 transition-colors ${
           error
             ? 'border-red-300 focus:ring-red-500 focus:border-red-500 bg-red-50'
-            : disabled 
-            ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
+            : disabled
+            ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300'
             : 'border-gray-300 hover:border-gray-400 bg-white text-gray-900 focus:ring-blue-500 focus:border-blue-500'
         } ${
           safeSelected.length > 0 ? 'text-gray-900' : 'text-gray-500'
@@ -216,6 +216,7 @@ export function MultiSelect({ options = [], selected = [], onChange, placeholder
         disabled={disabled}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
+        onBlur={onBlur}
       >
         <div className="flex justify-between items-center">
           <span className="truncate">{displayValue}</span>

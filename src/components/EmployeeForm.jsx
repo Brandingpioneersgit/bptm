@@ -9,7 +9,7 @@ import { Section, TextField, NumField, TextArea, MultiSelect, ProgressIndicator,
 import { DeptClientsBlock } from "./kpi";
 import { LearningBlock } from "./LearningBlock";
 import { getClientRepository } from "./ClientRepository";
-import { validateSubmission } from "./validation";
+import { validateSubmission, validateField } from "./validation";
 
 export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack = null }) {
   const supabase = useSupabase();
@@ -70,19 +70,9 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
 
   const isPreviousMonth = useMemo(() => {
     const currentMonth = thisMonthKey();
-    const selectedMonth = currentSubmission.monthKey;
-    
-    // Check if the selected month is a valid month format
-    if (!selectedMonth || !/^\d{4}-\d{2}$/.test(selectedMonth)) {
-      return false; // Invalid format, not a previous month issue
-    }
-    
-    // Parse the month to check if it's valid
-    const [year, month] = selectedMonth.split('-').map(Number);
-    if (month < 1 || month > 12 || year < 2020 || year > 2030) {
-      return false; // Invalid month values, not a previous month issue
-    }
-    
+    const check = validateField('monthKey', currentSubmission.monthKey);
+    if (!check.ok) return false;
+    const selectedMonth = check.value;
     return selectedMonth !== currentMonth && selectedMonth < currentMonth;
   }, [currentSubmission.monthKey]);
 
@@ -345,20 +335,18 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   // Create stable onChange handlers to prevent re-renders
   const handleNameChange = useCallback((value) => updateCurrentSubmission('employee.name', value), [updateCurrentSubmission]);
   const handlePhoneChange = useCallback((value) => {
-    // Clean phone number input - remove non-digits and limit to 10 digits
     const cleanPhone = value.replace(/\D/g, '').slice(0, 10);
-    console.log(`📱 Phone input: "${value}" -> cleaned: "${cleanPhone}"`);
-    
-    // Force immediate state update to prevent input lag
     updateCurrentSubmission('employee.phone', cleanPhone);
-    
-    // Additional validation for registration issues
-    if (cleanPhone.length === 10) {
-      console.log('✅ Phone number complete (10 digits):', cleanPhone);
-    } else if (cleanPhone.length > 0) {
-      console.log(`📱 Phone number in progress (${cleanPhone.length}/10):`, cleanPhone);
-    }
   }, [updateCurrentSubmission]);
+  const handleFieldBlur = useCallback((field, value) => {
+    const { ok, message } = validateField(field, value);
+    setFieldErrors(prev => {
+      const next = { ...prev };
+      if (!ok) next[field] = message;
+      else delete next[field];
+      return next;
+    });
+  }, [setFieldErrors]);
   const handleWFOChange = useCallback((value) => updateCurrentSubmission('meta.attendance.wfo', value), [updateCurrentSubmission]);
   const handleWFHChange = useCallback((value) => updateCurrentSubmission('meta.attendance.wfh', value), [updateCurrentSubmission]);
   const handleTasksChange = useCallback((value) => updateCurrentSubmission('meta.tasks.count', value), [updateCurrentSubmission]);
@@ -413,40 +401,25 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   const getStepValidation = useCallback((stepNumber) => {
     const errors = {};
     const warnings = {};
-    
+
     if (stepNumber >= 1) {
-      // Step 1: Profile & Month
-      if (!currentSubmission.employee?.name?.trim()) {
-        errors['employee.name'] = 'Name is required';
-      }
-      if (!currentSubmission.employee?.phone?.trim()) {
-        errors['employee.phone'] = 'Phone number is required';
-      } else if (!/^\d{10}$/.test(currentSubmission.employee.phone)) {
-        errors['employee.phone'] = 'Phone must be 10 digits';
-      }
-      if (!currentSubmission.employee?.department) {
-        errors['employee.department'] = 'Department is required';
-      }
-      if (!currentSubmission.employee?.role?.length) {
-        errors['employee.role'] = 'At least one role is required';
-      }
-      if (!currentSubmission.monthKey) {
-        errors['monthKey'] = 'Report month is required';
-      } else {
-        // Validate month format and values
-        const monthKey = currentSubmission.monthKey;
-        if (!/^\d{4}-\d{2}$/.test(monthKey)) {
-          errors['monthKey'] = 'Invalid month format. Please select a valid month.';
-        } else {
-          const [year, month] = monthKey.split('-').map(Number);
-          if (month < 1 || month > 12) {
-            errors['monthKey'] = 'Invalid month value. Please select a month between 1-12.';
-          } else if (year < 2020 || year > 2030) {
-            errors['monthKey'] = 'Invalid year. Please select a year between 2020-2030.';
-          } else if (monthKey > thisMonthKey()) {
-            warnings['monthKey'] = 'Future month selected. Reports are typically for previous months.';
-          }
-        }
+      const nameCheck = validateField('employee.name', currentSubmission.employee?.name);
+      if (!nameCheck.ok) errors['employee.name'] = nameCheck.message;
+
+      const phoneCheck = validateField('employee.phone', currentSubmission.employee?.phone);
+      if (!phoneCheck.ok) errors['employee.phone'] = phoneCheck.message;
+
+      const deptCheck = validateField('employee.department', currentSubmission.employee?.department);
+      if (!deptCheck.ok) errors['employee.department'] = deptCheck.message;
+
+      const roleCheck = validateField('employee.role', currentSubmission.employee?.role);
+      if (!roleCheck.ok) errors['employee.role'] = roleCheck.message;
+
+      const monthCheck = validateField('monthKey', currentSubmission.monthKey);
+      if (!monthCheck.ok) {
+        errors['monthKey'] = monthCheck.message;
+      } else if (currentSubmission.monthKey > thisMonthKey()) {
+        warnings['monthKey'] = 'Future month selected. Reports are typically for previous months.';
       }
     }
     
@@ -759,6 +732,31 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
       console.log('❌ Previous month editing restricted');
       openModal("Previous Month Editing Restricted", "You can only edit the current month's submission. Previous months cannot be modified.", closeModal);
       return;
+    }
+
+    const fieldsToValidate = {
+      'employee.name': currentSubmission.employee?.name,
+      'employee.phone': currentSubmission.employee?.phone,
+      'employee.department': currentSubmission.employee?.department,
+      'employee.role': currentSubmission.employee?.role,
+      'monthKey': currentSubmission.monthKey,
+    };
+    const newErrors = {};
+    Object.entries(fieldsToValidate).forEach(([field, value]) => {
+      const { ok, message, value: clean } = validateField(field, value);
+      if (field === 'employee.phone' && clean !== value) {
+        updateCurrentSubmission('employee.phone', clean);
+      }
+      if (!ok) newErrors[field] = message;
+    });
+    if (Object.keys(newErrors).length > 0) {
+      setFieldErrors(prev => ({ ...prev, ...newErrors }));
+    } else {
+      setFieldErrors(prev => {
+        const copy = { ...prev };
+        Object.keys(fieldsToValidate).forEach(f => delete copy[f]);
+        return copy;
+      });
     }
 
     console.log('🔍 Validating submission...');
@@ -1156,13 +1154,14 @@ Your progress has been automatically saved, so you won't lose any other informat
 
                 {isNewEmployee && (
                   <div className="space-y-4">
-                    <TextField 
-                      label="Name" 
-                      placeholder="Your full name" 
-                      value={currentSubmission.employee.name || ""} 
+                    <TextField
+                      label="Name"
+                      placeholder="Your full name"
+                      value={currentSubmission.employee.name || ""}
                       onChange={handleNameChange}
                       disabled={isFormDisabled}
                       error={fieldErrors['employee.name']}
+                      onBlur={() => handleFieldBlur('employee.name', currentSubmission.employee.name)}
                     />
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
@@ -1182,11 +1181,8 @@ Your progress has been automatically saved, so you won't lose any other informat
                           e.target.focus();
                         }}
                         onBlur={(e) => {
-                          console.log('📱 Phone field blurred, final value:', e.target.value);
-                          // Force final validation on blur
-                          if (e.target.value) {
-                            handlePhoneChange(e.target.value);
-                          }
+                          handlePhoneChange(e.target.value);
+                          handleFieldBlur('employee.phone', e.target.value);
                         }}
                         onInput={(e) => {
                           // Handle input event in addition to onChange for better responsiveness
@@ -1220,22 +1216,23 @@ Your progress has been automatically saved, so you won't lose any other informat
               <>
                 <div>
                   <label className="block text-sm font-medium mb-2">Department</label>
-                  <select 
+                  <select
                     className={`w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${ isFormDisabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
-                    value={currentSubmission.employee.department} 
+                    value={currentSubmission.employee.department}
                     onChange={e => {
                       if (isFormDisabled) return;
                       const newDepartment = e.target.value;
                       const oldDepartment = currentSubmission.employee.department;
-                      
+
                       // Clear roles when department changes to prevent invalid combinations
                       if (newDepartment !== oldDepartment) {
                         console.log(`🏢 Department changed from ${oldDepartment} to ${newDepartment} - clearing roles`);
                         updateCurrentSubmission('employee.role', []);
                       }
-                      
+
                       updateCurrentSubmission('employee.department', newDepartment);
                     }}
+                    onBlur={e => handleFieldBlur('employee.department', e.target.value)}
                     disabled={isFormDisabled}
                   >
                     {DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
@@ -1258,10 +1255,12 @@ Your progress has been automatically saved, so you won't lose any other informat
                           return null;
                         }
                         updateCurrentSubmission('employee.role', newRoles);
+                        handleFieldBlur('employee.role', newRoles);
                       }}
                       placeholder="Select your roles"
                       disabled={isFormDisabled}
                       error={fieldErrors['employee.role']}
+                      onBlur={() => handleFieldBlur('employee.role', currentSubmission.employee.role)}
                     />
                   </div>
                   {fieldErrors['employee.role'] && (
@@ -1326,7 +1325,7 @@ Your progress has been automatically saved, so you won't lose any other informat
                     : ''
                 }`}
                 value={currentSubmission.monthKey}
-                disabled={isFormDisabled} 
+                disabled={isFormDisabled}
                 onChange={e => {
                   const selectedMonth = e.target.value;
                   const currentMonth = thisMonthKey();
@@ -1339,7 +1338,8 @@ Your progress has been automatically saved, so you won't lose any other informat
                   }
                   
                   updateCurrentSubmission('monthKey', selectedMonth);
-                }} 
+                }}
+                onBlur={e => handleFieldBlur('monthKey', e.target.value)}
                 max={thisMonthKey()} // Prevent future month selection
               />
               {fieldErrors['monthKey'] && (

@@ -1,5 +1,63 @@
 import { daysInMonth, monthLabel, isDriveUrl, isGensparkUrl } from "./constants";
 
+export function validateField(name, value) {
+  switch (name) {
+    case "employee.phone":
+    case "phone": {
+      const clean = (value || "").replace(/\D/g, "");
+      if (!clean) {
+        return { ok: false, value: "", message: "Phone number is required." };
+      }
+      if (clean.length !== 10) {
+        return {
+          ok: false,
+          value: clean,
+          message: "Phone must be exactly 10 digits and cannot include spaces or letters.",
+        };
+      }
+      return { ok: true, value: clean };
+    }
+    case "employee.name":
+    case "name":
+      if (!value || !String(value).trim()) {
+        return { ok: false, message: "Name is required." };
+      }
+      return { ok: true, value: String(value).trim() };
+    case "employee.department":
+    case "department":
+      if (!value) {
+        return { ok: false, message: "Department is required." };
+      }
+      return { ok: true, value };
+    case "employee.role":
+    case "role":
+      if (!Array.isArray(value) || value.length === 0) {
+        return { ok: false, message: "At least one role is required." };
+      }
+      return { ok: true, value };
+    case "monthKey":
+    case "month": {
+      if (!value) {
+        return { ok: false, message: "Report month is required." };
+      }
+      const monthStr = String(value);
+      if (!/^\d{4}-\d{2}$/.test(monthStr)) {
+        return { ok: false, message: "Invalid month format. Please select a valid month." };
+      }
+      const [year, month] = monthStr.split("-").map(Number);
+      if (month < 1 || month > 12) {
+        return { ok: false, message: "Invalid month value. Please select a month between 1-12." };
+      }
+      if (year < 2020 || year > 2030) {
+        return { ok: false, message: "Invalid year. Please select a year between 2020-2030." };
+      }
+      return { ok: true, value: monthStr };
+    }
+    default:
+      return { ok: true, value };
+  }
+}
+
 export function validateSubmission(model) {
   const errors = [];
   const m = model || {};
