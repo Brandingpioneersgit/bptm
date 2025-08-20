@@ -1756,16 +1756,21 @@ Your progress has been automatically saved, so you won't lose any other informat
       <ProgressIndicator />
       <StepContent />
 
-      <div className="flex justify-between items-center mt-4 sm:mt-6 gap-3">
-        <button
-          onClick={prevStep}
-          disabled={currentStep === 1}
-          className="px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-50 active:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation"
-        >
-          <span className="hidden sm:inline">← Previous</span>
-          <span className="sm:hidden">← Back</span>
-        </button>
-        
+      <div
+        className={`flex items-center mt-4 sm:mt-6 gap-3 ${
+          currentStep > 1 ? 'justify-between' : 'justify-end'
+        }`}
+      >
+        {currentStep > 1 && (
+          <button
+            onClick={prevStep}
+            className="px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-50 active:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation"
+          >
+            <span className="hidden sm:inline">← Previous</span>
+            <span className="sm:hidden">← Back</span>
+          </button>
+        )}
+
         <div className="flex items-center gap-3">
           {hasUnsavedChanges && (
             <button
