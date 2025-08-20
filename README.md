@@ -103,6 +103,10 @@ create policy "public can delete client_assignments" on public.client_assignment
    VITE_SUPABASE_URL=your_project_url
    VITE_SUPABASE_ANON_KEY=your_anon_key
    VITE_ADMIN_ACCESS_TOKEN=your_secure_admin_password
+   VITE_WBIZTOOL_CLIENT_ID=your_wbiztool_client_id
+   VITE_WBIZTOOL_API_KEY=your_wbiztool_api_key
+   VITE_WBIZTOOL_WHATSAPP_CLIENT=your_whatsapp_client
+   VITE_WBIZTOOL_DESTINATION=recipient_phone_number
    ```
 
 > If you skip Supabase, the app still works using localStorage and the admin dashboard will read local drafts.
@@ -125,10 +129,14 @@ git push -u origin main
 - New Site from Git → select **codex**
 - Build: `npm run build`
 - Publish directory: `dist`
-- Environment variables (Site settings → Build & deploy → Environment):
-  - `VITE_SUPABASE_URL`
-  - `VITE_SUPABASE_ANON_KEY`
-  - `VITE_ADMIN_ACCESS_TOKEN` (choose a strong string; required for `/#admin`)
+  - Environment variables (Site settings → Build & deploy → Environment):
+    - `VITE_SUPABASE_URL`
+    - `VITE_SUPABASE_ANON_KEY`
+    - `VITE_ADMIN_ACCESS_TOKEN` (choose a strong string; required for `/#admin`)
+    - `VITE_WBIZTOOL_CLIENT_ID`
+    - `VITE_WBIZTOOL_API_KEY`
+    - `VITE_WBIZTOOL_WHATSAPP_CLIENT`
+    - `VITE_WBIZTOOL_DESTINATION`
 
 Manager Dashboard: `https://<your-site>.netlify.app/#admin` → will prompt for the token.
 

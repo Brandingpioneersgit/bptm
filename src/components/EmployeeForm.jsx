@@ -10,6 +10,7 @@ import { DeptClientsBlock } from "./kpi";
 import { LearningBlock } from "./LearningBlock";
 import { getClientRepository } from "./ClientRepository";
 import { validateSubmission } from "./validation";
+import { sendWhatsAppMessage } from "./whatsappService";
 
 export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack = null }) {
   const supabase = useSupabase();
@@ -877,10 +878,16 @@ Your progress has been automatically saved, so you won't lose any other informat
         console.error('Failed to remove backup:', e);
       }
       
-      const performanceFeedback = generatePerformanceFeedback(final);
-      showPerformanceFeedbackModal(performanceFeedback, final);
-      
-      clearDraft(); // Clear draft only on success
+        const performanceFeedback = generatePerformanceFeedback(final);
+        showPerformanceFeedbackModal(performanceFeedback, final);
+
+        try {
+          await sendWhatsAppMessage(final);
+        } catch (err) {
+          console.error("Failed to send WhatsApp message", err);
+        }
+
+        clearDraft(); // Clear draft only on success
       setCurrentSubmission({ ...EMPTY_SUBMISSION, monthKey: prevMonthKey(thisMonthKey()) });
       setSelectedEmployee(null);
 
