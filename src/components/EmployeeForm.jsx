@@ -24,6 +24,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   const [isEditMode, setIsEditMode] = useState(false);
   const [lastAutoSave, setLastAutoSave] = useState(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   
   const FORM_STEPS = [
     { id: 1, title: "Profile & Month", icon: "👤", description: "Basic information and reporting period" },
@@ -34,17 +35,24 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   ];
 
   const getAutoSaveKey = useCallback(() => {
-    // Use form data for key if employee not selected yet but form has data
-    const employeeName = selectedEmployee?.name || currentSubmission.employee?.name || 'anonymous';
-    const employeePhone = selectedEmployee?.phone || currentSubmission.employee?.phone || 'new';
+    // Prefer authenticated user identity if available
+    const employeeName =
+      currentUser?.name || selectedEmployee?.name || currentSubmission.employee?.name || "anonymous";
+    const employeePhone =
+      currentUser?.phone || selectedEmployee?.phone || currentSubmission.employee?.phone || "new";
     const monthKey = currentSubmission.monthKey || thisMonthKey();
-    
+
     const employeeId = `${employeeName}-${employeePhone}`;
     const key = `autosave-${employeeId}-${monthKey}`;
-    
-    console.log('🔑 Auto-save key generated:', key);
+
+    console.log("🔑 Auto-save key generated:", key);
     return key;
-  }, [selectedEmployee, currentSubmission.employee?.name, currentSubmission.employee?.phone, currentSubmission.monthKey]);
+  }, [currentUser, selectedEmployee, currentSubmission.employee?.name, currentSubmission.employee?.phone, currentSubmission.monthKey]);
+
+
+  useEffect(() => {
+    setIsInitialized(false);
+  }, [selectedEmployee]);
 
   const uniqueEmployees = useMemo(() => {
     const employees = {};
@@ -112,56 +120,12 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
         </div>
       </div>
     );
+
+  }
+  if (!isInitialized) {
+    return null;
   }
 
-  useEffect(() => {
-    if (!selectedEmployee) {
-      setPreviousSubmission(null);
-      // Don't reset the entire submission - preserve any entered data
-      setCurrentSubmission(prev => ({
-        ...prev,
-        employee: { ...prev.employee, name: "", phone: "" }
-      }));
-      return;
-    }
-
-    const prevSub = allSubmissions
-      .filter(s => s.employee.phone === selectedEmployee.phone)
-      .sort((a, b) => b.monthKey.localeCompare(a.monthKey))[0] || null;
-
-    setPreviousSubmission(prevSub);
-
-    // CRITICAL FIX: Only update employee info, preserve all other form data
-    setCurrentSubmission(prev => {
-      // If this is the first time selecting an employee and form is empty, populate defaults
-      const isFormEmpty = !prev.employee?.name && !prev.employee?.phone;
-      
-      if (isFormEmpty) {
-        return {
-          ...EMPTY_SUBMISSION,
-          employee: { 
-            name: selectedEmployee.name, 
-            phone: selectedEmployee.phone, 
-            department: prevSub?.employee?.department || "Web", 
-            role: prevSub?.employee?.role || [] 
-          },
-          monthKey: prevMonthKey(thisMonthKey()),
-        };
-      } else {
-        // Preserve existing form data, just update employee info if needed
-        return {
-          ...prev,
-          employee: {
-            ...prev.employee,
-            name: prev.employee.name || selectedEmployee.name,
-            phone: prev.employee.phone || selectedEmployee.phone,
-            department: prev.employee.department || prevSub?.employee?.department || "Web",
-            role: prev.employee.role?.length ? prev.employee.role : (prevSub?.employee?.role || [])
-          }
-        };
-      }
-    });
-  }, [selectedEmployee, allSubmissions]);
 
 
   const autoSave = useCallback(async () => {
@@ -298,6 +262,64 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
       }
     }
   }, [getAutoSaveKey, lastAutoSave, hasUnsavedChanges, currentSubmission.employee]);
+
+  useEffect(() => {
+    if (isInitialized) return;
+
+    if (!selectedEmployee) {
+      setPreviousSubmission(null);
+      setCurrentSubmission(prev => ({
+        ...prev,
+        employee: { ...prev.employee, name: '', phone: '' }
+      }));
+      setIsInitialized(true);
+      return;
+    }
+
+    const prevSub = allSubmissions
+      .filter(s => s.employee.phone === selectedEmployee.phone)
+      .sort((a, b) => b.monthKey.localeCompare(a.monthKey))[0] || null;
+    setPreviousSubmission(prevSub);
+
+    const autoSaveKey = getAutoSaveKey();
+    const saved = localStorage.getItem(autoSaveKey);
+
+    const initBlank = () => {
+      setCurrentSubmission({
+        ...EMPTY_SUBMISSION,
+        isDraft: true,
+        employee: {
+          name: selectedEmployee.name,
+          phone: selectedEmployee.phone,
+          department: prevSub?.employee?.department || 'Web',
+          role: prevSub?.employee?.role || []
+        },
+        monthKey: prevMonthKey(thisMonthKey()),
+      });
+      setIsInitialized(true);
+    };
+
+    if (saved) {
+      const draft = JSON.parse(saved);
+      openModal(
+        'Resume saved draft?',
+        `A saved draft was found for ${draft.employee?.name || 'this user'} (last saved ${draft.lastSaved ? new Date(draft.lastSaved).toLocaleString() : 'previously'}).`,
+        () => {
+          loadDraft();
+          setIsInitialized(true);
+          closeModal();
+        },
+        () => {
+          clearDraft();
+          initBlank();
+          closeModal();
+        }
+      );
+    } else {
+      initBlank();
+    }
+  }, [selectedEmployee, allSubmissions, isInitialized, getAutoSaveKey, loadDraft, clearDraft, openModal, closeModal]);
+
 
   const updateCurrentSubmission = useCallback((key, value) => {
     console.log(`📝 Updating form field: ${key} = ${value}`);
@@ -522,42 +544,6 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     return () => clearInterval(timer);
   }, [currentStep, selectedEmployee, getStepValidation]);
 
-  // Enhanced draft loading - only on initial mount or when meaningful employee change occurs
-  const loadedDraftRef = useRef(new Set());
-  
-  useEffect(() => {
-    const autoSaveKey = getAutoSaveKey();
-
-    // Only prompt when we have identifiable user info
-    const hasIdentity = currentSubmission.employee?.name && currentSubmission.employee?.phone;
-    if (!hasIdentity) return;
-
-    // Avoid prompting multiple times for same draft
-    if (loadedDraftRef.current.has(autoSaveKey)) {
-      return;
-    }
-
-    if (autoSaveKey && autoSaveKey !== 'autosave-anonymous-new-undefined') {
-      const saved = localStorage.getItem(autoSaveKey);
-      if (saved) {
-        const draft = JSON.parse(saved);
-        openModal(
-          'Resume saved draft?',
-          `A saved draft was found for ${draft.employee?.name || 'this user'} (last saved ${draft.lastSaved ? new Date(draft.lastSaved).toLocaleString() : 'previously'}).\nClick OK to resume or Cancel to start fresh.`,
-          () => {
-            loadDraft();
-            closeModal();
-            loadedDraftRef.current.add(autoSaveKey);
-          },
-          () => {
-            clearDraft();
-            closeModal();
-            loadedDraftRef.current.add(autoSaveKey);
-          }
-        );
-      }
-    }
-  }, [getAutoSaveKey, currentSubmission.employee?.name, currentSubmission.employee?.phone, currentSubmission.monthKey, loadDraft, clearDraft, openModal, closeModal]);
   
   // Auto-save on any form change to prevent data loss - removed autoSave from deps to prevent infinite loops
   useEffect(() => {
