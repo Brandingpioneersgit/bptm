@@ -832,14 +832,14 @@ Your progress has been automatically saved, so you won't lose any other informat
       console.error('Failed to create backup:', e);
     }
 
-    const final = { 
-      ...currentSubmission, 
-      isDraft: false, 
-      submittedAt: new Date().toISOString(), 
-      employee: { 
-        ...currentSubmission.employee, 
-        name: (currentSubmission.employee?.name || "").trim(), 
-        phone: currentSubmission.employee.phone 
+    const final = {
+      ...currentSubmission,
+      isDraft: false,
+      submittedAt: new Date().toISOString(),
+      employee: {
+        ...currentSubmission.employee,
+        name: (currentSubmission.employee?.name || "").trim(),
+        phone: currentSubmission.employee.phone
       }
     };
 
@@ -853,12 +853,48 @@ Your progress has been automatically saved, so you won't lose any other informat
         await clientRepository.storeClientsFromSubmission(currentSubmission);
       }
 
+      // Calculate learning minutes (capped at 360) and cumulative totals
+      const totalLearningMins = (currentSubmission.learning || []).reduce((s, l) => s + (l.durationMins || 0), 0);
+      final.learningCreditedMins = Math.min(360, totalLearningMins);
+
+      let prevCumulative = 0;
+      const { data: prevSubs } = await supabase
+        .from('submissions')
+        .select('cumulativeLearningMins')
+        .eq('employee->>phone', currentSubmission.employee.phone)
+        .neq('monthKey', currentSubmission.monthKey)
+        .order('monthKey', { ascending: false })
+        .limit(1);
+      if (prevSubs && prevSubs.length > 0) {
+        prevCumulative = prevSubs[0].cumulativeLearningMins || 0;
+      }
+      final.cumulativeLearningMins = prevCumulative + final.learningCreditedMins;
+      final.flags = { ...final.flags, appraisalUnlocked: final.cumulativeLearningMins >= 4320 };
+
+      // Automated notifications
+      if (final.learningCreditedMins < 300) {
+        await supabase.from('notifications').insert({
+          type: 'learning_shortfall',
+          employee_phone: final.employee.phone,
+          month_key: final.monthKey,
+          minutes: final.learningCreditedMins,
+          created_at: new Date().toISOString()
+        });
+      }
+      if (prevCumulative < 4320 && final.cumulativeLearningMins >= 4320) {
+        await supabase.from('appraisal_unlocks').insert({
+          employee_phone: final.employee.phone,
+          unlocked_at: new Date().toISOString(),
+          total_minutes: final.cumulativeLearningMins
+        });
+      }
+
       // Use improved upsert with explicit error handling
       const { data, error } = await supabase
         .from('submissions')
-        .upsert(final, { 
+        .upsert(final, {
           onConflict: 'employee_phone,monthKey',
-          ignoreDuplicates: false 
+          ignoreDuplicates: false
         })
         .select(); // Return inserted data for verification
 

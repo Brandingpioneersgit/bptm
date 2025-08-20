@@ -57,17 +57,29 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
 
     const employees = Object.values(employeeGroups).map(emp => {
       emp.submissions.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+
+      // Calculate capped learning minutes and cumulative totals
+      let cumulative = 0;
+      emp.submissions.forEach(sub => {
+        const mins = Math.min(360, (sub.learning || []).reduce((s, l) => s + (l.durationMins || 0), 0));
+        sub.learningCreditedMins = sub.learningCreditedMins || mins;
+        cumulative += sub.learningCreditedMins;
+        sub.cumulativeLearningMins = sub.cumulativeLearningMins || cumulative;
+      });
+
       emp.latestSubmission = emp.submissions[0];
-      
+      emp.latestLearningHours = (emp.latestSubmission.learningCreditedMins || 0) / 60;
+      emp.cumulativeLearningMins = emp.latestSubmission.cumulativeLearningMins || cumulative;
+
       const totalScore = emp.submissions.reduce((sum, sub) => sum + (sub.scores?.overall || 0), 0);
       emp.averageScore = emp.submissions.length ? (totalScore / emp.submissions.length).toFixed(1) : 0;
-      
-      emp.totalHours = emp.submissions.reduce((total, sub) => {
-        return total + ((sub.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60);
-      }, 0);
-      
+
+      emp.totalHours = emp.cumulativeLearningMins / 60;
+      emp.monthlyLearningWarning = emp.latestLearningHours < 5;
+      emp.appraisalUnlocked = emp.cumulativeLearningMins >= 4320;
+
       emp.performance = emp.averageScore >= 8 ? 'High' : emp.averageScore >= 6 ? 'Medium' : 'Low';
-      
+
       return emp;
     });
 
@@ -625,7 +637,12 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                       <tr key={`${employee.name}-${employee.phone}`} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
-                            <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                            <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                              {employee.name}
+                              {employee.appraisalUnlocked && (
+                                <span className="px-2 py-0.5 bg-purple-100 text-purple-800 rounded-full text-xs">Appraisal Unlocked</span>
+                              )}
+                            </div>
                             <div className="text-sm text-gray-500">{employee.phone}</div>
                           </div>
                         </td>
@@ -645,7 +662,11 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {employee.totalHours.toFixed(1)}h
+                          <div className={`flex items-center ${employee.monthlyLearningWarning ? 'text-red-600 font-semibold' : ''}`}>
+                            {employee.latestLearningHours.toFixed(1)}h
+                            {employee.monthlyLearningWarning && <span className="ml-1">⚠️</span>}
+                          </div>
+                          <div className="text-xs text-gray-500">{employee.totalHours.toFixed(1)}h total</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {employee.submissions.length}
