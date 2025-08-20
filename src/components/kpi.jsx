@@ -1,8 +1,202 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { NumField, ProofField, TextArea, MultiSelect, PrevValue } from "./ui";
+import { NumField, ProofField, TextArea, MultiSelect, PrevValue, TinyLinks, Section } from "./ui";
 import { monthLabel, isDriveUrl, isGensparkUrl, uid, round1 } from "./constants";
 import { useModal } from "./AppShell";
 import { useSupabase } from "./SupabaseProvider";
+import { ClientReportStatus } from "./ClientReportStatus";
+
+// Internal KPIs component for HR, Accounts, Sales, Blended departments
+function InternalKPIs({ model, prevModel, setModel, monthPrev, monthThis }) {
+  const department = model.employee?.department || "";
+  const prevSubmission = prevModel || {};
+  
+  const updateField = (key, value) => {
+    setModel(prev => ({
+      ...prev,
+      meta: {
+        ...prev.meta,
+        internalKpis: {
+          ...prev.meta?.internalKpis,
+          [key]: value
+        }
+      }
+    }));
+  };
+
+  const currentKpis = model.meta?.internalKpis || {};
+  const prevKpis = prevSubmission.meta?.internalKpis || {};
+
+  if (department === "HR" || department === "Blended (HR + Sales)") {
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">HR Performance Metrics</h3>
+        
+        <div className="grid md:grid-cols-2 gap-4">
+          <NumField
+            label="New Hires Processed"
+            value={currentKpis.newHires || 0}
+            onChange={(v) => updateField('newHires', v)}
+          />
+          <div className="text-sm text-gray-600 mt-6">
+            Previous: {prevKpis.newHires || 0}
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <NumField
+            label="Employee Issues Resolved"
+            value={currentKpis.issuesResolved || 0}
+            onChange={(v) => updateField('issuesResolved', v)}
+          />
+          <div className="text-sm text-gray-600 mt-6">
+            Previous: {prevKpis.issuesResolved || 0}
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <NumField
+            label="Training Sessions Conducted"
+            value={currentKpis.trainingSessions || 0}
+            onChange={(v) => updateField('trainingSessions', v)}
+          />
+          <div className="text-sm text-gray-600 mt-6">
+            Previous: {prevKpis.trainingSessions || 0}
+          </div>
+        </div>
+
+        <TextArea
+          label="Key HR Achievements This Month"
+          value={currentKpis.achievements || ""}
+          onChange={(v) => updateField('achievements', v)}
+          rows={3}
+          placeholder="Describe major HR accomplishments, policy implementations, employee satisfaction improvements, etc."
+        />
+      </div>
+    );
+  }
+
+  if (department === "Accounts") {
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">Accounts Performance Metrics</h3>
+        
+        <div className="grid md:grid-cols-2 gap-4">
+          <NumField
+            label="Invoices Processed"
+            value={currentKpis.invoicesProcessed || 0}
+            onChange={(v) => updateField('invoicesProcessed', v)}
+          />
+          <div className="text-sm text-gray-600 mt-6">
+            Previous: {prevKpis.invoicesProcessed || 0}
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <NumField
+            label="Payments Collected (₹)"
+            value={currentKpis.paymentsCollected || 0}
+            onChange={(v) => updateField('paymentsCollected', v)}
+          />
+          <div className="text-sm text-gray-600 mt-6">
+            Previous: ₹{prevKpis.paymentsCollected || 0}
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <NumField
+            label="Outstanding Amount (₹)"
+            value={currentKpis.outstandingAmount || 0}
+            onChange={(v) => updateField('outstandingAmount', v)}
+          />
+          <div className="text-sm text-gray-600 mt-6">
+            Previous: ₹{prevKpis.outstandingAmount || 0}
+          </div>
+        </div>
+
+        <TextArea
+          label="Key Accounts Achievements This Month"
+          value={currentKpis.achievements || ""}
+          onChange={(v) => updateField('achievements', v)}
+          rows={3}
+          placeholder="Describe major accounting accomplishments, process improvements, cost savings, etc."
+        />
+      </div>
+    );
+  }
+
+  if (department === "Sales") {
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">Sales Performance Metrics</h3>
+        
+        <div className="grid md:grid-cols-2 gap-4">
+          <NumField
+            label="New Leads Generated"
+            value={currentKpis.newLeads || 0}
+            onChange={(v) => updateField('newLeads', v)}
+          />
+          <div className="text-sm text-gray-600 mt-6">
+            Previous: {prevKpis.newLeads || 0}
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <NumField
+            label="Deals Closed"
+            value={currentKpis.dealsSecured || 0}
+            onChange={(v) => updateField('dealsSecured', v)}
+          />
+          <div className="text-sm text-gray-600 mt-6">
+            Previous: {prevKpis.dealsSecured || 0}
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <NumField
+            label="Revenue Generated (₹)"
+            value={currentKpis.revenueGenerated || 0}
+            onChange={(v) => updateField('revenueGenerated', v)}
+          />
+          <div className="text-sm text-gray-600 mt-6">
+            Previous: ₹{prevKpis.revenueGenerated || 0}
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <NumField
+            label="Client Meetings Held"
+            value={currentKpis.clientMeetings || 0}
+            onChange={(v) => updateField('clientMeetings', v)}
+          />
+          <div className="text-sm text-gray-600 mt-6">
+            Previous: {prevKpis.clientMeetings || 0}
+          </div>
+        </div>
+
+        <TextArea
+          label="Key Sales Achievements This Month"
+          value={currentKpis.achievements || ""}
+          onChange={(v) => updateField('achievements', v)}
+          rows={3}
+          placeholder="Describe major sales accomplishments, new client acquisitions, revenue milestones, etc."
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-center py-8 text-gray-500">
+      <p>Internal KPIs for {department} department</p>
+      <TextArea
+        label="Department Achievements This Month"
+        value={currentKpis.achievements || ""}
+        onChange={(v) => updateField('achievements', v)}
+        rows={4}
+        placeholder="Describe your key accomplishments and contributions this month..."
+      />
+    </div>
+  );
+}
 
 function ScopePrompt({ client, service, title }) {
   if (!client.services || !client.services.includes(service) || !client.service_scopes || !client.service_scopes[service]) {
@@ -487,7 +681,7 @@ function KPIsOperationsHead({ client, onChange }) {
   );
 }
 
-export function DeptClientsBlock({ currentSubmission, previousSubmission, setModel, monthPrev, monthThis, openModal, closeModal }) {
+export function DeptClientsBlock({ currentSubmission, previousSubmission, setModel, monthPrev, monthThis, openModal, closeModal, triggerAutosave }) {
   const isInternal = ["HR", "Accounts", "Sales", "Blended (HR + Sales)"].includes(currentSubmission.employee.department);
   const isWebHead = currentSubmission.employee.department === "Web Head";
   const isOpsHead = currentSubmission.employee.department === "Operations Head";

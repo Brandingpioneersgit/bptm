@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useSupabase } from "./SupabaseProvider";
 import { useModal } from "./AppShell";
 import { useFetchSubmissions } from "./useFetchSubmissions";
@@ -27,10 +27,9 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   const FORM_STEPS = [
     { id: 1, title: "Profile & Month", icon: "👤", description: "Basic information and reporting period" },
     { id: 2, title: "Attendance & Tasks", icon: "📅", description: "Work attendance and task completion" },
-    { id: 3, title: "KPI & Performance", icon: "📊", description: "Department-specific metrics and achievements" },
-    { id: 4, title: "Client Management", icon: "🤝", description: "Client relationships and project status" },
-    { id: 5, title: "Learning & AI", icon: "🎓", description: "Learning activities and AI usage" },
-    { id: 6, title: "Feedback & Review", icon: "💬", description: "Company feedback and final review" },
+    { id: 3, title: "KPI & Clients", icon: "📊", description: "Department metrics, client work and achievements" },
+    { id: 4, title: "Learning & AI", icon: "🎓", description: "Learning activities and AI usage" },
+    { id: 5, title: "Feedback & Review", icon: "💬", description: "Company feedback and final review" },
   ];
 
   const getAutoSaveKey = () => {
@@ -178,13 +177,18 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     setHasUnsavedChanges(true);
   }, []);
 
-  // Validation for step progression
+  // Function to trigger autosave manually (for onBlur events)
+  const triggerAutosave = useCallback(() => {
+    if (hasUnsavedChanges && selectedEmployee) {
+      autoSave();
+    }
+  }, [hasUnsavedChanges, selectedEmployee, autoSave]);
+
+  // Validation for step progression - only validate what's needed for each step
   const canProgressToStep = useCallback((stepNumber) => {
     if (stepNumber <= 1) return true;
     
-    const { ok, errors } = validateSubmission(currentSubmission);
-    
-    // Step 1 requirements (Profile & Month)
+    // Step 1 requirements (Profile & Month) - must be complete to proceed to step 2
     if (stepNumber > 1) {
       if (!currentSubmission.employee?.name?.trim() || 
           !currentSubmission.employee?.phone?.trim() ||
@@ -195,22 +199,37 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
       }
     }
     
-    // Step 2 requirements (Attendance & Tasks) 
+    // Step 2 requirements (Attendance & Tasks) - basic attendance required to proceed to step 3
     if (stepNumber > 2) {
       const wfo = Number(currentSubmission.meta?.attendance?.wfo || 0);
       const wfh = Number(currentSubmission.meta?.attendance?.wfh || 0);
-      if (wfo + wfh === 0) return false;
+      // Allow proceeding even if attendance is 0 (user might be on leave)
+      // Just ensure the fields exist
+      if (currentSubmission.meta?.attendance === undefined) {
+        return false;
+      }
     }
     
+    // For steps 3+ just allow progression - validation happens at submission
     return true;
   }, [currentSubmission]);
 
+  // Autosave on step change or periodic intervals (not on every keystroke)
   useEffect(() => {
     if (hasUnsavedChanges && selectedEmployee) {
-      const timer = setTimeout(autoSave, 30000);
+      const timer = setTimeout(autoSave, 120000); // Autosave every 2 minutes instead of 30 seconds
       return () => clearTimeout(timer);
     }
-  }, [hasUnsavedChanges, selectedEmployee, autoSave]);
+  }, [selectedEmployee, autoSave]); // Remove hasUnsavedChanges from dependencies
+
+  // Autosave when changing steps
+  const prevStepRef = useRef(currentStep);
+  useEffect(() => {
+    if (prevStepRef.current !== currentStep && hasUnsavedChanges && selectedEmployee) {
+      autoSave();
+      prevStepRef.current = currentStep;
+    }
+  }, [currentStep, hasUnsavedChanges, selectedEmployee, autoSave]);
 
   useEffect(() => {
     if (selectedEmployee && getAutoSaveKey()) {
@@ -392,23 +411,68 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
       );
       return;
     }
-    const final = { ...currentSubmission, isDraft: false, submittedAt: new Date().toISOString(), employee: { ...currentSubmission.employee, name: (currentSubmission.employee?.name || "").trim(), phone: currentSubmission.employee.phone } };
+    // Create backup before submission
+    const backupKey = `backup-${getAutoSaveKey()}-${Date.now()}`;
+    try {
+      localStorage.setItem(backupKey, JSON.stringify(currentSubmission));
+    } catch (e) {
+      console.error('Failed to create backup:', e);
+    }
+
+    const final = { 
+      ...currentSubmission, 
+      isDraft: false, 
+      submittedAt: new Date().toISOString(), 
+      employee: { 
+        ...currentSubmission.employee, 
+        name: (currentSubmission.employee?.name || "").trim(), 
+        phone: currentSubmission.employee.phone 
+      }
+    };
 
     delete final.id;
 
-    const { data, error } = await supabase
-      .from('submissions')
-      .upsert(final, { onConflict: 'employee_phone, monthKey' });
+    try {
+      // Use improved upsert with explicit error handling
+      const { data, error } = await supabase
+        .from('submissions')
+        .upsert(final, { 
+          onConflict: 'employee_phone,monthKey',
+          ignoreDuplicates: false 
+        })
+        .select(); // Return inserted data for verification
 
-    if (error) {
-      console.error("Supabase submission error:", error);
-      openModal("Submission Error", `There was a problem saving your report to the database: ${error.message}`, closeModal);
-    } else {
+      if (error) {
+        throw new Error(`Database error: ${error.message}`);
+      }
+
+      if (!data || data.length === 0) {
+        throw new Error("Submission processed but no data returned. Please verify your submission was saved.");
+      }
+
+      // Success - remove backup and continue
+      try {
+        localStorage.removeItem(backupKey);
+      } catch (e) {
+        console.error('Failed to remove backup:', e);
+      }
+      
       const performanceFeedback = generatePerformanceFeedback(final);
       showPerformanceFeedbackModal(performanceFeedback, final);
       
-      setCurrentSubmission({ ...EMPTY_SUBMISSION, monthKey: currentSubmission.monthKey });
+      clearDraft(); // Clear draft only on success
+      setCurrentSubmission({ ...EMPTY_SUBMISSION, monthKey: prevMonthKey(thisMonthKey()) });
       setSelectedEmployee(null);
+
+    } catch (error) {
+      console.error("Submission failed:", error);
+      
+      // Keep backup for recovery
+      openModal(
+        "Submission Failed", 
+        `Failed to save your report: ${error.message}\n\nYour data has been backed up locally. Please try again or contact support if the problem persists.`,
+        closeModal
+      );
     }
   }
 
@@ -537,10 +601,8 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
       case 3:
         return renderKPIStep();
       case 4:
-        return renderClientStep();
-      case 5:
         return renderLearningStep();
-      case 6:
+      case 5:
         return renderFeedbackStep();
       default:
         return null;
@@ -607,6 +669,7 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
                       placeholder="Your full name" 
                       value={currentSubmission.employee.name || ""} 
                       onChange={v => updateCurrentSubmission('employee.name', v)}
+                      onBlur={triggerAutosave}
                       disabled={isFormDisabled}
                     />
                     <TextField 
@@ -614,6 +677,7 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
                       placeholder="e.g., 9876543210" 
                       value={currentSubmission.employee.phone || ""} 
                       onChange={v => updateCurrentSubmission('employee.phone', v)}
+                      onBlur={triggerAutosave}
                       disabled={isFormDisabled}
                     />
                   </div>
@@ -694,12 +758,14 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
                 placeholder="0-31" 
                 value={currentSubmission.meta.attendance.wfo} 
                 onChange={v => updateCurrentSubmission('meta.attendance.wfo', v)} 
+                onBlur={triggerAutosave}
               />
               <NumField 
                 label="WFH days" 
                 placeholder="0-31"
                 value={currentSubmission.meta.attendance.wfh} 
                 onChange={v => updateCurrentSubmission('meta.attendance.wfh', v)} 
+                onBlur={triggerAutosave}
               />
             </div>
             <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
@@ -718,18 +784,21 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
               placeholder="Number of tasks" 
               value={currentSubmission.meta.tasks.count} 
               onChange={v => updateCurrentSubmission('meta.tasks.count', v)} 
+              onBlur={triggerAutosave}
             />
             <TextField 
               label="AI Table / PM link" 
               placeholder="Google Drive or project management URL" 
               value={currentSubmission.meta.tasks.aiTableLink} 
               onChange={v => updateCurrentSubmission('meta.tasks.aiTableLink', v)} 
+              onBlur={triggerAutosave}
             />
             <TextField 
               label="Screenshot proof" 
               placeholder="Google Drive URL for screenshot" 
               value={currentSubmission.meta.tasks.aiTableScreenshot} 
               onChange={v => updateCurrentSubmission('meta.tasks.aiTableScreenshot', v)} 
+              onBlur={triggerAutosave}
             />
           </div>
         </div>
@@ -748,31 +817,17 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
           monthThis={mThis} 
           openModal={openModal} 
           closeModal={closeModal} 
+          triggerAutosave={triggerAutosave}
         />
       </div>
     );
   }
 
-  function renderClientStep() {
-    return (
-      <div className="space-y-6">
-        <div className="text-center py-8">
-          <div className="text-6xl mb-4">🤝</div>
-          <h3 className="text-lg font-semibold mb-2">Client Management</h3>
-          <p className="text-gray-600">
-            Client information is integrated with your KPI section in Step 3.
-            <br />
-            Use the Previous/Next buttons to navigate between steps.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   function renderLearningStep() {
     return (
       <div className="space-y-6">
-        <LearningBlock model={currentSubmission} setModel={setCurrentSubmission} openModal={openModal} />
+        <LearningBlock model={currentSubmission} setModel={setCurrentSubmission} openModal={openModal} triggerAutosave={triggerAutosave} />
         
         <div className="bg-white border rounded-xl p-6">
           <h4 className="font-medium text-gray-900 flex items-center gap-2 mb-4">
@@ -787,6 +842,7 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
             placeholder="List ways you used AI to work faster/better this month. Include links or examples."
             value={currentSubmission.aiUsageNotes}
             onChange={e => updateCurrentSubmission('aiUsageNotes', e.target.value)}
+            onBlur={triggerAutosave}
           />
         </div>
       </div>
@@ -810,6 +866,7 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
               rows={3}
               value={currentSubmission.feedback.company}
               onChange={v => updateCurrentSubmission('feedback.company', v)}
+              onBlur={triggerAutosave}
             />
             <TextArea 
               label="Feedback regarding HR and policies" 
@@ -817,6 +874,7 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
               rows={3}
               value={currentSubmission.feedback.hr}
               onChange={v => updateCurrentSubmission('feedback.hr', v)}
+              onBlur={triggerAutosave}
             />
             <TextArea 
               label="Challenges you are facing" 
@@ -824,6 +882,7 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
               rows={3}
               value={currentSubmission.feedback.challenges}
               onChange={v => updateCurrentSubmission('feedback.challenges', v)}
+              onBlur={triggerAutosave}
             />
           </div>
         </div>

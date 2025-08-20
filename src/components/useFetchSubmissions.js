@@ -8,25 +8,55 @@ export function useFetchSubmissions() {
   const [error, setError] = useState(null);
 
   const fetchSubmissions = useCallback(async () => {
-    if (!supabase) return;
+    if (!supabase) {
+      setLoading(false);
+      setError("Database connection not ready. Please wait...");
+      return;
+    }
 
     setLoading(true);
     setError(null);
-    try {
-      const { data, error } = await supabase
-        .from('submissions')
-        .select('*');
+    
+    const maxRetries = 3;
+    let retryCount = 0;
+    
+    while (retryCount < maxRetries) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+        
+        const { data, error } = await supabase
+          .from('submissions')
+          .select('*')
+          .abortSignal(controller.signal);
 
-      if (error) throw error;
+        clearTimeout(timeoutId);
+        
+        if (error) throw error;
 
-      setAllSubmissions(data || []);
-    } catch (e) {
-      console.error("Failed to load submissions from Supabase:", e);
-      setError("Failed to load data from the database. Please check your connection and the table setup.");
-      setAllSubmissions([]);
-    } finally {
-      setLoading(false);
+        setAllSubmissions(data || []);
+        setError(null);
+        break; // Success, exit retry loop
+        
+      } catch (e) {
+        retryCount++;
+        console.error(`Failed to load submissions (attempt ${retryCount}/${maxRetries}):`, e);
+        
+        if (e.name === 'AbortError') {
+          console.error('Database query timeout');
+        }
+        
+        if (retryCount >= maxRetries) {
+          setError(`Failed to load data after ${maxRetries} attempts. Please check your connection and try refreshing the page.`);
+          setAllSubmissions([]);
+        } else {
+          // Wait before retrying with exponential backoff
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        }
+      }
     }
+    
+    setLoading(false);
   }, [supabase]);
 
   useEffect(() => {

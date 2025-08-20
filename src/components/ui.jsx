@@ -23,7 +23,7 @@ export function Section({ title, children, number, info }) {
   );
 }
 
-export const TextField = React.memo(function TextField({ label, value, onChange, placeholder, className, info, disabled = false }) {
+export const TextField = React.memo(function TextField({ label, value, onChange, placeholder, className, info, disabled = false, onBlur }) {
   return (
     <div className={className || ''}>
       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
@@ -37,13 +37,14 @@ export const TextField = React.memo(function TextField({ label, value, onChange,
         placeholder={placeholder || ""}
         value={value || ""}
         onChange={e => disabled ? null : onChange(e.target.value)}
+        onBlur={onBlur}
         disabled={disabled}
       />
     </div>
   );
 });
 
-export const NumField = React.memo(function NumField({ label, value, onChange, className, info, disabled = false }) {
+export const NumField = React.memo(function NumField({ label, value, onChange, className, info, disabled = false, onBlur }) {
   return (
     <div className={className || ''}>
       <label className="text-sm flex items-center mb-1">
@@ -59,13 +60,14 @@ export const NumField = React.memo(function NumField({ label, value, onChange, c
         }`}
         value={Number(value || 0)} 
         onChange={e => disabled ? null : onChange(Number(e.target.value || 0))}
+        onBlur={onBlur}
         disabled={disabled}
       />
     </div>
   );
 });
 
-export const TextArea = React.memo(function TextArea({ label, value, onChange, rows = 4, className, placeholder, disabled = false }) {
+export const TextArea = React.memo(function TextArea({ label, value, onChange, rows = 4, className, placeholder, disabled = false, onBlur }) {
   return (
     <div className={className || ''}>
       <label className="text-sm block mb-2">{label}</label>
@@ -77,6 +79,7 @@ export const TextArea = React.memo(function TextArea({ label, value, onChange, r
         placeholder={placeholder || ""} 
         value={value || ""} 
         onChange={e => disabled ? null : onChange(e.target.value)}
+        onBlur={onBlur}
         disabled={disabled}
       />
     </div>

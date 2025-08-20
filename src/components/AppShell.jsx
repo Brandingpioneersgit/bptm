@@ -5,10 +5,11 @@ import { LoginModal } from "./LoginModal";
 import { EMPTY_SUBMISSION, ADMIN_TOKEN } from "./constants";
 import { EmployeeForm } from "./EmployeeForm";
 import { ManagerDashboard } from "./ManagerDashboard";
-import { EmployeeReportDashboard } from "./EmployeeReportDashboard";
+import { NewReportDashboard } from "./NewReportDashboard";
 import { ManagerEditEmployee } from "./ManagerEditEmployee";
 import { EmployeePersonalDashboard } from "./EmployeePersonalDashboard";
 import { HeaderBrand } from "./HeaderBrand";
+import { useFetchSubmissions } from "./useFetchSubmissions";
 
 function useHash() {
   const initial = typeof window === 'undefined' ? '' : (window.location.hash || '');
@@ -104,11 +105,10 @@ function Modal({ isOpen, onClose, title, message, onConfirm, onCancel, inputLabe
   );
 }
 
-import { useFetchSubmissions } from "./useFetchSubmissions";
 
 export function AppContent() {
   const hash = useHash();
-  const { allSubmissions } = useFetchSubmissions();
+  const { allSubmissions, loading, error } = useFetchSubmissions();
   const [authState, setAuthState] = useState({
     isLoggedIn: false,
     userType: null,
@@ -169,22 +169,57 @@ export function AppContent() {
           loginError: ''
         });
         setShowLoginModal(false);
-        setView('managerDashboard');
-        window.location.hash = '#/dashboard';
+        
+        // Wait for data to load before navigating to dashboard
+        if (!loading && !error) {
+          setView('managerDashboard');
+          window.location.hash = '#/dashboard';
+        } else if (!error) {
+          // Data still loading, navigate anyway but let component handle loading state
+          setView('managerDashboard');
+          window.location.hash = '#/dashboard';
+        }
       } else {
         setAuthState(prev => ({ ...prev, loginError: 'Invalid manager credentials. Please check your admin token.' }));
       }
     } else {
+      // Employee login validation
       if (!loginForm.name.trim() || !loginForm.phone.trim()) {
         setAuthState(prev => ({ ...prev, loginError: 'Please enter both name and phone number.' }));
         return;
       }
 
+      // Check if data is still loading
+      if (loading) {
+        setAuthState(prev => ({ ...prev, loginError: 'Loading employee data. Please wait...' }));
+        return;
+      }
+
+      // Check for database error
+      if (error) {
+        setAuthState(prev => ({ ...prev, loginError: `Database error: ${error}` }));
+        return;
+      }
+
+      // Check if data is available
+      if (!allSubmissions || allSubmissions.length === 0) {
+        setAuthState(prev => ({ ...prev, loginError: 'No employee records found. Please ensure you have submitted a form or contact administrator.' }));
+        return;
+      }
+
       try {
-        const employeeSubmissions = allSubmissions.filter(s => 
-          s.employee?.name?.toLowerCase().trim() === loginForm.name.toLowerCase().trim() &&
-          s.employee?.phone === loginForm.phone
-        );
+        // Improved matching logic with better normalization
+        const normalizedName = loginForm.name.trim().toLowerCase().replace(/\s+/g, ' ');
+        const normalizedPhone = loginForm.phone.trim();
+        
+        const employeeSubmissions = allSubmissions.filter(s => {
+          if (!s.employee?.name || !s.employee?.phone) return false;
+          
+          const submissionName = s.employee.name.trim().toLowerCase().replace(/\s+/g, ' ');
+          const submissionPhone = s.employee.phone.trim();
+          
+          return submissionName === normalizedName && submissionPhone === normalizedPhone;
+        });
 
         const hasCompletedSubmission = employeeSubmissions.some(s => !s.isDraft);
 
@@ -203,12 +238,13 @@ export function AppContent() {
           setView('employeeDashboard');
           window.location.hash = '#/dashboard';
         } else if (employeeSubmissions.length > 0) {
-          setAuthState(prev => ({ ...prev, loginError: 'You need to complete at least one form submission before accessing your dashboard.' }));
+          setAuthState(prev => ({ ...prev, loginError: 'You have draft submissions but need to complete at least one form before accessing your dashboard.' }));
         } else {
-          setAuthState(prev => ({ ...prev, loginError: 'Employee not found. Please submit a form first, then use your details to login.' }));
+          setAuthState(prev => ({ ...prev, loginError: `No records found for ${normalizedName} with phone ${normalizedPhone}. Please check your details or submit a form first.` }));
         }
       } catch (error) {
-        setAuthState(prev => ({ ...prev, loginError: 'Login failed. Please try again.' }));
+        console.error('Employee login error:', error);
+        setAuthState(prev => ({ ...prev, loginError: 'Login failed due to unexpected error. Please try again.' }));
       }
     }
   };
@@ -261,7 +297,7 @@ export function AppContent() {
         return <ManagerDashboard onViewReport={handleViewEmployeeReport} onEditEmployee={handleEditEmployee} onEditReport={handleEditReport} />;
       case 'employeeReport':
         return (
-          <EmployeeReportDashboard 
+          <NewReportDashboard 
             employeeName={selectedEmployee.name} 
             employeePhone={selectedEmployee.phone} 
             onBack={handleBackToDashboard} 

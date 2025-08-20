@@ -1,11 +1,11 @@
 import React, { useMemo, useEffect, useState } from "react";
-import { useFetchSubmissions } from "./useFetchSubmissions.js";
+import { useFetchSubmissions } from "./useFetchSubmissions";
 import { useModal } from "./AppShell";
 import { Section } from "./ui";
 import { PerformanceChart } from "./PerformanceChart";
 import { PDFDownloadButton } from "./PDFDownloadButton";
 import { generateSummary } from "./scoring";
-import { monthLabel } from "./constants";
+import { monthLabel, round1 } from "./constants";
 
 export function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
   const { allSubmissions, loading } = useFetchSubmissions();
