@@ -228,11 +228,7 @@ export function AppContent() {
           setAuthState({
             isLoggedIn: true,
             userType: 'employee',
-            currentUser: {
-              name: employeeSubmissions[0].employee.name,
-              phone: employeeSubmissions[0].employee.phone,
-              department: employeeSubmissions[0].employee.department
-            },
+            currentUser: { ...employeeSubmissions[0].employee },
             loginError: ''
           });
           setShowLoginModal(false);
