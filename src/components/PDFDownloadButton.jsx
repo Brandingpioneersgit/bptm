@@ -12,135 +12,121 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
       `;
     }
 
-    // Calculate comprehensive statistics
-    const totalLearningHours = data.reduce((sum, d) => {
-      return sum + ((d.learning || []).reduce((learningSum, l) => learningSum + (l.durationMins || 0), 0) / 60);
-    }, 0);
+    const months = data.map(d => monthLabel(d.monthKey));
+    const kpiScores = data.map(d => d.scores?.kpiScore || 0);
+    const learningHours = data.map(d => (d.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60);
 
-    const avgOverallScore = data.reduce((sum, d) => sum + (d.scores?.overall || 0), 0) / data.length;
-    const avgKpiScore = data.reduce((sum, d) => sum + (d.scores?.kpiScore || 0), 0) / data.length;
-    const avgLearningScore = data.reduce((sum, d) => sum + (d.scores?.learningScore || 0), 0) / data.length;
+    const chartWidth = 300;
+    const chartHeight = 80;
+    const kpiPoints = kpiScores.map((s, i) => {
+      const x = (i / Math.max(kpiScores.length - 1, 1)) * chartWidth;
+      const y = chartHeight - (s / 10) * chartHeight;
+      return `${x},${y}`;
+    }).join(' ');
+    const kpiChart = `<svg viewBox="0 0 ${chartWidth} ${chartHeight}" class="chart"><polyline points="${kpiPoints}" fill="none" stroke="#2563eb" stroke-width="2"/></svg>`;
+
+    const maxHours = Math.max(...learningHours, 1);
+    const barWidth = chartWidth / Math.max(learningHours.length, 1);
+    const learningBars = learningHours.map((h, i) => {
+      const height = (h / maxHours) * chartHeight;
+      const x = i * barWidth + barWidth * 0.1;
+      const y = chartHeight - height;
+      const width = barWidth * 0.8;
+      return `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="#10b981"/>`;
+    }).join('');
+    const learningChart = `<svg viewBox="0 0 ${chartWidth} ${chartHeight}" class="chart">${learningBars}</svg>`;
+
+    const growth = [];
+    const shortcomings = [];
+    if ((yearlySummary?.avgKpi || 0) >= 7) growth.push(`KPI avg ${yearlySummary.avgKpi}`); else shortcomings.push(`KPI avg ${yearlySummary?.avgKpi || 0}`);
+    if ((yearlySummary?.avgLearning || 0) >= 7) growth.push(`Learning avg ${yearlySummary.avgLearning}`); else shortcomings.push(`Learning avg ${yearlySummary?.avgLearning || 0}`);
+    if ((yearlySummary?.avgRelationship || 0) >= 7) growth.push(`Client Rel. avg ${yearlySummary.avgRelationship}`); else shortcomings.push(`Client Rel. avg ${yearlySummary?.avgRelationship || 0}`);
+    if ((yearlySummary?.avgOverall || 0) >= 7) growth.push(`Overall avg ${yearlySummary.avgOverall}`); else shortcomings.push(`Overall avg ${yearlySummary?.avgOverall || 0}`);
+
+    const recommendations = [
+      'Maintain strong client communication.',
+      'Dedicate consistent time to learning.',
+      'Seek feedback to address shortcomings.'
+    ];
+
+    const actionItems = shortcomings.length
+      ? shortcomings.map(s => `Improve ${s.toLowerCase()}`)
+      : ['Continue current momentum and aim higher.'];
 
     return `
-      <!-- Executive Summary -->
       <div class="section">
-        <h3>📊 Executive Summary</h3>
-        <div class="summary-grid">
-          <div class="summary-card">
-            <div class="metric-value">${Math.round(avgOverallScore * 10) / 10}/10</div>
-            <div class="metric-label">Average Overall Score</div>
-          </div>
-          <div class="summary-card">
-            <div class="metric-value">${data.length}</div>
-            <div class="metric-label">Months Reported</div>
-          </div>
-          <div class="summary-card">
-            <div class="metric-value">${Math.round(totalLearningHours * 10) / 10}h</div>
-            <div class="metric-label">Total Learning Hours</div>
-          </div>
-          <div class="summary-card">
-            <div class="metric-value">${Math.round(avgKpiScore * 10) / 10}/10</div>
-            <div class="metric-label">Average KPI Score</div>
-          </div>
-        </div>
+        <h3>🎯 KPI Performance</h3>
+        ${kpiChart}
+        <ul class="client-list">
+          ${data.map(d => `
+            <li>
+              <strong>${monthLabel(d.monthKey)}</strong>
+              <ul>
+                ${(d.clients && d.clients.length > 0) ? d.clients.map(c => {
+                  const status = c.op_clientStatus || '';
+                  const badge = /win|success|complete|good/i.test(status) ? '✅' : '⚠️';
+                  return `<li><span class="badge ${badge === '✅' ? 'win' : 'warn'}">${badge}</span> ${c.op_clientName || 'Unnamed'} - ${status || 'Unknown'}</li>`;
+                }).join('') : '<li>No client activities</li>'}
+              </ul>
+            </li>
+          `).join('')}
+        </ul>
       </div>
 
-      <!-- Performance Trends -->
       <div class="section">
-        <h3>📈 Performance Trends</h3>
-        <table class="performance-table">
-          <tr>
-            <th>Month</th>
-            <th>Overall</th>
-            <th>KPI</th>
-            <th>Learning</th>
-            <th>Client Relations</th>
-            <th>Learning Hours</th>
-            <th>Manager Score</th>
-            <th>Manager Comments</th>
-          </tr>
-          ${data.map(d => {
-            const learningHours = ((d.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60).toFixed(1);
-            return `
-              <tr>
-                <td><strong>${monthLabel(d.monthKey)}</strong></td>
-                <td class="score-cell ${(d.scores?.overall || 0) >= 7 ? 'score-good' : 'score-poor'}">${d.scores?.overall || 'N/A'}/10</td>
-                <td class="score-cell">${d.scores?.kpiScore || 'N/A'}/10</td>
-                <td class="score-cell">${d.scores?.learningScore || 'N/A'}/10</td>
-                <td class="score-cell">${d.scores?.relationshipScore || 'N/A'}/10</td>
-                <td>${learningHours}h</td>
-                <td>${d.manager?.score || 'N/A'}/10</td>
-                <td class="comments-cell">${d.manager?.comments || 'No comments'}</td>
-              </tr>
-            `;
-          }).join('')}
+        <h3>📚 Learning & Development</h3>
+        ${learningChart}
+        <table class="table">
+          <tr><th>Month</th><th>Hours</th></tr>
+          ${data.map((d, i) => `<tr><td>${months[i]}</td><td>${learningHours[i].toFixed(1)}h</td></tr>`).join('')}
         </table>
       </div>
 
-      <!-- Detailed Monthly Breakdown -->
       <div class="section">
-        <h3>📋 Monthly Breakdown</h3>
-        ${data.map(d => `
-          <div class="month-section">
-            <h4>${monthLabel(d.monthKey)} Report</h4>
-            <div class="month-details">
-              <div class="detail-row">
-                <strong>Department:</strong> ${d.employee?.department || 'N/A'}
-              </div>
-              <div class="detail-row">
-                <strong>Role:</strong> ${(d.employee?.role || []).join(', ') || 'N/A'}
-              </div>
-              <div class="detail-row">
-                <strong>Attendance:</strong> WFO: ${d.meta?.attendance?.wfo || 0} days, WFH: ${d.meta?.attendance?.wfh || 0} days
-              </div>
-              <div class="detail-row">
-                <strong>Tasks Completed:</strong> ${d.meta?.tasks?.count || 0}
-              </div>
-              
-              <!-- Clients -->
-              ${(d.clients && d.clients.length > 0) ? `
-                <div class="detail-section">
-                  <strong>Client Work:</strong>
-                  <ul>
-                    ${d.clients.map(c => `
-                      <li>${c.op_clientName || 'Unnamed Client'} - ${c.op_clientStatus || 'Unknown Status'}</li>
-                    `).join('')}
-                  </ul>
-                </div>
-              ` : ''}
-              
-              <!-- Learning -->
-              ${(d.learning && d.learning.length > 0) ? `
-                <div class="detail-section">
-                  <strong>Learning Activities:</strong>
-                  <ul>
-                    ${d.learning.map(l => `
-                      <li>${l.course || 'Unknown Course'} - ${Math.round((l.durationMins || 0) / 60 * 10) / 10}h</li>
-                    `).join('')}
-                  </ul>
-                </div>
-              ` : ''}
-              
-              <!-- AI Usage -->
-              ${d.aiUsageNotes ? `
-                <div class="detail-section">
-                  <strong>AI Usage:</strong>
-                  <p>${d.aiUsageNotes}</p>
-                </div>
-              ` : ''}
-              
-              <!-- Feedback -->
-              ${(d.feedback && (d.feedback.company || d.feedback.hr || d.feedback.challenges)) ? `
-                <div class="detail-section">
-                  <strong>Employee Feedback:</strong>
-                  ${d.feedback.company ? `<p><em>Company:</em> ${d.feedback.company}</p>` : ''}
-                  ${d.feedback.hr ? `<p><em>HR:</em> ${d.feedback.hr}</p>` : ''}
-                  ${d.feedback.challenges ? `<p><em>Challenges:</em> ${d.feedback.challenges}</p>` : ''}
-                </div>
-              ` : ''}
-            </div>
-          </div>
-        `).join('')}
+        <h3>💬 Feedback</h3>
+        <ul class="feedback-list">
+          ${data.map(d => `
+            <li>
+              <strong>${monthLabel(d.monthKey)}:</strong>
+              Manager - ${d.manager?.comments || 'No comments'}; Employee - ${d.feedback?.company || d.feedback?.hr || d.feedback?.challenges || 'No feedback'}
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+
+      <div class="section">
+        <h3>🛠 Discipline</h3>
+        <table class="table">
+          <tr><th>Month</th><th>WFO</th><th>WFH</th><th>Tasks</th><th>AI Usage</th></tr>
+          ${data.map(d => `<tr>
+            <td>${monthLabel(d.monthKey)}</td>
+            <td>${d.meta?.attendance?.wfo || 0}</td>
+            <td>${d.meta?.attendance?.wfh || 0}</td>
+            <td>${d.meta?.tasks?.count || 0}</td>
+            <td>${d.aiUsageNotes || 'N/A'}</td>
+          </tr>`).join('')}
+        </table>
+      </div>
+
+      <div class="section">
+        <h3>🔍 Summary</h3>
+        <ul class="recommendations">
+          ${recommendations.map(r => `<li>${r}</li>`).join('')}
+        </ul>
+        <table class="summary-table">
+          <tr><th>Growth</th><th>Shortcomings</th></tr>
+          <tr>
+            <td>${growth.join('<br/>') || '—'}</td>
+            <td>${shortcomings.join('<br/>') || '—'}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="section">
+        <h3>✅ Action Items</h3>
+        <ol class="action-list">
+          ${actionItems.map(a => `<li>${a}</li>`).join('')}
+        </ol>
       </div>
     `;
   };
@@ -158,139 +144,112 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
               .page-break { page-break-before: always; }
             }
             
-            body { 
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-              margin: 20px; 
-              line-height: 1.6; 
-              color: #333;
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              margin: 20px;
+              line-height: 1.6;
+              color: #1f2937;
             }
-            
-            .header { 
-              text-align: center; 
-              margin-bottom: 40px; 
+
+            .header {
+              text-align: center;
+              margin-bottom: 40px;
               border-bottom: 3px solid #2563eb;
               padding-bottom: 20px;
             }
-            
-            .header h1 { 
-              color: #2563eb; 
-              margin-bottom: 5px; 
-              font-size: 28px;
+
+            .logo {
+              width: 60px;
+              margin: 0 auto 10px;
             }
-            
-            .header h2 { 
-              color: #1f2937; 
-              margin: 10px 0; 
-              font-size: 24px;
-            }
-            
-            .section { 
-              margin-bottom: 30px; 
-              break-inside: avoid;
-            }
-            
-            .section h3 { 
-              color: #1f2937; 
-              border-left: 4px solid #2563eb; 
-              padding-left: 12px; 
-              margin-bottom: 15px;
-              font-size: 20px;
-            }
-            
-            .summary-grid {
-              display: grid;
-              grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-              gap: 15px;
-              margin: 20px 0;
-            }
-            
-            .summary-card {
-              background: #f8fafc;
-              border: 1px solid #e2e8f0;
-              border-radius: 8px;
-              padding: 20px;
-              text-align: center;
-            }
-            
-            .metric-value {
-              font-size: 32px;
-              font-weight: bold;
+
+            .header h1 {
               color: #2563eb;
+              font-size: 28px;
               margin-bottom: 5px;
             }
-            
-            .metric-label {
-              font-size: 14px;
-              color: #64748b;
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
+
+            .header h2 {
+              color: #1f2937;
+              margin: 6px 0;
+              font-size: 24px;
             }
-            
-            .performance-table { 
-              width: 100%; 
-              border-collapse: collapse; 
-              margin: 15px 0; 
+
+            .section {
+              margin-bottom: 30px;
+              break-inside: avoid;
+            }
+
+            .section h3 {
+              color: #1f2937;
+              border-left: 4px solid #2563eb;
+              padding-left: 12px;
+              margin-bottom: 12px;
+              font-size: 20px;
+            }
+
+            .chart {
+              width: 100%;
+              height: auto;
+              margin: 10px 0;
+            }
+
+            .client-list > li { margin-bottom: 8px; }
+            .client-list ul { margin-left: 16px; }
+
+            .table,
+            .summary-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 10px;
               font-size: 12px;
             }
-            
-            .performance-table th, 
-            .performance-table td { 
-              border: 1px solid #d1d5db; 
-              padding: 8px; 
-              text-align: left; 
+
+            .table th,
+            .table td,
+            .summary-table th,
+            .summary-table td {
+              border: 1px solid #e5e7eb;
+              padding: 6px;
+              text-align: left;
             }
-            
-            .performance-table th { 
-              background-color: #2563eb; 
-              color: white; 
-              font-weight: 600;
+
+            .table th {
+              background-color: #2563eb;
+              color: white;
             }
-            
-            .score-cell {
-              text-align: center;
-              font-weight: 600;
+
+            .summary-table th {
+              background-color: #f3f4f6;
             }
-            
-            .score-good { color: #059669; }
-            .score-poor { color: #dc2626; }
-            
-            .comments-cell {
-              max-width: 200px;
+
+            .badge {
+              padding: 2px 6px;
+              border-radius: 4px;
               font-size: 11px;
-              word-wrap: break-word;
+              display: inline-block;
             }
-            
-            .month-section {
-              margin: 20px 0;
-              padding: 15px;
-              background: #f9fafb;
-              border-radius: 8px;
-              border-left: 4px solid #10b981;
+
+            .badge.win {
+              background: #dcfce7;
+              color: #166534;
             }
-            
-            .month-section h4 {
-              color: #1f2937;
-              margin-bottom: 10px;
+
+            .badge.warn {
+              background: #fef3c7;
+              color: #92400e;
             }
-            
-            .detail-row {
-              margin: 8px 0;
-              padding: 4px 0;
+
+            .feedback-list li {
+              margin-bottom: 6px;
             }
-            
-            .detail-section {
-              margin: 12px 0;
-              padding-left: 15px;
+
+            .recommendations li,
+            .action-list li {
+              margin-left: 16px;
+              margin-bottom: 4px;
             }
-            
-            .detail-section ul {
-              margin: 5px 0;
-            }
-            
-            .detail-section li {
-              margin: 3px 0;
-            }
-            
+
             .footer {
               margin-top: 40px;
               padding-top: 20px;
@@ -303,7 +262,13 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
         </head>
         <body>
           <div class="header">
-            <h1>🏢 Branding Pioneers</h1>
+            <div class="logo">
+              <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <rect width="100" height="100" rx="20" fill="#2563eb" />
+                <text x="50" y="55" font-size="45" fill="white" text-anchor="middle" font-family="sans-serif">BP</text>
+              </svg>
+            </div>
+            <h1>Branding Pioneers</h1>
             <h2>Employee Performance Report</h2>
             <h2>${employeeName}</h2>
             <p>Generated on ${new Date().toLocaleString()}</p>
