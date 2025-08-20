@@ -44,15 +44,18 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
     let totalRelationship = 0;
     let totalOverall = 0;
     let monthsWithLearningShortfall = 0;
+    let totalCreditedMins = 0;
 
     employeeSubmissions.forEach(s => {
       totalKpi += s.scores?.kpiScore || 0;
       totalLearning += s.scores?.learningScore || 0;
       totalRelationship += s.scores?.relationshipScore || 0;
       totalOverall += s.scores?.overall || 0;
-      if ((s.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0) < 360) {
+      const learningMins = (s.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0);
+      if (learningMins < 360) {
         monthsWithLearningShortfall++;
       }
+      totalCreditedMins += s.learningCreditedMins !== undefined ? s.learningCreditedMins : Math.min(learningMins, 360);
     });
 
     const totalMonths = employeeSubmissions.length;
@@ -61,13 +64,18 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
     const avgRelationship = round1(totalRelationship / totalMonths);
     const avgOverall = round1(totalOverall / totalMonths);
 
+    const totalCreditedHours = round1(totalCreditedMins / 60);
+    const appraisalUnlocked = totalCreditedMins >= 4320;
+
     return {
       avgKpi,
       avgLearning,
       avgRelationship,
       avgOverall,
       totalMonths,
-      monthsWithLearningShortfall
+      monthsWithLearningShortfall,
+      totalCreditedHours,
+      appraisalUnlocked
     };
   }, [employeeSubmissions]);
 
@@ -241,7 +249,7 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
 
       {yearlySummary && (
         <Section title="Cumulative Summary & Recommendations">
-          <div className="grid md:grid-cols-4 gap-4 text-center mb-6">
+          <div className="grid md:grid-cols-5 gap-4 text-center mb-6">
             <div className="bg-blue-600 text-white rounded-2xl p-4">
               <div className="text-sm opacity-80">Average Overall</div>
               <div className="text-3xl font-semibold">{yearlySummary.avgOverall}/10</div>
@@ -261,6 +269,18 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
                 <span className="text-xl"> month{yearlySummary.monthsWithLearningShortfall !== 1 ? 's' : ''}</span>
               </div>
             </div>
+            <div className="bg-white border rounded-2xl p-4 shadow-sm">
+              <div className="text-sm opacity-80">Credited Hours</div>
+              <div className="text-3xl font-semibold">{yearlySummary.totalCreditedHours}h</div>
+            </div>
+          </div>
+
+          <div className="text-center mb-4">
+            {yearlySummary.appraisalUnlocked ? (
+              <span className="text-green-600 font-semibold">Appraisal unlocked</span>
+            ) : (
+              <span className="text-gray-600 text-sm">{yearlySummary.totalCreditedHours}/72h credited required for appraisal</span>
+            )}
           </div>
 
           {employeeSubmissions.length > 1 && (

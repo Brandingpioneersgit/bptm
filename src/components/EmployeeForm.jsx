@@ -624,10 +624,12 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
 
   const flags = useMemo(() => {
     const learningMins = (debouncedSubmission.learning || []).reduce((s, e) => s + (e.durationMins || 0), 0);
+    const creditedMins = Math.min(learningMins, 360);
     const missingLearningHours = learningMins < 360;
+    const appraisalDelayed = creditedMins < 300;
     const hasEscalations = (debouncedSubmission.clients || []).some(c => (c.relationship?.escalations || []).length > 0);
     const missingReports = (debouncedSubmission.clients || []).some(c => (c.reports || []).length === 0);
-    return { missingLearningHours, hasEscalations, missingReports };
+    return { missingLearningHours, hasEscalations, missingReports, appraisalDelayed };
   }, [debouncedSubmission]);
 
   useEffect(() => {
@@ -694,6 +696,11 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
       feedback.nextMonthGoals.push('Set up report delivery tracking and deadline reminders');
     }
 
+    if (submission.flags?.appraisalDelayed) {
+      feedback.improvements.push('Credited learning hours below 300 – appraisal delayed');
+      feedback.nextMonthGoals.push('Accumulate at least 300 credited minutes to keep appraisal on track');
+    }
+
     if (feedback.overall >= 8) {
       feedback.summary = 'Exceptional performance this month! You\'re exceeding expectations and making significant contributions to the team.';
     } else if (feedback.overall >= 6) {
@@ -706,7 +713,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   };
 
   const showPerformanceFeedbackModal = (feedback, submission) => {
-    const modalContent = `
+    let modalContent = `
 📊 PERFORMANCE REPORT - ${submission.monthKey.replace('-', ' ').toUpperCase()}
 
 🎯 Overall Score: ${feedback.overall.toFixed(1)}/10
@@ -724,6 +731,10 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
 
 💡 Remember: Consistent improvement leads to long-term success!
     `;
+
+    if (submission.flags?.appraisalDelayed) {
+      modalContent += `\n\n⚠️ Appraisal delayed: credited learning minutes below 300.`;
+    }
 
     openModal(
       'Performance Feedback Report',
@@ -832,16 +843,25 @@ Your progress has been automatically saved, so you won't lose any other informat
       console.error('Failed to create backup:', e);
     }
 
-    const final = { 
-      ...currentSubmission, 
-      isDraft: false, 
-      submittedAt: new Date().toISOString(), 
-      employee: { 
-        ...currentSubmission.employee, 
-        name: (currentSubmission.employee?.name || "").trim(), 
-        phone: currentSubmission.employee.phone 
+    const learningTotalMins = (currentSubmission.learning || []).reduce((s, e) => s + (e.durationMins || 0), 0);
+    const learningCreditedMins = Math.min(learningTotalMins, 360);
+
+    const final = {
+      ...currentSubmission,
+      isDraft: false,
+      submittedAt: new Date().toISOString(),
+      learningTotalMins,
+      learningCreditedMins,
+      employee: {
+        ...currentSubmission.employee,
+        name: (currentSubmission.employee?.name || "").trim(),
+        phone: currentSubmission.employee.phone
       }
     };
+
+    if (learningCreditedMins < 300) {
+      final.appraisalMessage = 'Appraisal delayed due to insufficient credited learning hours';
+    }
 
     delete final.id;
 

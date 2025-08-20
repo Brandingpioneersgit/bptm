@@ -28,10 +28,19 @@ export function EmployeePersonalDashboard({ employee, onBack }) {
     const avgLearningScore = employeeSubmissions.reduce((sum, s) => sum + (s.scores?.learningScore || 0), 0) / employeeSubmissions.length;
     const avgRelationshipScore = employeeSubmissions.reduce((sum, s) => sum + (s.scores?.relationshipScore || 0), 0) / employeeSubmissions.length;
     
-    const totalLearningHours = employeeSubmissions.reduce((sum, s) => {
+    const totalLearningMins = employeeSubmissions.reduce((sum, s) => {
       return sum + (s.learning || []).reduce((learningSum, l) => learningSum + (l.durationMins || 0), 0);
-    }, 0) / 60;
-    
+    }, 0);
+    const totalLearningHours = totalLearningMins / 60;
+    const totalCreditedMins = employeeSubmissions.reduce((sum, s) => {
+      const credited = s.learningCreditedMins !== undefined
+        ? s.learningCreditedMins
+        : Math.min((s.learning || []).reduce((ls, l) => ls + (l.durationMins || 0), 0), 360);
+      return sum + credited;
+    }, 0);
+    const totalCreditedHours = totalCreditedMins / 60;
+    const appraisalUnlocked = totalCreditedMins >= 4320;
+
     return {
       avgOverallScore: avgOverallScore.toFixed(1),
       avgKpiScore: avgKpiScore.toFixed(1),
@@ -39,7 +48,9 @@ export function EmployeePersonalDashboard({ employee, onBack }) {
       avgRelationshipScore: avgRelationshipScore.toFixed(1),
       totalSubmissions: employeeSubmissions.length,
       totalLearningHours: totalLearningHours.toFixed(1),
-      improvementTrend: employeeSubmissions.length >= 2 ? 
+      totalCreditedHours: totalCreditedHours.toFixed(1),
+      appraisalUnlocked,
+      improvementTrend: employeeSubmissions.length >= 2 ?
         ((employeeSubmissions[0].scores?.overall || 0) - (employeeSubmissions[1].scores?.overall || 0)).toFixed(1) : '0'
     };
   }, [employeeSubmissions]);
@@ -134,7 +145,7 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
       )}
 
       {overallStats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
           <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6 text-center">
             <div className="text-2xl sm:text-3xl font-bold text-blue-600">{overallStats.avgOverallScore}</div>
             <div className="text-xs sm:text-sm text-gray-600 mt-1">Average Score</div>
@@ -148,14 +159,28 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
             <div className="text-xs sm:text-sm text-gray-600 mt-1">Learning Hours</div>
           </div>
           <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6 text-center">
-            <div className={`text-2xl sm:text-3xl font-bold ${ 
-              parseFloat(overallStats.improvementTrend) > 0 ? 'text-green-600' : 
+            <div className="text-2xl sm:text-3xl font-bold text-indigo-600">{overallStats.totalCreditedHours}</div>
+            <div className="text-xs sm:text-sm text-gray-600 mt-1">Credited Hours</div>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6 text-center">
+            <div className={`text-2xl sm:text-3xl font-bold ${
+              parseFloat(overallStats.improvementTrend) > 0 ? 'text-green-600' :
               parseFloat(overallStats.improvementTrend) < 0 ? 'text-red-600' : 'text-gray-600'
             }`}>
               {parseFloat(overallStats.improvementTrend) > 0 ? '+' : ''}{overallStats.improvementTrend}
             </div>
             <div className="text-xs sm:text-sm text-gray-600 mt-1">Trend</div>
           </div>
+        </div>
+      )}
+
+      {overallStats && (
+        <div className="text-center text-xs sm:text-sm mt-2 sm:mt-3">
+          {overallStats.appraisalUnlocked ? (
+            <span className="text-green-600 font-medium">Appraisal unlocked</span>
+          ) : (
+            <span className="text-gray-600">{overallStats.totalCreditedHours}/72h credited required for appraisal</span>
+          )}
         </div>
       )}
 
