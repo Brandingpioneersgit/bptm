@@ -1,16 +1,27 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useFetchSubmissions } from "./useFetchSubmissions.js";
 import { useModal } from "./AppShell";
 import { thisMonthKey, monthLabel } from "./constants";
 import { ClientReportsView } from "./ClientReportsView";
+import { EmployeeProfileModal } from "./EmployeeProfileModal";
+import { useSupabase } from "./SupabaseProvider";
 
 export function EmployeePersonalDashboard({ employee, onBack }) {
+  const supabase = useSupabase();
   const { allSubmissions, loading } = useFetchSubmissions();
   const { openModal, closeModal } = useModal();
 
+  const [profile, setProfile] = useState(() => {
+    const stored = localStorage.getItem(`employee-profile-${employee.phone}`);
+    return stored ? JSON.parse(stored) : {};
+    });
+  const mergedEmployee = { ...employee, ...profile };
+  const missingFields = ["photoUrl", "joiningDate", "dob", "education", "certifications", "skills"].filter(f => !mergedEmployee[f]);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+
   const employeeSubmissions = useMemo(() => {
-    return allSubmissions.filter(s => 
-      s.employee?.name === employee.name && 
+    return allSubmissions.filter(s =>
+      s.employee?.name === employee.name &&
       s.employee?.phone === employee.phone
     ).sort((a, b) => b.monthKey.localeCompare(a.monthKey));
   }, [allSubmissions, employee]);
@@ -43,6 +54,23 @@ export function EmployeePersonalDashboard({ employee, onBack }) {
         ((employeeSubmissions[0].scores?.overall || 0) - (employeeSubmissions[1].scores?.overall || 0)).toFixed(1) : '0'
     };
   }, [employeeSubmissions]);
+
+  const handleSaveProfile = async (data) => {
+    const updated = { ...mergedEmployee, ...data };
+    setProfile(updated);
+    localStorage.setItem(`employee-profile-${employee.phone}`, JSON.stringify(updated));
+    if (supabase) {
+      try {
+        await Promise.all(
+          employeeSubmissions.map(s =>
+            supabase.from('submissions').update({ employee: { ...s.employee, ...data } }).eq('id', s.id)
+          )
+        );
+      } catch (e) {
+        console.error('Failed to update profile in submissions', e);
+      }
+    }
+  };
 
   const generateAndDownloadPDF = (submission, employeeName) => {
     const pdfContent = `
@@ -94,17 +122,18 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
   }
 
   return (
+    <>
     <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
       <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-lg sm:text-2xl font-bold flex-shrink-0">
-              {employee.name.charAt(0).toUpperCase()}
+              {mergedEmployee.name.charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{employee.name}</h1>
-              <p className="text-sm sm:text-base text-gray-600">{employee.department} Department</p>
-              <p className="text-xs sm:text-sm text-gray-500">Phone: {employee.phone}</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{mergedEmployee.name}</h1>
+              <p className="text-sm sm:text-base text-gray-600">{mergedEmployee.department} Department</p>
+              <p className="text-xs sm:text-sm text-gray-500">Phone: {mergedEmployee.phone}</p>
             </div>
           </div>
           <button
@@ -116,6 +145,21 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
           </button>
         </div>
       </div>
+
+      {missingFields.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-yellow-500 rounded-full flex items-center justify-center text-white font-bold text-sm sm:text-base flex-shrink-0">
+              !
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-yellow-800 text-sm sm:text-base">Complete Your Profile</h3>
+              <p className="text-xs sm:text-sm text-yellow-700 leading-relaxed">Add missing details to keep your profile up to date.</p>
+              <button onClick={() => setProfileModalOpen(true)} className="mt-2 text-xs sm:text-sm text-yellow-800 underline">Edit profile</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {currentMonthSubmission && (
         <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-xl p-4 sm:p-6">
@@ -234,7 +278,7 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
         </div>
       )}
 
-      <ClientReportsView employee={employee} employeeSubmissions={employeeSubmissions} />
+      <ClientReportsView employee={mergedEmployee} employeeSubmissions={employeeSubmissions} />
 
       <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
         <h3 className="text-base sm:text-lg font-semibold mb-4">Submission History & Reports</h3>
@@ -270,7 +314,7 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
                 {!submission.isDraft && (
                   <div className="flex flex-col sm:flex-row gap-2">
                     <button
-                      onClick={() => generateAndDownloadPDF(submission, employee.name)}
+                      onClick={() => generateAndDownloadPDF(submission, mergedEmployee.name)}
                       className="flex-1 px-3 py-2 text-xs sm:text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors touch-manipulation"
                     >
                       📊 Download Report
@@ -288,6 +332,13 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
           </div>
         )}
       </div>
-    </div>
-  );
-}
+      </div>
+      <EmployeeProfileModal
+        isOpen={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+        initialProfile={mergedEmployee}
+        onSave={handleSaveProfile}
+      />
+      </>
+    );
+  }
