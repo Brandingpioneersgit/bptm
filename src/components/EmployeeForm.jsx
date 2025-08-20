@@ -209,6 +209,12 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     }
   }, [currentSubmission, currentStep, getAutoSaveKey]);
 
+  // Keep a ref to the latest autoSave function for stable callbacks
+  const autoSaveRef = useRef(autoSave);
+  useEffect(() => {
+    autoSaveRef.current = autoSave;
+  }, [autoSave]);
+
   const loadDraft = useCallback(() => {
     try {
       const autoSaveKey = getAutoSaveKey();
@@ -308,18 +314,14 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
       console.log(`📋 Form state after ${key} update:`, updated.employee);
       return updated;
     });
-    
+
     setHasUnsavedChanges(true);
-    
-    // Force immediate auto-save for critical fields to prevent data loss
-    const criticalFields = ['employee.name', 'employee.phone', 'employee.department', 'employee.role', 'monthKey'];
-    if (criticalFields.includes(key)) {
-      console.log(`🚨 Critical field ${key} updated - forcing immediate auto-save`);
-      setTimeout(() => {
-        autoSave();
-      }, 100); // Small delay to ensure state update is processed
-    }
-  }, [autoSave]);
+
+    // Immediately persist every field change to prevent data loss
+    setTimeout(() => {
+      autoSaveRef.current();
+    }, 100); // Small delay to ensure state update is processed
+  }, []);
 
   // Wrapper for setModel that tracks unsaved changes
   const setModelWithTracking = useCallback((updaterOrValue) => {
@@ -333,6 +335,11 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
       setCurrentSubmission(updaterOrValue);
       setHasUnsavedChanges(true);
     }
+
+    // Ensure complex updates are also saved immediately
+    setTimeout(() => {
+      autoSaveRef.current();
+    }, 100);
   }, []);
 
   // Create stable onChange handlers to prevent re-renders
@@ -520,24 +527,37 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   
   useEffect(() => {
     const autoSaveKey = getAutoSaveKey();
-    
-    // Prevent loading the same draft multiple times
+
+    // Only prompt when we have identifiable user info
+    const hasIdentity = currentSubmission.employee?.name && currentSubmission.employee?.phone;
+    if (!hasIdentity) return;
+
+    // Avoid prompting multiple times for same draft
     if (loadedDraftRef.current.has(autoSaveKey)) {
       return;
     }
-    
-    // Only load draft if we have a meaningful key and haven't loaded already
+
     if (autoSaveKey && autoSaveKey !== 'autosave-anonymous-new-undefined') {
-      const hasDraft = loadDraft();
-      if (hasDraft) {
-        console.log('📄 Loaded draft for key:', autoSaveKey);
-        loadedDraftRef.current.add(autoSaveKey);
-        setHasUnsavedChanges(false); // Draft is considered saved
-        
-        console.log('✨ Draft automatically restored');
+      const saved = localStorage.getItem(autoSaveKey);
+      if (saved) {
+        const draft = JSON.parse(saved);
+        openModal(
+          'Resume saved draft?',
+          `A saved draft was found for ${draft.employee?.name || 'this user'} (last saved ${draft.lastSaved ? new Date(draft.lastSaved).toLocaleString() : 'previously'}).\nClick OK to resume or Cancel to start fresh.`,
+          () => {
+            loadDraft();
+            closeModal();
+            loadedDraftRef.current.add(autoSaveKey);
+          },
+          () => {
+            clearDraft();
+            closeModal();
+            loadedDraftRef.current.add(autoSaveKey);
+          }
+        );
       }
     }
-  }, [getAutoSaveKey, loadDraft]);
+  }, [getAutoSaveKey, currentSubmission.employee?.name, currentSubmission.employee?.phone, currentSubmission.monthKey, loadDraft, clearDraft, openModal, closeModal]);
   
   // Auto-save on any form change to prevent data loss - removed autoSave from deps to prevent infinite loops
   useEffect(() => {
