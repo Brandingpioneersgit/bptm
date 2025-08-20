@@ -111,6 +111,7 @@ export class ClientRepository {
         contact_email: client.contact_email || "",
         contact_phone: client.contact_phone || "",
         scope_notes: client.scope_notes || "",
+        logo_url: client.logo_url || "",
         // Extract services from client data
         services: this.extractServicesFromClient(client, submission.employee?.department)
       };
@@ -201,22 +202,27 @@ export class ClientRepository {
   }
 
   // Update client services
-  async updateClientServices(clientId, services) {
+  async updateClientServices(clientId, services, logo_url = undefined) {
     if (!this.supabase) return null;
-    
+
     try {
+      const updateData = {
+        services,
+        updated_at: new Date().toISOString()
+      };
+      if (typeof logo_url !== 'undefined') {
+        updateData.logo_url = logo_url;
+      }
+
       const { data, error } = await this.supabase
         .from('clients')
-        .update({
-          services,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', clientId)
         .select()
         .single();
-      
+
       if (error) throw error;
-      
+
       // Update cache
       this.cache.set(data.name.toLowerCase().trim(), data);
       return data;

@@ -179,41 +179,50 @@ export function ClientDashboardView() {
         {filteredClients.map((client) => (
           <div key={client.id} className="bg-white rounded-xl shadow-sm border p-6 hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">{client.name}</h3>
-                <div className="flex items-center gap-2">
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                    client.client_type === 'Enterprise' 
-                      ? 'bg-purple-100 text-purple-800'
-                      : client.client_type === 'Premium'
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {client.client_type}
-                  </span>
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                    client.team === 'Web' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'
-                  }`}>
-                    {client.team}
-                  </span>
-                </div>
-                
-                {client.services && client.services.length > 0 && (
-                  <div className="mt-2">
-                    <div className="flex flex-wrap gap-1">
-                      {client.services.map((service, idx) => (
-                        <span
-                          key={idx}
-                          className="inline-flex px-1.5 py-0.5 text-xs font-medium rounded bg-indigo-50 text-indigo-700"
-                        >
-                          {service}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+              <div className="flex items-start gap-3 flex-1">
+                {client.logo_url && (
+                  <img
+                    src={client.logo_url}
+                    alt={`${client.name} logo`}
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
                 )}
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">{client.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      client.client_type === 'Enterprise'
+                        ? 'bg-purple-100 text-purple-800'
+                        : client.client_type === 'Premium'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {client.client_type}
+                    </span>
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      client.team === 'Web' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'
+                    }`}>
+                      {client.team}
+                    </span>
+                  </div>
+
+                  {client.services && client.services.length > 0 && (
+                    <div className="mt-2">
+                      <div className="flex flex-wrap gap-1">
+                        {client.services.map((service, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex px-1.5 py-0.5 text-xs font-medium rounded bg-indigo-50 text-indigo-700"
+                          >
+                            {service}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-              
+
               <button
                 onClick={(e) => {
                   e.stopPropagation();

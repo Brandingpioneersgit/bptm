@@ -103,7 +103,10 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
                   <strong>Client Work:</strong>
                   <ul>
                     ${d.clients.map(c => `
-                      <li>${c.op_clientName || 'Unnamed Client'} - ${c.op_clientStatus || 'Unknown Status'}</li>
+                      <li>
+                        ${c.logo_url ? `<img src="${c.logo_url}" alt="${c.name || c.op_clientName || ''}" style="width:16px;height:16px;object-fit:cover;border-radius:3px;margin-right:4px;vertical-align:middle;" />` : ''}
+                        ${c.name || c.op_clientName || 'Unnamed Client'} - ${c.op_clientStatus || 'Unknown Status'}
+                      </li>
                     `).join('')}
                   </ul>
                 </div>

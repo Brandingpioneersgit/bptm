@@ -708,7 +708,8 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
     team: 'Web',
     scope_of_work: '',
     services: [],
-    service_scopes: {}
+    service_scopes: {},
+    logo_url: ''
   });
   const isOpsHead = currentSubmission.employee.department === "Operations Head";
   const isWebHead = currentSubmission.employee.department === "Web Head";
@@ -790,48 +791,59 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
 
   const currentTeam = currentSubmission.employee.department === "Social Media" ? "Marketing" : "Web";
   
-  const clientNames = useMemo(() => {
-    const names = new Set();
-    
+  const clientOptions = useMemo(() => {
+    const map = new Map();
+
     masterClients
       .filter(client => client.team === currentTeam)
-      .forEach(client => names.add(client.name));
-    
-    prevClients.forEach(client => names.add(client.name));
-    
-    return [...names].sort();
+      .forEach(client => map.set(client.name, { name: client.name, logo_url: client.logo_url }));
+
+    prevClients.forEach(client => {
+      if (!map.has(client.name)) {
+        map.set(client.name, { name: client.name, logo_url: client.logo_url });
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [masterClients, prevClients, currentTeam]);
 
   const addClientFromDropdown = (clientName) => {
     const prevClient = prevClients.find(c => c.name === clientName);
     if (prevClient) {
-      const newClient = { ...prevClient, id: uid(), reports: [] };
+      const newClient = {
+        ...prevClient,
+        id: uid(),
+        reports: [],
+        logo_url: prevClient.logo_url || ""
+      };
       setModel(m => ({ ...m, clients: [...m.clients, newClient] }));
       return;
     }
-    
+
     const masterClient = masterClients.find(c => c.name === clientName);
-    const newClient = masterClient 
-      ? { 
-          id: uid(), 
-          name: masterClient.name, 
-          reports: [], 
+    const newClient = masterClient
+      ? {
+          id: uid(),
+          name: masterClient.name,
+          reports: [],
           relationship: {},
           client_type: masterClient.client_type,
           team: masterClient.team,
           scope_of_work: masterClient.scope_of_work,
           services: masterClient.services || [],
-          service_scopes: masterClient.service_scopes || {}
+          service_scopes: masterClient.service_scopes || {},
+          logo_url: masterClient.logo_url || ""
         }
-      : { 
-          id: uid(), 
-          name: clientName, 
-          reports: [], 
+      : {
+          id: uid(),
+          name: clientName,
+          reports: [],
           relationship: {},
           services: [],
-          service_scopes: {}
+          service_scopes: {},
+          logo_url: ''
         };
-    
+
     setModel(m => ({ ...m, clients: [...m.clients, newClient] }));
   };
 
@@ -866,14 +878,15 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
     try {
       const { data: newClient, error } = await supabase
         .from('clients')
-        .insert([{
+        .insert([{ 
           name: newClientForm.name.trim(),
           client_type: newClientForm.client_type,
           team: newClientForm.team,
           scope_of_work: newClientForm.scope_of_work,
           services: newClientForm.services,
           service_scopes: newClientForm.service_scopes,
-          status: 'Active'
+          status: 'Active',
+          logo_url: newClientForm.logo_url || ''
         }])
         .select()
         .single();
@@ -889,7 +902,8 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
         team: newClient.team,
         scope_of_work: newClient.scope_of_work,
         services: newClient.services,
-        service_scopes: newClient.service_scopes
+        service_scopes: newClient.service_scopes,
+        logo_url: newClient.logo_url || ''
       };
 
       setModel(m => ({ ...m, clients: [...m.clients, formClient] }));
@@ -902,7 +916,8 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
         team: currentTeam,
         scope_of_work: '',
         services: [],
-        service_scopes: {}
+        service_scopes: {},
+        logo_url: ''
       });
       setShowNewClientForm(false);
 
@@ -923,8 +938,14 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
           value=""
         >
           <option value="" disabled>Select from agency clients ({currentTeam} team)...</option>
-          {clientNames.map(name => (
-            <option key={name} value={name}>{name}</option>
+          {clientOptions.map(opt => (
+            <option
+              key={opt.name}
+              value={opt.name}
+              style={opt.logo_url ? { backgroundImage: `url(${opt.logo_url})`, backgroundRepeat: 'no-repeat', backgroundSize: '16px 16px', paddingLeft: '24px' } : {}}
+            >
+              {opt.name}
+            </option>
           ))}
         </select>
         <button
@@ -951,7 +972,14 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
           <tbody>
             {currentSubmission.clients.map(c => (
               <tr key={c.id} className="odd:bg-white even:bg-blue-50/40">
-                <td className="p-2 border font-medium">{c.name}</td>
+                <td className="p-2 border font-medium">
+                  <div className="flex items-center gap-2">
+                    {c.logo_url && (
+                      <img src={c.logo_url} alt="" className="w-5 h-5 rounded-full object-cover" />
+                    )}
+                    {c.name}
+                  </div>
+                </td>
                 <td className="p-2 border" colSpan={2}>
                   <TinyLinks
                     items={(c.reports || [])}
@@ -1164,3 +1192,4 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
     </div>
   );
 }
+

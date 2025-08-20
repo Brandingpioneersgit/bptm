@@ -29,6 +29,40 @@ export function ClientManagementView() {
     employees: []
   });
 
+  const uploadLogo = async (file) => {
+    if (!supabase || !file) return null;
+    try {
+      const fileName = `${Date.now()}-${file.name}`;
+      const { error } = await supabase.storage
+        .from('client-logos')
+        .upload(fileName, file);
+      if (error) throw error;
+      const { data } = supabase.storage
+        .from('client-logos')
+        .getPublicUrl(fileName);
+      return data?.publicUrl || null;
+    } catch (err) {
+      console.error('Error uploading logo:', err);
+      return null;
+    }
+  };
+
+  const handleNewClientLogo = async (e) => {
+    const file = e.target.files?.[0];
+    const url = await uploadLogo(file);
+    if (url) {
+      setNewClient(prev => ({ ...prev, logo_url: url }));
+    }
+  };
+
+  const handleEditClientLogo = async (e) => {
+    const file = e.target.files?.[0];
+    const url = await uploadLogo(file);
+    if (url) {
+      setSelectedClientForServices(prev => ({ ...prev, logo_url: url }));
+    }
+  };
+
   const fetchClients = async () => {
     if (!supabase) return;
     
@@ -113,7 +147,11 @@ export function ClientManagementView() {
         ""
       ));
       
-      await clientRepository.updateClientServices(selectedClientForServices.id, services);
+      await clientRepository.updateClientServices(
+        selectedClientForServices.id,
+        services,
+        selectedClientForServices.logo_url
+      );
       
       setShowServicesModal(false);
       setSelectedClientForServices(null);
@@ -465,25 +503,42 @@ export function ClientManagementView() {
                     <option value="Premium">Premium</option>
                     <option value="Enterprise">Enterprise</option>
                   </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Team *</label>
-                  <select
-                    value={newClient.team}
-                    onChange={(e) => setNewClient(prev => ({ ...prev, team: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="Web">Web Team</option>
-                    <option value="Marketing">Marketing Team</option>
-                  </select>
-                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Scope of Work</label>
-                <textarea
-                  rows={4}
+                <label className="block text-sm font-medium text-gray-700 mb-2">Team *</label>
+                <select
+                  value={newClient.team}
+                  onChange={(e) => setNewClient(prev => ({ ...prev, team: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="Web">Web Team</option>
+                  <option value="Marketing">Marketing Team</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Client Logo</label>
+              {newClient.logo_url && (
+                <img
+                  src={newClient.logo_url}
+                  alt="Logo preview"
+                  className="h-16 w-16 object-cover rounded mb-2"
+                />
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleNewClientLogo}
+                className="w-full text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Scope of Work</label>
+              <textarea
+                rows={4}
                   value={newClient.scope_notes}
                   onChange={(e) => setNewClient(prev => ({ ...prev, scope_notes: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -633,6 +688,23 @@ export function ClientManagementView() {
             </div>
 
             <div className="px-6 py-4 space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">Client Logo</label>
+                {selectedClientForServices.logo_url && (
+                  <img
+                    src={selectedClientForServices.logo_url}
+                    alt={selectedClientForServices.name}
+                    className="h-16 w-16 object-cover rounded mb-2"
+                  />
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleEditClientLogo}
+                  className="w-full text-sm"
+                />
+              </div>
+
               {/* Services Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">Select Services</label>

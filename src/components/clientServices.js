@@ -58,6 +58,7 @@ export const EMPTY_CLIENT = {
   contact_phone: "",
   start_date: "",
   scope_notes: "",
+  logo_url: "",
   created_at: "",
   updated_at: ""
 };
