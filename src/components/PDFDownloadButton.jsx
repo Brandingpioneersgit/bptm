@@ -130,12 +130,12 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
               ` : ''}
               
               <!-- Feedback -->
-              ${(d.feedback && (d.feedback.company || d.feedback.hr || d.feedback.challenges)) ? `
+              ${(d.feedback && (d.feedback.team || d.feedback.manager || d.feedback.hr)) ? `
                 <div class="detail-section">
                   <strong>Employee Feedback:</strong>
-                  ${d.feedback.company ? `<p><em>Company:</em> ${d.feedback.company}</p>` : ''}
+                  ${d.feedback.team ? `<p><em>Team:</em> ${d.feedback.team}</p>` : ''}
+                  ${d.feedback.manager ? `<p><em>Manager:</em> ${d.feedback.manager}</p>` : ''}
                   ${d.feedback.hr ? `<p><em>HR:</em> ${d.feedback.hr}</p>` : ''}
-                  ${d.feedback.challenges ? `<p><em>Challenges:</em> ${d.feedback.challenges}</p>` : ''}
                 </div>
               ` : ''}
             </div>

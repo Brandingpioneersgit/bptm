@@ -341,8 +341,9 @@ export function NewReportDashboard({ employeeName, employeePhone, onBack }) {
                 ${submission.feedback ? `
                 <div>
                     <strong>Feedback:</strong>
-                    ${submission.feedback.company ? `<p><em>Company:</em> ${submission.feedback.company}</p>` : ''}
-                    ${submission.feedback.challenges ? `<p><em>Challenges:</em> ${submission.feedback.challenges}</p>` : ''}
+                    ${submission.feedback.team ? `<p><em>Team:</em> ${submission.feedback.team}</p>` : ''}
+                    ${submission.feedback.manager ? `<p><em>Manager:</em> ${submission.feedback.manager}</p>` : ''}
+                    ${submission.feedback.hr ? `<p><em>HR:</em> ${submission.feedback.hr}</p>` : ''}
                 </div>
                 ` : ''}
             </div>

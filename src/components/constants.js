@@ -74,7 +74,7 @@ export const EMPTY_SUBMISSION = {
   clients: [],
   learning: [],
   aiUsageNotes: "",
-  feedback: { company: "", hr: "", challenges: "" },
+  feedback: { team: "", manager: "", hr: "" },
   flags: { missingLearningHours: false, hasEscalations: false, missingReports: false },
   manager: { verified: false, comments: "", score: 0, hiddenDataFlag: false },
   scores: { kpiScore: 0, learningScore: 0, relationshipScore: 0, overall: 0 },

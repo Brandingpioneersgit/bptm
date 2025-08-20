@@ -30,7 +30,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     { id: 2, title: "Attendance & Tasks", icon: "📅", description: "Work attendance and task completion" },
     { id: 3, title: "KPI & Clients", icon: "📊", description: "Department metrics, client work and achievements" },
     { id: 4, title: "Learning & AI", icon: "🎓", description: "Learning activities and AI usage" },
-    { id: 5, title: "Feedback & Review", icon: "💬", description: "Company feedback and final review" },
+    { id: 5, title: "Feedback & Review", icon: "💬", description: "Team, manager, and HR feedback" },
   ];
 
   const getAutoSaveKey = useCallback(() => {
@@ -364,9 +364,9 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   const handleTasksChange = useCallback((value) => updateCurrentSubmission('meta.tasks.count', value), [updateCurrentSubmission]);
   const handleAITableLinkChange = useCallback((value) => updateCurrentSubmission('meta.tasks.aiTableLink', value), [updateCurrentSubmission]);
   const handleAITableScreenshotChange = useCallback((value) => updateCurrentSubmission('meta.tasks.aiTableScreenshot', value), [updateCurrentSubmission]);
-  const handleCompanyFeedbackChange = useCallback((value) => updateCurrentSubmission('feedback.company', value), [updateCurrentSubmission]);
+  const handleTeamFeedbackChange = useCallback((value) => updateCurrentSubmission('feedback.team', value), [updateCurrentSubmission]);
+  const handleManagerFeedbackChange = useCallback((value) => updateCurrentSubmission('feedback.manager', value), [updateCurrentSubmission]);
   const handleHRFeedbackChange = useCallback((value) => updateCurrentSubmission('feedback.hr', value), [updateCurrentSubmission]);
-  const handleChallengesChange = useCallback((value) => updateCurrentSubmission('feedback.challenges', value), [updateCurrentSubmission]);
   const handleAIUsageChange = useCallback((value) => updateCurrentSubmission('aiUsageNotes', value), [updateCurrentSubmission]);
 
   // Use refs to avoid dependency issues in autosave
@@ -1601,26 +1601,26 @@ Your progress has been automatically saved, so you won't lose any other informat
             Share your honest feedback to help improve the work environment.
           </p>
           <div className="space-y-4">
-            <TextArea 
-              label="General feedback about the company" 
-              placeholder="What's working well? What could be improved?"
+            <TextArea
+              label="Feedback for your team"
+              placeholder="How is your team working together? Any suggestions?"
               rows={3}
-              value={currentSubmission.feedback.company}
-              onChange={handleCompanyFeedbackChange}
+              value={currentSubmission.feedback.team}
+              onChange={handleTeamFeedbackChange}
             />
-            <TextArea 
-              label="Feedback regarding HR and policies" 
-              placeholder="Any thoughts on HR processes, communication, or company policies?"
+            <TextArea
+              label="Feedback for your manager"
+              placeholder="Any feedback for your manager's leadership or support?"
+              rows={3}
+              value={currentSubmission.feedback.manager}
+              onChange={handleManagerFeedbackChange}
+            />
+            <TextArea
+              label="Feedback for HR"
+              placeholder="Thoughts on HR processes, communication, or company policies?"
               rows={3}
               value={currentSubmission.feedback.hr}
               onChange={handleHRFeedbackChange}
-            />
-            <TextArea 
-              label="Challenges you are facing" 
-              placeholder="Are there any obstacles or challenges hindering your work or growth?"
-              rows={3}
-              value={currentSubmission.feedback.challenges}
-              onChange={handleChallengesChange}
             />
           </div>
         </div>
