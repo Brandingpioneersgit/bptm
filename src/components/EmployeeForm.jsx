@@ -112,7 +112,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     setCurrentSubmission(prev => ({
       ...EMPTY_SUBMISSION,
       employee: { ...prev.employee, name: selectedEmployee.name, phone: selectedEmployee.phone, department: prevSub?.employee?.department || "Web", role: prevSub?.employee?.role || [] },
-      monthKey: thisMonthKey(),
+      monthKey: prevMonthKey(thisMonthKey()), // Default to previous month for reporting
     }));
   }, [selectedEmployee, allSubmissions]);
 
@@ -178,6 +178,33 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     setHasUnsavedChanges(true);
   }, []);
 
+  // Validation for step progression
+  const canProgressToStep = useCallback((stepNumber) => {
+    if (stepNumber <= 1) return true;
+    
+    const { ok, errors } = validateSubmission(currentSubmission);
+    
+    // Step 1 requirements (Profile & Month)
+    if (stepNumber > 1) {
+      if (!currentSubmission.employee?.name?.trim() || 
+          !currentSubmission.employee?.phone?.trim() ||
+          !currentSubmission.employee?.department ||
+          !currentSubmission.employee?.role?.length ||
+          !currentSubmission.monthKey) {
+        return false;
+      }
+    }
+    
+    // Step 2 requirements (Attendance & Tasks) 
+    if (stepNumber > 2) {
+      const wfo = Number(currentSubmission.meta?.attendance?.wfo || 0);
+      const wfh = Number(currentSubmission.meta?.attendance?.wfh || 0);
+      if (wfo + wfh === 0) return false;
+    }
+    
+    return true;
+  }, [currentSubmission]);
+
   useEffect(() => {
     if (hasUnsavedChanges && selectedEmployee) {
       const timer = setTimeout(autoSave, 30000);
@@ -200,7 +227,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
             setCurrentSubmission(prev => ({
               ...EMPTY_SUBMISSION,
               employee: { ...prev.employee, name: selectedEmployee.name, phone: selectedEmployee.phone, department: previousSubmission?.employee?.department || "Web", role: previousSubmission?.employee?.role || [] },
-              monthKey: thisMonthKey(),
+              monthKey: prevMonthKey(thisMonthKey()),
             }));
             setCurrentStep(1);
             closeModal();
@@ -398,8 +425,14 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
   };
 
   const nextStep = () => {
-    if (currentStep < FORM_STEPS.length) {
-      goToStep(currentStep + 1);
+    const nextStepNumber = currentStep + 1;
+    if (nextStepNumber <= FORM_STEPS.length && canProgressToStep(nextStepNumber)) {
+      goToStep(nextStepNumber);
+    } else if (nextStepNumber <= FORM_STEPS.length) {
+      // Show validation error
+      const { errors } = validateSubmission(currentSubmission);
+      const errorMessage = errors.slice(0, 3).join('\n'); // Show first 3 errors
+      openModal('Complete Required Fields', errorMessage, closeModal);
     }
   };
 
@@ -428,7 +461,14 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
           {FORM_STEPS.map((step, index) => (
             <div key={step.id} className="flex flex-col items-center relative z-10">
               <button
-                onClick={() => goToStep(step.id)}
+                onClick={() => {
+                  if (canProgressToStep(step.id)) {
+                    goToStep(step.id);
+                  } else {
+                    const { errors } = validateSubmission(currentSubmission);
+                    openModal('Complete Previous Steps', errors.slice(0, 3).join('\n'), closeModal);
+                  }
+                }}
                 className={`w-12 h-12 rounded-full border-2 flex items-center justify-center text-lg font-semibold transition-all duration-200 ${ currentStep === step.id
                     ? 'bg-blue-600 text-white border-blue-600'
                     : currentStep > step.id
@@ -543,7 +583,7 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
                       if (isFormDisabled) return;
                       if (e.target.value === "") {
                         setSelectedEmployee(null);
-                        setCurrentSubmission({ ...EMPTY_SUBMISSION, monthKey: thisMonthKey() });
+                        setCurrentSubmission({ ...EMPTY_SUBMISSION, monthKey: prevMonthKey(thisMonthKey()) });
                       } else {
                         const [name, phone] = e.target.value.split('-');
                         setSelectedEmployee({ name, phone });

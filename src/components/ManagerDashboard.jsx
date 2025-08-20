@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useSupabase } from "./SupabaseProvider";
 import { useModal } from "./AppShell";
+import { useFetchSubmissions } from "./useFetchSubmissions";
 import { ClientManagementView } from "./ClientManagementView";
 import { ClientDashboardView } from "./ClientDashboardView";
 import { LeaderboardView } from "./LeaderboardView";
