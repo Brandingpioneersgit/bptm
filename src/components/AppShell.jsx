@@ -10,6 +10,7 @@ import { ManagerEditEmployee } from "./ManagerEditEmployee";
 import { EmployeePersonalDashboard } from "./EmployeePersonalDashboard";
 import { HeaderBrand } from "./HeaderBrand";
 import { useFetchSubmissions } from "./useFetchSubmissions";
+import { getEmployeeProfile } from "./employeeProfiles";
 
 function useHash() {
   const initial = typeof window === 'undefined' ? '' : (window.location.hash || '');
@@ -225,13 +226,18 @@ export function AppContent() {
         const hasCompletedSubmission = employeeSubmissions.some(s => !s.isDraft);
 
         if (employeeSubmissions.length > 0 && hasCompletedSubmission) {
+          const profile = getEmployeeProfile(
+            employeeSubmissions[0].employee.name,
+            employeeSubmissions[0].employee.phone
+          );
           setAuthState({
             isLoggedIn: true,
             userType: 'employee',
             currentUser: {
               name: employeeSubmissions[0].employee.name,
               phone: employeeSubmissions[0].employee.phone,
-              department: employeeSubmissions[0].employee.department
+              department: employeeSubmissions[0].employee.department,
+              testimonials: profile?.testimonials || []
             },
             loginError: ''
           });
