@@ -47,9 +47,9 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
           department: submission.employee?.department || 'Unknown',
           submissions: [],
           latestSubmission: null,
-          averageScore: 0,
-          totalHours: 0,
-          performance: 'Medium'
+          averageScore: null,
+          totalHours: null,
+          performance: 'No Data'
         };
       }
       employeeGroups[key].submissions.push(submission);
@@ -59,14 +59,17 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       emp.submissions.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
       emp.latestSubmission = emp.submissions[0];
       
-      const totalScore = emp.submissions.reduce((sum, sub) => sum + (sub.scores?.overall || 0), 0);
-      emp.averageScore = emp.submissions.length ? (totalScore / emp.submissions.length).toFixed(1) : 0;
-      
-      emp.totalHours = emp.submissions.reduce((total, sub) => {
-        return total + ((sub.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60);
+      const scoreValues = emp.submissions.map(sub => sub.scores?.overall).filter(v => v != null);
+      const totalScore = scoreValues.reduce((sum, v) => sum + v, 0);
+      emp.averageScore = scoreValues.length ? (totalScore / scoreValues.length).toFixed(1) : null;
+
+      const totalHoursVal = emp.submissions.reduce((total, sub) => {
+        const mins = (sub.learning || []).reduce((sum, l) => sum + (l.durationMins ?? 0), 0);
+        return mins ? total + mins / 60 : total;
       }, 0);
-      
-      emp.performance = emp.averageScore >= 8 ? 'High' : emp.averageScore >= 6 ? 'Medium' : 'Low';
+      emp.totalHours = totalHoursVal > 0 ? totalHoursVal : null;
+
+      emp.performance = emp.averageScore == null ? 'No Data' : emp.averageScore >= 8 ? 'High' : emp.averageScore >= 6 ? 'Medium' : 'Low';
       
       return emp;
     });
@@ -90,16 +93,16 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
           bVal = b.name;
           break;
         case 'score':
-          aVal = parseFloat(a.averageScore);
-          bVal = parseFloat(b.averageScore);
+          aVal = a.averageScore != null ? parseFloat(a.averageScore) : -Infinity;
+          bVal = b.averageScore != null ? parseFloat(b.averageScore) : -Infinity;
           break;
         case 'department':
           aVal = a.department;
           bVal = b.department;
           break;
         case 'hours':
-          aVal = a.totalHours;
-          bVal = b.totalHours;
+          aVal = a.totalHours ?? -Infinity;
+          bVal = b.totalHours ?? -Infinity;
           break;
         default:
           aVal = a.name;
@@ -115,8 +118,10 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
     const stats = {
       totalEmployees: employees.length,
       totalSubmissions: filteredByDate.length,
-      averageScore: employees.length ? 
-        (employees.reduce((sum, emp) => sum + parseFloat(emp.averageScore), 0) / employees.length).toFixed(1) : 0,
+      averageScore: (() => {
+        const scores = employees.map(emp => parseFloat(emp.averageScore)).filter(v => !isNaN(v));
+        return scores.length ? (scores.reduce((sum, v) => sum + v, 0) / scores.length).toFixed(1) : 'N/A';
+      })(),
       highPerformers: employees.filter(emp => emp.performance === 'High').length,
       needsAttention: employees.filter(emp => emp.performance === 'Low').length
     };
@@ -217,7 +222,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
         <h3>📊 Performance Summary</h3>
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-value">${employee.averageScore}/10</div>
+                <div class="stat-value">${employee.averageScore != null ? employee.averageScore : 'N/A'}/10</div>
                 <div class="stat-label">Average Score</div>
             </div>
             <div class="stat-card">
@@ -225,7 +230,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                 <div class="stat-label">Reports Submitted</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value">${employee.totalHours.toFixed(1)}h</div>
+                <div class="stat-value">${employee.totalHours != null ? employee.totalHours.toFixed(1) + 'h' : 'No learning'}</div>
                 <div class="stat-label">Total Learning</div>
             </div>
             <div class="stat-card">
@@ -250,15 +255,16 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
             </thead>
             <tbody>
                 ${employeeData.map(sub => {
-                    const learningHours = ((sub.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60).toFixed(1);
+                    const mins = (sub.learning || []).reduce((sum, l) => sum + (l.durationMins ?? 0), 0);
+                    const learningHours = mins ? (mins / 60).toFixed(1) : 'N/A';
                     const scoreClass = sub.scores?.overall >= 8 ? 'score-good' : sub.scores?.overall >= 6 ? 'score-medium' : 'score-poor';
                     return `
                         <tr>
                             <td><strong>${monthLabel(sub.monthKey)}</strong></td>
-                            <td class="${scoreClass}">${sub.scores?.overall || 'N/A'}/10</td>
-                            <td>${sub.scores?.kpiScore || 'N/A'}/10</td>
-                            <td>${sub.scores?.learningScore || 'N/A'}/10</td>
-                            <td>${learningHours}h</td>
+                            <td class="${scoreClass}">${sub.scores?.overall ?? 'N/A'}/10</td>
+                            <td>${sub.scores?.kpiScore ?? 'N/A'}/10</td>
+                            <td>${sub.scores?.learningScore ?? 'N/A'}/10</td>
+                            <td>${learningHours === 'N/A' ? 'N/A' : `${learningHours}h`}</td>
                             <td>${sub.manager?.comments || 'No comments'}</td>
                         </tr>
                     `;
@@ -291,8 +297,8 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
         emp.name,
         emp.department,
         emp.phone,
-        emp.averageScore,
-        emp.totalHours.toFixed(1),
+        emp.averageScore ?? 'N/A',
+        emp.totalHours != null ? emp.totalHours.toFixed(1) : 'N/A',
         emp.performance,
         emp.latestSubmission?.monthKey || 'N/A',
         emp.submissions.length
@@ -495,7 +501,9 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                 </div>
                 <div className="ml-4">
                   <h3 className="text-sm font-medium text-gray-500">Avg Team Score</h3>
-                  <p className="text-2xl font-semibold text-gray-900">{processedData.stats.averageScore}/10</p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {processedData.stats.averageScore !== 'N/A' ? `${processedData.stats.averageScore}/10` : 'N/A'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -640,12 +648,20 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className={`text-lg font-semibold ${employee.averageScore >= 8 ? 'text-green-600' : employee.averageScore >= 6 ? 'text-yellow-600' : 'text-red-600'}`}>
-                            {employee.averageScore}/10
+                          <div className={`text-lg font-semibold ${
+                            employee.averageScore != null
+                              ? employee.averageScore >= 8
+                                ? 'text-green-600'
+                                : employee.averageScore >= 6
+                                  ? 'text-yellow-600'
+                                  : 'text-red-600'
+                              : 'text-gray-600'
+                          }`}>
+                            {employee.averageScore != null ? `${employee.averageScore}/10` : 'N/A'}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {employee.totalHours.toFixed(1)}h
+                          {employee.totalHours != null ? `${employee.totalHours.toFixed(1)}h` : 'No learning'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {employee.submissions.length}
