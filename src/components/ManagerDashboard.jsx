@@ -5,6 +5,8 @@ import { useFetchSubmissions } from "./useFetchSubmissions";
 import { ClientManagementView } from "./ClientManagementView";
 import { ClientDashboardView } from "./ClientDashboardView";
 import { FixedLeaderboardView } from "./FixedLeaderboardView";
+import { AuditLogView } from "./AuditLogView";
+import { logAuditEvent } from "./audit";
 
 export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport }) {
   const supabase = useSupabase();
@@ -309,44 +311,63 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
   };
 
   const handleViewReport = (employee) => {
-    console.log('📊 Opening Report View for:', employee.name);
-    
     if (!employee.submissions || employee.submissions.length === 0) {
       openModal('No Data', `No submissions found for ${employee.name}`, closeModal);
       return;
     }
 
     const phoneNumber = employee.phone && employee.phone !== 'N/A' ? employee.phone : 'no-phone';
-    
-    console.log('📞 Using phone number:', phoneNumber);
-    console.log('📊 Submissions count:', employee.submissions.length);
-    
+
+    logAuditEvent(supabase, {
+      userId: employee.id || 'unknown',
+      action: 'view_report',
+      details: {
+        employeeName: employee.name,
+        phoneNumber,
+        submissionCount: employee.submissions.length,
+        latestSubmissionId: employee.submissions[0]?.id,
+      },
+    });
+
     onViewReport(employee.name, phoneNumber);
   };
-  
+
   const handleFullReport = (employee) => {
-    console.log('🚀 Opening Full Report for:', employee.name);
-    
     if (!employee.submissions || employee.submissions.length === 0) {
       openModal('No Data', `No submissions found for ${employee.name}`, closeModal);
       return;
     }
 
     const phoneNumber = employee.phone && employee.phone !== 'N/A' ? employee.phone : 'no-phone';
-    
-    console.log('📞 Using phone number:', phoneNumber);
-    console.log('📊 Submissions count:', employee.submissions.length);
-    
+
+    logAuditEvent(supabase, {
+      userId: employee.id || 'unknown',
+      action: 'view_full_report',
+      details: {
+        employeeName: employee.name,
+        phoneNumber,
+        submissionCount: employee.submissions.length,
+        latestSubmissionId: employee.submissions[0]?.id,
+      },
+    });
+
     onViewReport(employee.name, phoneNumber);
   };
 
   const handleEditReport = (employee) => {
-    console.log('✏️ Opening Report Editor for:', employee.name);
-    
     if (!employee.latestSubmission) {
       openModal('No Data', `No submissions found for ${employee.name}`, closeModal);
       return;
     }
+
+    logAuditEvent(supabase, {
+      userId: employee.id || 'unknown',
+      action: 'open_report_editor',
+      details: {
+        employeeName: employee.name,
+        latestSubmissionId: employee.latestSubmission?.id,
+      },
+    });
 
     onEditReport(employee.name, employee.phone);
   };
@@ -436,6 +457,12 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeView === 'leaderboard' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
             >
               🏆 Leaderboard
+            </button>
+            <button
+              onClick={() => setActiveView('audit')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeView === 'audit' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+            >
+              Audit Log
             </button>
           </nav>
         </div>
@@ -714,6 +741,10 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
 
       {activeView === 'leaderboard' && (
         <FixedLeaderboardView allSubmissions={allSubmissions} />
+      )}
+
+      {activeView === 'audit' && (
+        <AuditLogView />
       )}
 
       {evaluationPanel.isOpen && (

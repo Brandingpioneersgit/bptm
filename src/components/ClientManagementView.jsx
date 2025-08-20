@@ -2,6 +2,7 @@ import React, { useMemo, useEffect, useState } from "react";
 import { useSupabase } from "./SupabaseProvider";
 import { CLIENT_SERVICES, DELIVERY_FREQUENCIES, createServiceObject, EMPTY_CLIENT } from "./clientServices";
 import { getClientRepository } from "./ClientRepository";
+import { logAuditEvent } from "./audit";
 
 export function ClientManagementView() {
   const supabase = useSupabase();
@@ -81,8 +82,15 @@ export function ClientManagementView() {
       setServiceFrequencies({});
       setShowCreateForm(false);
       fetchClients();
-      
-      console.log('✅ Successfully created client:', result.name);
+
+      logAuditEvent(supabase, {
+        userId: result.created_by || 'system',
+        action: 'create_client',
+        details: {
+          clientId: result.id,
+          clientName: result.name,
+        },
+      });
     } catch (error) {
       console.error('Error creating client:', error);
       alert('Failed to create client. Please try again.');
@@ -120,8 +128,15 @@ export function ClientManagementView() {
       setSelectedServices([]);
       setServiceFrequencies({});
       fetchClients();
-      
-      console.log('✅ Successfully updated client services');
+
+      logAuditEvent(supabase, {
+        userId: 'manager',
+        action: 'update_client_services',
+        details: {
+          clientId: selectedClientForServices.id,
+          servicesCount: services.length,
+        },
+      });
     } catch (error) {
       console.error('Error updating client services:', error);
       alert('Failed to update services. Please try again.');

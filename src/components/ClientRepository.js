@@ -1,6 +1,7 @@
 // Client Repository Service for automatic client management
 
 import { EMPTY_CLIENT, findClientInRepository, mergeClientData, createServiceObject } from './clientServices';
+import { logAuditEvent } from './audit';
 
 export class ClientRepository {
   constructor(supabase) {
@@ -37,8 +38,12 @@ export class ClientRepository {
     if (!this.supabase || !clientData.name) return null;
     
     try {
-      console.log('📝 Upserting client to repository:', clientData.name);
-      
+      await logAuditEvent(this.supabase, {
+        userId: 'system',
+        action: 'upsert_client',
+        details: { clientName: clientData.name },
+      });
+
       // Check if client already exists
       const existingClients = await this.getAllClients();
       const existingClient = findClientInRepository(existingClients, clientData.name);
@@ -48,7 +53,11 @@ export class ClientRepository {
       if (existingClient) {
         // Merge with existing client data
         clientToSave = mergeClientData(existingClient, clientData);
-        console.log('🔄 Updating existing client:', existingClient.id);
+        await logAuditEvent(this.supabase, {
+          userId: 'system',
+          action: 'update_client',
+          details: { clientId: existingClient.id, clientName: clientData.name },
+        });
         
         const { data, error } = await this.supabase
           .from('clients')
@@ -71,7 +80,11 @@ export class ClientRepository {
           updated_at: new Date().toISOString()
         };
         
-        console.log('➕ Creating new client in repository');
+        await logAuditEvent(this.supabase, {
+          userId: 'system',
+          action: 'create_client',
+          details: { clientName: clientToSave.name },
+        });
         
         const { data, error } = await this.supabase
           .from('clients')
@@ -95,7 +108,14 @@ export class ClientRepository {
   async storeClientsFromSubmission(submission) {
     if (!submission.clients || !Array.isArray(submission.clients)) return;
     
-    console.log('🏢 Auto-storing clients from submission:', submission.clients.length);
+    await logAuditEvent(this.supabase, {
+      userId: submission.employee?.id || 'system',
+      action: 'auto_store_clients_start',
+      details: {
+        submissionId: submission.id,
+        clientCount: submission.clients.length,
+      },
+    });
     
     const results = [];
     
@@ -121,7 +141,14 @@ export class ClientRepository {
       }
     }
     
-    console.log('✅ Successfully stored clients:', results.length);
+    await logAuditEvent(this.supabase, {
+      userId: submission.employee?.id || 'system',
+      action: 'auto_store_clients_complete',
+      details: {
+        submissionId: submission.id,
+        storedCount: results.length,
+      },
+    });
     return results;
   }
 
