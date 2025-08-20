@@ -49,7 +49,8 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
           latestSubmission: null,
           averageScore: 0,
           totalHours: 0,
-          performance: 'Medium'
+          performance: 'Medium',
+          testimonials: submission.employee?.testimonials || []
         };
       }
       employeeGroups[key].submissions.push(submission);
@@ -58,6 +59,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
     const employees = Object.values(employeeGroups).map(emp => {
       emp.submissions.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
       emp.latestSubmission = emp.submissions[0];
+      emp.testimonials = emp.latestSubmission.employee?.testimonials || [];
       
       const totalScore = emp.submissions.reduce((sum, sub) => sum + (sub.scores?.overall || 0), 0);
       emp.averageScore = emp.submissions.length ? (totalScore / emp.submissions.length).toFixed(1) : 0;
@@ -625,7 +627,21 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                       <tr key={`${employee.name}-${employee.phone}`} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
-                            <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                            <div className="text-sm font-medium text-gray-900 flex items-center gap-1">
+                              <span>{employee.name}</span>
+                              {employee.testimonials?.map((t, i) => (
+                                <a
+                                  key={i}
+                                  href={t.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title={t.client}
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-red-100 text-red-800"
+                                >
+                                  🎬
+                                </a>
+                              ))}
+                            </div>
                             <div className="text-sm text-gray-500">{employee.phone}</div>
                           </div>
                         </td>

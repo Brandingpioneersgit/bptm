@@ -52,8 +52,11 @@ export function ClientDashboardView() {
             email: submission.employee_email,
             department: submission.department,
             role: submission.role,
-            submissions: []
+            submissions: [],
+            testimonials: submission.employee?.testimonials || []
           };
+        } else if (submission.employee?.testimonials) {
+          acc[employeeKey].testimonials = submission.employee.testimonials;
         }
         acc[employeeKey].submissions.push(submission);
         return acc;
@@ -256,7 +259,21 @@ export function ClientDashboardView() {
               <div className="space-y-1">
                 {client.employees.slice(0, 3).map((employee, idx) => (
                   <div key={idx} className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">{employee.name}</span>
+                    <span className="text-gray-600 flex items-center gap-1">
+                      {employee.name}
+                      {employee.testimonials?.map((t, i) => (
+                        <a
+                          key={i}
+                          href={t.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={t.client}
+                          className="inline-flex items-center px-1 py-0.5 rounded-full text-xs bg-red-100 text-red-800"
+                        >
+                          🎬
+                        </a>
+                      ))}
+                    </span>
                     <span className="text-xs text-gray-500">{employee.submissions.length} submissions</span>
                   </div>
                 ))}

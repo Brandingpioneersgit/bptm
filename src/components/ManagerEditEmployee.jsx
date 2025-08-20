@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useSupabase } from "./SupabaseProvider";
 import { useFetchSubmissions } from "./useFetchSubmissions.js";
 import { useModal } from "./AppShell";
@@ -11,14 +11,54 @@ export function ManagerEditEmployee({ employee, onBack }) {
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [managerRemarks, setManagerRemarks] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [testimonials, setTestimonials] = useState([]);
+  const [newClient, setNewClient] = useState('');
+  const [newUrl, setNewUrl] = useState('');
 
   const employeeSubmissions = useMemo(() => {
-    return allSubmissions.filter(s => 
-      s.employee?.name === employee.name && 
+    return allSubmissions.filter(s =>
+      s.employee?.name === employee.name &&
       s.employee?.phone === employee.phone &&
       !s.isDraft
     ).sort((a, b) => b.monthKey.localeCompare(a.monthKey));
   }, [allSubmissions, employee]);
+
+  useEffect(() => {
+    if (employeeSubmissions.length > 0) {
+      setTestimonials(employeeSubmissions[0].employee?.testimonials || []);
+    }
+  }, [employeeSubmissions]);
+
+  const updateTestimonials = async (updated) => {
+    if (!supabase) return;
+    try {
+      const baseEmployee = employeeSubmissions[0]?.employee || {};
+      const updatedEmployee = { ...baseEmployee, testimonials: updated };
+      const { error } = await supabase
+        .from('submissions')
+        .update({ employee: updatedEmployee })
+        .eq('employee->>phone', employee.phone)
+        .eq('employee->>name', employee.name);
+      if (error) throw error;
+      setTestimonials(updated);
+      refreshSubmissions();
+      openModal('Success', 'Testimonials updated', closeModal);
+    } catch (e) {
+      openModal('Error', `Failed to update testimonials: ${e.message}`, closeModal);
+    }
+  };
+
+  const addTestimonial = async () => {
+    if (!newUrl || !newClient) return;
+    await updateTestimonials([...testimonials, { url: newUrl, client: newClient }]);
+    setNewClient('');
+    setNewUrl('');
+  };
+
+  const removeTestimonial = async (idx) => {
+    const updated = testimonials.filter((_, i) => i !== idx);
+    await updateTestimonials(updated);
+  };
 
   const handleEditSubmission = (submission) => {
     setSelectedSubmission(submission);
@@ -92,6 +132,57 @@ export function ManagerEditEmployee({ employee, onBack }) {
             className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
             ← Back to Dashboard
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
+        <h3 className="text-lg font-semibold mb-4">Testimonials</h3>
+        {testimonials.length === 0 ? (
+          <p className="text-sm text-gray-600">No testimonials added.</p>
+        ) : (
+          <ul className="space-y-2 mb-4">
+            {testimonials.map((t, idx) => (
+              <li key={idx} className="flex items-center justify-between">
+                <a
+                  href={t.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                  title={t.client}
+                >
+                  {t.client}
+                </a>
+                <button
+                  onClick={() => removeTestimonial(idx)}
+                  className="text-red-600 text-sm"
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="flex flex-col sm:flex-row gap-2 mt-4">
+          <input
+            type="text"
+            value={newClient}
+            onChange={e => setNewClient(e.target.value)}
+            placeholder="Client name"
+            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          />
+          <input
+            type="text"
+            value={newUrl}
+            onChange={e => setNewUrl(e.target.value)}
+            placeholder="YouTube URL"
+            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          />
+          <button
+            onClick={addTestimonial}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Add
           </button>
         </div>
       </div>

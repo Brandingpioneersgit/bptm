@@ -256,7 +256,21 @@ export function LeaderboardView({ allSubmissions }) {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                      <div className="text-sm font-medium text-gray-900 flex items-center gap-1">
+                        <span>{employee.name}</span>
+                        {employee.testimonials?.map((t, i) => (
+                          <a
+                            key={i}
+                            href={t.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={t.client}
+                            className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-red-100 text-red-800"
+                          >
+                            🎬
+                          </a>
+                        ))}
+                      </div>
                       <div className="text-sm text-gray-500">{employee.phone}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
