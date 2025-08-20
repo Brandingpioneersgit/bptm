@@ -417,34 +417,34 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     if (stepNumber >= 1) {
       // Step 1: Profile & Month
       if (!currentSubmission.employee?.name?.trim()) {
-        errors['employee.name'] = 'Name is required';
+        errors['employee.name'] = 'Enter employee name';
       }
       if (!currentSubmission.employee?.phone?.trim()) {
-        errors['employee.phone'] = 'Phone number is required';
+        errors['employee.phone'] = 'Enter phone number';
       } else if (!/^\d{10}$/.test(currentSubmission.employee.phone)) {
-        errors['employee.phone'] = 'Phone must be 10 digits';
+        errors['employee.phone'] = 'Phone must be exactly 10 digits';
       }
       if (!currentSubmission.employee?.department) {
-        errors['employee.department'] = 'Department is required';
+        errors['employee.department'] = 'Select department';
       }
       if (!currentSubmission.employee?.role?.length) {
-        errors['employee.role'] = 'At least one role is required';
+        errors['employee.role'] = 'Select at least one role';
       }
       if (!currentSubmission.monthKey) {
-        errors['monthKey'] = 'Report month is required';
+        errors['monthKey'] = 'Select report month';
       } else {
         // Validate month format and values
         const monthKey = currentSubmission.monthKey;
         if (!/^\d{4}-\d{2}$/.test(monthKey)) {
-          errors['monthKey'] = 'Invalid month format. Please select a valid month.';
+          errors['monthKey'] = 'Use YYYY-MM format for month';
         } else {
           const [year, month] = monthKey.split('-').map(Number);
           if (month < 1 || month > 12) {
-            errors['monthKey'] = 'Invalid month value. Please select a month between 1-12.';
+            errors['monthKey'] = 'Select a month between 1-12';
           } else if (year < 2020 || year > 2030) {
-            errors['monthKey'] = 'Invalid year. Please select a year between 2020-2030.';
+            errors['monthKey'] = 'Select a year between 2020-2030';
           } else if (monthKey > thisMonthKey()) {
-            warnings['monthKey'] = 'Future month selected. Reports are typically for previous months.';
+            warnings['monthKey'] = 'Future month selected. Choose a past month.';
           }
         }
       }
@@ -456,13 +456,13 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
       const wfh = Number(currentSubmission.meta?.attendance?.wfh || 0);
       
       if (wfo < 0 || wfo > 31) {
-        errors['meta.attendance.wfo'] = 'WFO days must be between 0 and 31';
+        errors['meta.attendance.wfo'] = 'Enter WFO days between 0 and 31';
       }
       if (wfh < 0 || wfh > 31) {
-        errors['meta.attendance.wfh'] = 'WFH days must be between 0 and 31';
+        errors['meta.attendance.wfh'] = 'Enter WFH days between 0 and 31';
       }
       if (wfo + wfh === 0) {
-        warnings['meta.attendance'] = 'No attendance recorded - are you on leave?';
+        warnings['meta.attendance'] = 'No attendance recorded – add WFO/WFH days or note leave';
       }
       
       const tasksCount = Number(currentSubmission.meta?.tasks?.count || 0);
@@ -470,7 +470,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
         const aiTableLink = currentSubmission.meta?.tasks?.aiTableLink || '';
         const aiTableScreenshot = currentSubmission.meta?.tasks?.aiTableScreenshot || '';
         if (!aiTableLink && !aiTableScreenshot) {
-          warnings['meta.tasks.proof'] = 'Consider adding proof for completed tasks';
+          warnings['meta.tasks.proof'] = 'Add link or screenshot proof for completed tasks';
         }
       }
     }
@@ -479,7 +479,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
       // Step 3: KPI & Clients
       const isInternal = ["HR", "Accounts", "Sales", "Blended (HR + Sales)"].includes(currentSubmission.employee?.department);
       if (!isInternal && (!currentSubmission.clients || currentSubmission.clients.length === 0)) {
-        warnings['clients'] = 'Consider adding at least one client for better reporting';
+        warnings['clients'] = 'Add at least one client for better reporting';
       }
     }
     
@@ -487,14 +487,14 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
       // Step 4: Learning
       const learningHours = (currentSubmission.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60;
       if (learningHours < 6) {
-        warnings['learning.hours'] = `Only ${learningHours.toFixed(1)} hours logged (target: 6+ hours)`;
+        warnings['learning.hours'] = `Only ${learningHours.toFixed(1)} hours logged. Aim for 6+ hours.`;
       }
     }
     
     return { errors, warnings };
   }, [currentSubmission]);
   
-  // Note: Removed canProgressToStep function as navigation is now always allowed
+  // Navigation between steps is now controlled by validation checks
 
   // Enhanced autosave with validation updates
   const prevStepRef = useRef(currentStep);
@@ -997,7 +997,7 @@ Your progress has been automatically saved, so you won't lose any other informat
       <div className="flex justify-between items-center mb-4">
         <div>
           <h2 className="text-lg font-semibold">Monthly Report Progress</h2>
-          <p className="text-xs text-gray-500 mt-1">💡 Click any step to navigate freely - no blocking!</p>
+          <p className="text-xs text-gray-500 mt-1">💡 Steps become clickable after completing required fields.</p>
         </div>
         {lastAutoSave && (
           <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -1009,31 +1009,51 @@ Your progress has been automatically saved, so you won't lose any other informat
       
       <div className="relative">
         <div className="flex justify-between">
-          {FORM_STEPS.map((step) => (
-            <div key={step.id} className="flex flex-col items-center relative z-10">
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  console.log(`🖱️ Step button clicked: step ${step.id}, currentStep: ${currentStep}`);
-                  goToStep(step.id);
-                }}
-                className={`w-12 h-12 rounded-full border-2 flex items-center justify-center text-lg font-semibold transition-all duration-200 cursor-pointer ${ currentStep === step.id
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : currentStep > step.id
-                    ? 'bg-green-600 text-white border-green-600'
-                    : 'bg-gray-100 text-gray-400 border-gray-300 hover:border-gray-400 hover:bg-gray-200'
-                }`}
-              >
-                {currentStep > step.id ? '✓' : step.icon}
-              </button>
-              <div className="mt-2 text-center">
-                <div className={`text-xs font-medium ${currentStep === step.id ? 'text-blue-600' : currentStep > step.id ? 'text-green-600' : 'text-gray-500'}`}>
-                  {step.title}
+          {FORM_STEPS.map((step) => {
+            const isDisabled = step.id > 1 && Object.keys(getStepValidation(step.id - 1).errors).length > 0;
+            const baseClasses = 'w-12 h-12 rounded-full border-2 flex items-center justify-center text-lg font-semibold transition-all duration-200';
+            const stateClasses =
+              currentStep === step.id
+                ? 'bg-blue-600 text-white border-blue-600'
+                : currentStep > step.id
+                ? 'bg-green-600 text-white border-green-600'
+                : isDisabled
+                ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed pointer-events-none'
+                : 'bg-gray-100 text-gray-400 border-gray-300 hover:border-gray-400 hover:bg-gray-200 cursor-pointer';
+            const titleClasses =
+              currentStep === step.id
+                ? 'text-blue-600'
+                : currentStep > step.id
+                ? 'text-green-600'
+                : isDisabled
+                ? 'text-gray-300'
+                : 'text-gray-500';
+            return (
+              <div key={step.id} className="flex flex-col items-center relative z-10">
+                <button
+                  type="button"
+                  disabled={isDisabled}
+                  aria-disabled={isDisabled}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log(`🖱️ Step button clicked: step ${step.id}, currentStep: ${currentStep}`);
+                    if (!isDisabled) {
+                      goToStep(step.id);
+                    }
+                  }}
+                  className={`${baseClasses} ${stateClasses}`}
+                >
+                  {currentStep > step.id ? '✓' : step.icon}
+                </button>
+                <div className="mt-2 text-center">
+                  <div className={`text-xs font-medium ${titleClasses}`}>
+                    {step.title}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         
         <div className="absolute top-6 left-6 right-6 h-0.5 bg-gray-200 -z-10">
