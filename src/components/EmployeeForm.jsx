@@ -5,7 +5,7 @@ import { useFetchSubmissions } from "./useFetchSubmissions";
 import { EMPTY_SUBMISSION, thisMonthKey, prevMonthKey, monthLabel, DEPARTMENTS, ROLES_BY_DEPT } from "./constants";
 import { scoreKPIs, scoreLearning, scoreRelationshipFromClients, overallOutOf10, generateSummary } from "./scoring";
 import { CelebrationEffect } from "./CelebrationEffect";
-import { Section, TextField, NumField, TextArea, MultiSelect } from "./ui";
+import { Section, TextField, NumField, TextArea, MultiSelect, ProgressIndicator, StepValidationIndicator } from "./ui";
 import { DeptClientsBlock } from "./kpi";
 import { LearningBlock } from "./LearningBlock";
 import { validateSubmission } from "./validation";
@@ -244,45 +244,111 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     }
   }, [openModal, closeModal]); // Stable callback with minimal dependencies
 
-  // Validation for step progression - only validate what's needed for each step
-  const canProgressToStep = useCallback((stepNumber) => {
-    if (stepNumber <= 1) return true;
+  // Enhanced validation with field highlighting and progressive validation
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [validationWarnings, setValidationWarnings] = useState({});
+  
+  // Get step-specific validation results without blocking navigation
+  const getStepValidation = useCallback((stepNumber) => {
+    const errors = {};
+    const warnings = {};
     
-    // Step 1 requirements (Profile & Month) - must be complete to proceed to step 2
-    if (stepNumber > 1) {
-      if (!currentSubmission.employee?.name?.trim() || 
-          !currentSubmission.employee?.phone?.trim() ||
-          !currentSubmission.employee?.department ||
-          !currentSubmission.employee?.role?.length ||
-          !currentSubmission.monthKey) {
-        return false;
+    if (stepNumber >= 1) {
+      // Step 1: Profile & Month
+      if (!currentSubmission.employee?.name?.trim()) {
+        errors['employee.name'] = 'Name is required';
+      }
+      if (!currentSubmission.employee?.phone?.trim()) {
+        errors['employee.phone'] = 'Phone number is required';
+      } else if (!/^\d{10}$/.test(currentSubmission.employee.phone)) {
+        errors['employee.phone'] = 'Phone must be 10 digits';
+      }
+      if (!currentSubmission.employee?.department) {
+        errors['employee.department'] = 'Department is required';
+      }
+      if (!currentSubmission.employee?.role?.length) {
+        errors['employee.role'] = 'At least one role is required';
+      }
+      if (!currentSubmission.monthKey) {
+        errors['monthKey'] = 'Report month is required';
       }
     }
     
-    // Step 2 requirements (Attendance & Tasks) - basic attendance required to proceed to step 3
-    if (stepNumber > 2) {
+    if (stepNumber >= 2) {
+      // Step 2: Attendance & Tasks
       const wfo = Number(currentSubmission.meta?.attendance?.wfo || 0);
       const wfh = Number(currentSubmission.meta?.attendance?.wfh || 0);
-      // Allow proceeding even if attendance is 0 (user might be on leave)
-      // Just ensure the fields exist
-      if (currentSubmission.meta?.attendance === undefined) {
-        return false;
+      
+      if (wfo < 0 || wfo > 31) {
+        errors['meta.attendance.wfo'] = 'WFO days must be between 0 and 31';
+      }
+      if (wfh < 0 || wfh > 31) {
+        errors['meta.attendance.wfh'] = 'WFH days must be between 0 and 31';
+      }
+      if (wfo + wfh === 0) {
+        warnings['meta.attendance'] = 'No attendance recorded - are you on leave?';
+      }
+      
+      const tasksCount = Number(currentSubmission.meta?.tasks?.count || 0);
+      if (tasksCount > 0) {
+        const aiTableLink = currentSubmission.meta?.tasks?.aiTableLink || '';
+        const aiTableScreenshot = currentSubmission.meta?.tasks?.aiTableScreenshot || '';
+        if (!aiTableLink && !aiTableScreenshot) {
+          warnings['meta.tasks.proof'] = 'Consider adding proof for completed tasks';
+        }
       }
     }
     
-    // For steps 3+ just allow progression - validation happens at submission
-    return true;
+    if (stepNumber >= 3) {
+      // Step 3: KPI & Clients
+      const isInternal = ["HR", "Accounts", "Sales", "Blended (HR + Sales)"].includes(currentSubmission.employee?.department);
+      if (!isInternal && (!currentSubmission.clients || currentSubmission.clients.length === 0)) {
+        warnings['clients'] = 'Consider adding at least one client for better reporting';
+      }
+    }
+    
+    if (stepNumber >= 4) {
+      // Step 4: Learning
+      const learningHours = (currentSubmission.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60;
+      if (learningHours < 6) {
+        warnings['learning.hours'] = `Only ${learningHours.toFixed(1)} hours logged (target: 6+ hours)`;
+      }
+    }
+    
+    return { errors, warnings };
   }, [currentSubmission]);
+  
+  // Progressive validation - always allow navigation but show issues
+  const canProgressToStep = useCallback((stepNumber) => {
+    // Always allow navigation for better UX - show warnings instead of blocking
+    return true;
+  }, []);
 
-  // Remove periodic autosave - only save when moving between sections
-  // Section-based save: save when step changes (moving between sections)
+  // Enhanced autosave with validation updates
   const prevStepRef = useRef(currentStep);
   useEffect(() => {
-    if (prevStepRef.current !== currentStep && hasUnsavedChanges && selectedEmployee) {
-      autoSave(); // Save when moving between sections
+    if (prevStepRef.current !== currentStep) {
+      // Update validation when step changes
+      const validation = getStepValidation(currentStep);
+      setFieldErrors(validation.errors);
+      setValidationWarnings(validation.warnings);
+      
       prevStepRef.current = currentStep;
     }
-  }, [currentStep, hasUnsavedChanges, selectedEmployee, autoSave]);
+  }, [currentStep, getStepValidation]);
+  
+  // Periodic validation updates
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (selectedEmployee) {
+        const validation = getStepValidation(currentStep);
+        setFieldErrors(validation.errors);
+        setValidationWarnings(validation.warnings);
+      }
+    }, 2000); // Update validation every 2 seconds
+    
+    return () => clearInterval(timer);
+  }, [currentStep, selectedEmployee, getStepValidation]);
 
   useEffect(() => {
     if (selectedEmployee && getAutoSaveKey()) {
@@ -480,14 +546,48 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
     const check = validateSubmission(currentSubmission);
     console.log('📋 Validation result:', check);
     
-    if (!check.ok) {
-      console.log('❌ Validation failed:', check.errors);
+    // Separate critical errors from warnings
+    const criticalErrors = [];
+    const warnings = [];
+    
+    check.errors.forEach(error => {
+      // Only block for truly critical errors
+      if (error.includes('Name') || 
+          error.includes('Phone') || 
+          error.includes('Department') || 
+          error.includes('Role') ||
+          error.includes('Report Month')) {
+        criticalErrors.push(error);
+      } else {
+        warnings.push(error);
+      }
+    });
+    
+    if (criticalErrors.length > 0) {
+      console.log('❌ Critical validation failed:', criticalErrors);
       openModal(
-        "Validation Errors",
-        `Please fix the following before submitting:\n\n${check.errors.map((e, i) => `${i + 1}. ${e}`).join('\n')}`,
+        "Required Information Missing",
+        `Please complete these required fields:\n\n${criticalErrors.map((e, i) => `${i + 1}. ${e}`).join('\n')}`,
         closeModal
       );
       return;
+    }
+    
+    // Show warnings but allow submission
+    if (warnings.length > 0) {
+      console.log('⚠️ Validation warnings:', warnings);
+      const shouldContinue = await new Promise(resolve => {
+        openModal(
+          "Review Before Submitting",
+          `Please review these suggestions (submission will proceed):\n\n${warnings.map((w, i) => `${i + 1}. ${w}`).join('\n')}\n\nWould you like to submit anyway?`,
+          () => resolve(false), // Cancel
+          () => resolve(true),  // Continue
+          'Review & Fix',
+          'Submit Anyway'
+        );
+      });
+      
+      if (!shouldContinue) return;
     }
     // Create backup before submission
     const backupKey = `backup-${getAutoSaveKey()}-${Date.now()}`;
@@ -559,22 +659,45 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
   const rolesForDept = ROLES_BY_DEPT[currentSubmission.employee.department] || [];
   const isNewEmployee = !selectedEmployee;
 
+  // Enhanced navigation with auto-save and validation feedback
   const goToStep = (stepId) => {
-    setCurrentStep(stepId);
-    if (selectedEmployee) {
+    // Always save when changing steps
+    if (selectedEmployee && hasUnsavedChanges) {
       autoSave();
     }
+    
+    // Update validation state for current step
+    const validation = getStepValidation(currentStep);
+    setFieldErrors(validation.errors);
+    setValidationWarnings(validation.warnings);
+    
+    setCurrentStep(stepId);
   };
 
   const nextStep = () => {
     const nextStepNumber = currentStep + 1;
-    if (nextStepNumber <= FORM_STEPS.length && canProgressToStep(nextStepNumber)) {
+    if (nextStepNumber <= FORM_STEPS.length) {
+      // Get current step validation
+      const validation = getStepValidation(currentStep);
+      const hasBlockingErrors = Object.keys(validation.errors).length > 0;
+      
+      if (hasBlockingErrors && currentStep === 1) {
+        // Only block on step 1 for essential profile info
+        openModal(
+          'Complete Required Fields',
+          `Please complete the required fields:\n\n${Object.values(validation.errors).join('\n')}`,
+          closeModal
+        );
+        return;
+      }
+      
+      // For other steps, show validation but allow progression
+      if (hasBlockingErrors || Object.keys(validation.warnings).length > 0) {
+        setFieldErrors(validation.errors);
+        setValidationWarnings(validation.warnings);
+      }
+      
       goToStep(nextStepNumber);
-    } else if (nextStepNumber <= FORM_STEPS.length) {
-      // Show validation error
-      const { errors } = validateSubmission(currentSubmission);
-      const errorMessage = errors.slice(0, 3).join('\n'); // Show first 3 errors
-      openModal('Complete Required Fields', errorMessage, closeModal);
     }
   };
 
@@ -689,9 +812,15 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
 
   function renderProfileStep() {
     const isFormDisabled = isSubmissionFinalized || isPreviousMonth;
+    const validation = getStepValidation(1);
     
     return (
       <div className="space-y-6">
+        <StepValidationIndicator 
+          errors={validation.errors}
+          warnings={validation.warnings}
+          stepTitle="Profile & Month Selection"
+        />
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-4">
             {currentUser ? (
@@ -748,6 +877,7 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
                       value={currentSubmission.employee.name || ""} 
                       onChange={handleNameChange}
                       disabled={isFormDisabled}
+                      error={fieldErrors['employee.name']}
                     />
                     <TextField 
                       label="Phone Number" 
@@ -755,6 +885,7 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
                       value={currentSubmission.employee.phone || ""} 
                       onChange={handlePhoneChange}
                       disabled={isFormDisabled}
+                      error={fieldErrors['employee.phone']}
                     />
                   </div>
                 )}
@@ -821,8 +952,15 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
   }
 
   function renderAttendanceStep() {
+    const validation = getStepValidation(2);
+    
     return (
       <div className="space-y-6">
+        <StepValidationIndicator 
+          errors={validation.errors}
+          warnings={validation.warnings}
+          stepTitle="Attendance & Tasks"
+        />
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <h4 className="font-medium text-gray-900 flex items-center gap-2">
@@ -833,13 +971,16 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
                 label="WFO days" 
                 placeholder="0-31" 
                 value={currentSubmission.meta.attendance.wfo} 
-                onChange={handleWFOChange} 
+                onChange={handleWFOChange}
+                error={fieldErrors['meta.attendance.wfo']}
+                warning={validationWarnings['meta.attendance']}
                 />
               <NumField 
                 label="WFH days" 
                 placeholder="0-31"
                 value={currentSubmission.meta.attendance.wfh} 
-                onChange={handleWFHChange} 
+                onChange={handleWFHChange}
+                error={fieldErrors['meta.attendance.wfh']}
                 />
             </div>
             <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
@@ -895,8 +1036,25 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
 
 
   function renderLearningStep() {
+    const validation = getStepValidation(4);
+    const learningHours = (currentSubmission.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60;
+    
     return (
       <div className="space-y-6">
+        <StepValidationIndicator 
+          errors={validation.errors}
+          warnings={validation.warnings}
+          stepTitle="Learning & Development"
+        />
+        
+        <ProgressIndicator 
+          current={learningHours}
+          target={6}
+          label="Learning Hours Progress"
+          unit="h"
+          color="green"
+        />
+        
         <LearningBlock model={currentSubmission} setModel={setModelWithTracking} openModal={openModal} />
         
         <div className="bg-white border rounded-xl p-6">
@@ -1051,14 +1209,24 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
             <span className="text-sm text-yellow-800">You have unsaved changes in this section.</span>
+            <span className="text-xs text-yellow-600 ml-2">Auto-saves when you move to next section</span>
           </div>
           <button
             onClick={saveCurrentSection}
             disabled={!selectedEmployee}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
           >
-            💾 Save Section
+            💾 Save Now
           </button>
+        </div>
+      )}
+      
+      {!hasUnsavedChanges && lastAutoSave && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4 flex items-center gap-2">
+          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+          <span className="text-sm text-green-800">
+            ✓ Section saved at {lastAutoSave.toLocaleTimeString()}
+          </span>
         </div>
       )}
 

@@ -71,6 +71,7 @@ function Modal({ isOpen, onClose, title, message, onConfirm, onCancel, inputLabe
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base p-3 sm:text-sm sm:p-2"
                         value={inputValue}
                         onChange={onInputChange}
+                        autoComplete="off"
                       />
                     </div>
                   )}

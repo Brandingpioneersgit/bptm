@@ -640,12 +640,12 @@ function KPIsOperationsHead({ client, onChange }) {
       <NumField label="Client Satisfaction (1-10)" value={client.op_satisfactionScore || 0} onChange={v => onChange({ ...client, op_satisfactionScore: v })} />
       <div>
         <label className="text-sm">Client Payment Date</label>
-        <input type="date" className="w-full border rounded-xl p-2" value={client.op_paymentDate || ''} onChange={e => onChange({ ...client, op_paymentDate: e.target.value })} />
+        <input type="date" className="w-full border rounded-xl p-2" value={client.op_paymentDate || ''} onChange={e => onChange({ ...client, op_paymentDate: e.target.value })} autoComplete="off" />
       </div>
 
       <div className="col-span-4">
         <label className="text-sm">Team Finished Scope?</label>
-        <input type="checkbox" checked={client.op_teamFinishedScope || false} onChange={e => onChange({ ...client, op_teamFinishedScope: e.target.checked })} />
+        <input type="checkbox" checked={client.op_teamFinishedScope || false} onChange={e => onChange({ ...client, op_teamFinishedScope: e.target.checked })} autoComplete="off" />
       </div>
 
       <div className="col-span-2">
@@ -664,16 +664,16 @@ function KPIsOperationsHead({ client, onChange }) {
       <div className="md:col-span-2">
         <div className="font-medium">Appreciations</div>
         <div className="grid grid-cols-3 gap-2 mt-1">
-          <input className="border rounded-xl p-2 col-span-2" placeholder="Proof link (Drive/WhatsApp in Drive) – optional" value={appDraft.url} onChange={e => setAppDraft(d => ({ ...d, url: e.target.value }))} />
-          <input className="border rounded-xl p-2" placeholder="Remark (client/channel)" value={appDraft.remark} onChange={e => setAppDraft(d => ({ ...d, remark: e.target.value }))} />
+          <input className="border rounded-xl p-2 col-span-2" placeholder="Proof link (Drive/WhatsApp in Drive) – optional" value={appDraft.url} onChange={e => setAppDraft(d => ({ ...d, url: e.target.value }))} autoComplete="off" />
+          <input className="border rounded-xl p-2" placeholder="Remark (client/channel)" value={appDraft.remark} onChange={e => setAppDraft(d => ({ ...d, remark: e.target.value }))} autoComplete="off" />
           <button className="col-span-3 rounded-xl bg-emerald-600 text-white px-3 py-2" onClick={addAppreciation}>+ Add Appreciation</button>
         </div>
       </div>
       <div className="md:col-span-2">
         <div className="font-medium">Escalations</div>
         <div className="grid grid-cols-3 gap-2 mt-1">
-          <input className="border rounded-xl p-2 col-span-2" placeholder="Proof link (Drive) – optional" value={escDraft.url} onChange={e => setEscDraft(d => ({ ...d, url: e.target.value }))} />
-          <input className="border rounded-xl p-2" placeholder="Why did this happen?" value={escDraft.remark} onChange={e => setEscDraft(d => ({ ...d, remark: e.target.value }))} />
+          <input className="border rounded-xl p-2 col-span-2" placeholder="Proof link (Drive) – optional" value={escDraft.url} onChange={e => setEscDraft(d => ({ ...d, url: e.target.value }))} autoComplete="off" />
+          <input className="border rounded-xl p-2" placeholder="Why did this happen?" value={escDraft.remark} onChange={e => setEscDraft(d => ({ ...d, remark: e.target.value }))} autoComplete="off" />
           <button className="col-span-3 rounded-xl bg-red-600 text-white px-3 py-2" onClick={addEscalation}>+ Add Escalation</button>
         </div>
       </div>

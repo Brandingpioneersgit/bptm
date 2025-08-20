@@ -21,26 +21,26 @@ export function ClientReportStatus({ client, prevClient, onChange }) {
       <div className="grid md:grid-cols-4 gap-3">
         <div>
           <label className="text-sm">Roadmap Sent Date</label>
-          <input type="date" className="w-full border rounded-xl p-2" value={rel.roadmapSentDate || ''} onChange={e => onChange({ ...client, relationship: { ...rel, roadmapSentDate: e.target.value } })} />
+          <input type="date" className="w-full border rounded-xl p-2" value={rel.roadmapSentDate || ''} onChange={e => onChange({ ...client, relationship: { ...rel, roadmapSentDate: e.target.value } })} autoComplete="off" />
           {prevRel.roadmapSentDate && <div className="text-xs text-gray-500 mt-1">Prev: {toDDMMYYYY(prevRel.roadmapSentDate)}</div>}
         </div>
         <div>
           <label className="text-sm">Report Sent Date</label>
-          <input type="date" className="w-full border rounded-xl p-2" value={rel.reportSentDate || ''} onChange={e => onChange({ ...client, relationship: { ...rel, reportSentDate: e.target.value } })} />
+          <input type="date" className="w-full border rounded-xl p-2" value={rel.reportSentDate || ''} onChange={e => onChange({ ...client, relationship: { ...rel, reportSentDate: e.target.value } })} autoComplete="off" />
           {prevRel.reportSentDate && <div className="text-xs text-gray-500 mt-1">Prev: {toDDMMYYYY(prevRel.reportSentDate)}</div>}
         </div>
         <div>
           <label className="text-sm">Client Satisfaction (1–10)</label>
-          <input type="number" min={1} max={10} className="w-full border rounded-xl p-2" value={rel.clientSatisfaction || 0} onChange={e => onChange({ ...client, relationship: { ...rel, clientSatisfaction: Number(e.target.value || 0) } })} />
+          <input type="number" min={1} max={10} className="w-full border rounded-xl p-2" value={rel.clientSatisfaction || 0} onChange={e => onChange({ ...client, relationship: { ...rel, clientSatisfaction: Number(e.target.value || 0) } })} autoComplete="off" />
           {prevRel.clientSatisfaction > 0 && <div className="text-xs text-gray-500 mt-1">Prev: {prevRel.clientSatisfaction}</div>}
         </div>
         <div className="md:col-span-1 flex items-end gap-2">
           <label className="text-sm mr-2">Payment Received?</label>
-          <input type="checkbox" checked={!!rel.paymentReceived} onChange={e => onChange({ ...client, relationship: { ...rel, paymentReceived: e.target.checked } })} />
+          <input type="checkbox" checked={!!rel.paymentReceived} onChange={e => onChange({ ...client, relationship: { ...rel, paymentReceived: e.target.checked } })} autoComplete="off" />
         </div>
         <div>
           <label className="text-sm">Payment Date</label>
-          <input type="date" className="w-full border rounded-xl p-2" value={rel.paymentDate || ''} onChange={e => onChange({ ...client, relationship: { ...rel, paymentDate: e.target.value } })} />
+          <input type="date" className="w-full border rounded-xl p-2" value={rel.paymentDate || ''} onChange={e => onChange({ ...client, relationship: { ...rel, paymentDate: e.target.value } })} autoComplete="off" />
           {prevRel.paymentDate && <div className="text-xs text-gray-500 mt-1">Prev: {toDDMMYYYY(prevRel.paymentDate)}</div>}
         </div>
 
@@ -54,10 +54,10 @@ export function ClientReportStatus({ client, prevClient, onChange }) {
           <div className="grid md:grid-cols-4 gap-3 mt-1">
             <div>
               <label className="text-sm">Date</label>
-              <input type="date" className="border rounded-xl p-2 w-full" value={meetDraft.date} onChange={e => setMeetDraft(d => ({ ...d, date: e.target.value }))} />
+              <input type="date" className="border rounded-xl p-2 w-full" value={meetDraft.date} onChange={e => setMeetDraft(d => ({ ...d, date: e.target.value }))} autoComplete="off" />
             </div>
-            <input className="border rounded-xl p-2" placeholder="Summary of discussion" value={meetDraft.summary} onChange={e => setMeetDraft(d => ({ ...d, summary: e.target.value }))} />
-            <input className="border rounded-xl p-2" placeholder="Notes link (Drive/Doc)" value={meetDraft.notesLink} onChange={e => setMeetDraft(d => ({ ...d, notesLink: e.target.value }))} />
+            <input className="border rounded-xl p-2" placeholder="Summary of discussion" value={meetDraft.summary} onChange={e => setMeetDraft(d => ({ ...d, summary: e.target.value }))} autoComplete="off" />
+            <input className="border rounded-xl p-2" placeholder="Notes link (Drive/Doc)" value={meetDraft.notesLink} onChange={e => setMeetDraft(d => ({ ...d, notesLink: e.target.value }))} autoComplete="off" />
             <button className="rounded-xl bg-blue-600 text-white px-3" onClick={addMeeting}>Add Meeting</button>
           </div>
           <ul className="text-xs mt-2 space-y-1">
@@ -73,8 +73,8 @@ export function ClientReportStatus({ client, prevClient, onChange }) {
         <div className="md:col-span-2">
           <div className="font-medium">Appreciations</div>
           <div className="grid grid-cols-3 gap-2 mt-1">
-            <input className="border rounded-xl p-2 col-span-2" placeholder="Proof link (Drive/WhatsApp in Drive) – optional" value={appDraft.url} onChange={e => setAppDraft(d => ({ ...d, url: e.target.value }))} />
-            <input className="border rounded-xl p-2" placeholder="Remark (client/channel)" value={appDraft.remark} onChange={e => setAppDraft(d => ({ ...d, remark: e.target.value }))} />
+            <input className="border rounded-xl p-2 col-span-2" placeholder="Proof link (Drive/WhatsApp in Drive) – optional" value={appDraft.url} onChange={e => setAppDraft(d => ({ ...d, url: e.target.value }))} autoComplete="off" />
+            <input className="border rounded-xl p-2" placeholder="Remark (client/channel)" value={appDraft.remark} onChange={e => setAppDraft(d => ({ ...d, remark: e.target.value }))} autoComplete="off" />
             <button className="col-span-3 rounded-xl bg-emerald-600 text-white px-3 py-2" onClick={addAppreciation}>+ Add Appreciation</button>
           </div>
           <ul className="text-xs mt-2 space-y-1">
@@ -89,8 +89,8 @@ export function ClientReportStatus({ client, prevClient, onChange }) {
         <div className="md:col-span-2">
           <div className="font-medium">Escalations</div>
           <div className="grid grid-cols-3 gap-2 mt-1">
-            <input className="border rounded-xl p-2 col-span-2" placeholder="Proof link (Drive) – optional" value={escDraft.url} onChange={e => setEscDraft(d => ({ ...d, url: e.target.value }))} />
-            <input className="border rounded-xl p-2" placeholder="Why did this happen?" value={escDraft.remark} onChange={e => setEscDraft(d => ({ ...d, remark: e.target.value }))} />
+            <input className="border rounded-xl p-2 col-span-2" placeholder="Proof link (Drive) – optional" value={escDraft.url} onChange={e => setEscDraft(d => ({ ...d, url: e.target.value }))} autoComplete="off" />
+            <input className="border rounded-xl p-2" placeholder="Why did this happen?" value={escDraft.remark} onChange={e => setEscDraft(d => ({ ...d, remark: e.target.value }))} autoComplete="off" />
             <button className="col-span-3 rounded-xl bg-red-600 text-white px-3 py-2" onClick={addEscalation}>+ Add Escalation</button>
           </div>
           <ul className="text-xs mt-2 space-y-1">

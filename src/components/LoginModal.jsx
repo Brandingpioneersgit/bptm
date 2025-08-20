@@ -56,6 +56,7 @@ export function LoginModal({ loginForm, setLoginForm, onLogin, loginError, onClo
                           placeholder="Enter your full name"
                           value={loginForm.name}
                           onChange={(e) => setLoginForm(prev => ({ ...prev, name: e.target.value }))}
+                          autoComplete="off"
                         />
                       </div>
                       <div>
@@ -72,6 +73,7 @@ export function LoginModal({ loginForm, setLoginForm, onLogin, loginError, onClo
                           placeholder="Enter your phone number"
                           value={loginForm.phone}
                           onChange={(e) => setLoginForm(prev => ({ ...prev, phone: e.target.value }))}
+                          autoComplete="off"
                         />
                         <p className="mt-1 text-xs text-gray-500">
                           Use the phone number from your submitted form
@@ -91,6 +93,7 @@ export function LoginModal({ loginForm, setLoginForm, onLogin, loginError, onClo
                         placeholder="Enter admin access token"
                         value={loginForm.phone}
                         onChange={(e) => setLoginForm(prev => ({ ...prev, phone: e.target.value }))}
+                        autoComplete="off"
                       />
                     </div>
                   )}
