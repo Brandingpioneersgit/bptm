@@ -11,6 +11,8 @@ import { LearningBlock } from "./LearningBlock";
 import { getClientRepository } from "./ClientRepository";
 import { validateSubmission } from "./validation";
 
+const DRAFT_VERSION = 1;
+
 export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack = null }) {
   const supabase = useSupabase();
   const { openModal, closeModal } = useModal();
@@ -24,6 +26,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   const [isEditMode, setIsEditMode] = useState(false);
   const [lastAutoSave, setLastAutoSave] = useState(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [draftCheckComplete, setDraftCheckComplete] = useState(false);
   
   const FORM_STEPS = [
     { id: 1, title: "Profile & Month", icon: "👤", description: "Basic information and reporting period" },
@@ -34,17 +37,21 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   ];
 
   const getAutoSaveKey = useCallback(() => {
-    // Use form data for key if employee not selected yet but form has data
-    const employeeName = selectedEmployee?.name || currentSubmission.employee?.name || 'anonymous';
-    const employeePhone = selectedEmployee?.phone || currentSubmission.employee?.phone || 'new';
     const monthKey = currentSubmission.monthKey || thisMonthKey();
-    
-    const employeeId = `${employeeName}-${employeePhone}`;
-    const key = `autosave-${employeeId}-${monthKey}`;
-    
+
+    // Prefer authenticated user ID, fall back to name-phone combo for legacy drafts
+    const userId =
+      selectedEmployee?.id ||
+      currentSubmission.employee?.id ||
+      `${selectedEmployee?.name || currentSubmission.employee?.name || 'anonymous'}-${
+        selectedEmployee?.phone || currentSubmission.employee?.phone || 'new'
+      }`;
+
+    const key = `autosave-${userId}-${monthKey}`;
+
     console.log('🔑 Auto-save key generated:', key);
     return key;
-  }, [selectedEmployee, currentSubmission.employee?.name, currentSubmission.employee?.phone, currentSubmission.monthKey]);
+  }, [selectedEmployee?.id, selectedEmployee?.name, selectedEmployee?.phone, currentSubmission.employee?.id, currentSubmission.employee?.name, currentSubmission.employee?.phone, currentSubmission.monthKey]);
 
   const uniqueEmployees = useMemo(() => {
     const employees = {};
@@ -120,7 +127,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
       // Don't reset the entire submission - preserve any entered data
       setCurrentSubmission(prev => ({
         ...prev,
-        employee: { ...prev.employee, name: "", phone: "" }
+        employee: { ...prev.employee, id: "", name: "", phone: "" }
       }));
       return;
     }
@@ -137,13 +144,15 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
       const isFormEmpty = !prev.employee?.name && !prev.employee?.phone;
       
       if (isFormEmpty) {
+        const derivedId = selectedEmployee.id || `${selectedEmployee.name}-${selectedEmployee.phone}`;
         return {
           ...EMPTY_SUBMISSION,
-          employee: { 
-            name: selectedEmployee.name, 
-            phone: selectedEmployee.phone, 
-            department: prevSub?.employee?.department || "Web", 
-            role: prevSub?.employee?.role || [] 
+          employee: {
+            id: derivedId,
+            name: selectedEmployee.name,
+            phone: selectedEmployee.phone,
+            department: prevSub?.employee?.department || "Web",
+            role: prevSub?.employee?.role || []
           },
           monthKey: prevMonthKey(thisMonthKey()),
         };
@@ -153,6 +162,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
           ...prev,
           employee: {
             ...prev.employee,
+            id: prev.employee.id || selectedEmployee.id || `${selectedEmployee.name}-${selectedEmployee.phone}`,
             name: prev.employee.name || selectedEmployee.name,
             phone: prev.employee.phone || selectedEmployee.phone,
             department: prev.employee.department || prevSub?.employee?.department || "Web",
@@ -166,42 +176,44 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
 
   const autoSave = useCallback(async () => {
     // Check if there's meaningful data to save
-    const hasEmployeeData = currentSubmission.employee?.name || currentSubmission.employee?.phone;
+    const hasEmployeeData =
+      currentSubmission.employee?.id ||
+      currentSubmission.employee?.name ||
+      currentSubmission.employee?.phone;
     const hasFormData = currentSubmission.monthKey || hasEmployeeData;
-    
+
     if (!hasFormData) {
       console.log('💾 Skipping auto-save: no meaningful data to save');
       return;
     }
-    
+
     try {
       const autoSaveKey = getAutoSaveKey();
       const autoSaveData = {
         ...currentSubmission,
         lastSaved: new Date().toISOString(),
         currentStep: currentStep,
-        autoSaveKey: autoSaveKey // Store the key used for debugging
+        autoSaveKey: autoSaveKey, // Store the key used for debugging
+        version: DRAFT_VERSION
       };
-      
+
       console.log('💾 Auto-saving form data:', {
         key: autoSaveKey,
-        employee: autoSaveData.employee,
+        userId: autoSaveData.employee?.id,
         step: currentStep,
-        hasName: !!autoSaveData.employee?.name,
-        hasPhone: !!autoSaveData.employee?.phone,
         monthKey: autoSaveData.monthKey
       });
-      
+
       localStorage.setItem(autoSaveKey, JSON.stringify(autoSaveData));
       setLastAutoSave(new Date());
       setHasUnsavedChanges(false);
-      
+
       // Verify the save worked
       const verification = localStorage.getItem(autoSaveKey);
       if (!verification) {
         throw new Error('Auto-save verification failed - data not found in localStorage');
       }
-      
+
       console.log('✅ Auto-save successful and verified');
     } catch (error) {
       console.error('❌ Auto-save failed:', error);
@@ -215,50 +227,6 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     autoSaveRef.current = autoSave;
   }, [autoSave]);
 
-  const loadDraft = useCallback(() => {
-    try {
-      const autoSaveKey = getAutoSaveKey();
-      const savedData = localStorage.getItem(autoSaveKey);
-      
-      if (savedData) {
-        const draft = JSON.parse(savedData);
-        
-        // Validate the draft data
-        if (!draft.employee && !draft.monthKey) {
-          console.log('📄 Draft found but appears empty, skipping load');
-          return false;
-        }
-        
-        console.log('📄 Loading draft:', {
-          key: autoSaveKey,
-          employee: draft.employee,
-          step: draft.currentStep,
-          hasName: !!draft.employee?.name,
-          hasPhone: !!draft.employee?.phone,
-          monthKey: draft.monthKey,
-          lastSaved: draft.lastSaved
-        });
-        
-        // Only load draft if it has meaningful data
-        const hasEmployeeData = draft.employee?.name || draft.employee?.phone;
-        if (hasEmployeeData || draft.monthKey) {
-          setCurrentSubmission(draft);
-          setCurrentStep(draft.currentStep || 1);
-          if (draft.lastSaved) {
-            setLastAutoSave(new Date(draft.lastSaved));
-          }
-          setHasUnsavedChanges(false); // Draft is considered saved
-          return true;
-        }
-      }
-      
-      console.log('📄 No valid draft found for key:', autoSaveKey);
-    } catch (error) {
-      console.error('❌ Failed to load draft:', error);
-    }
-    return false;
-  }, [getAutoSaveKey]);
-
   const clearDraft = useCallback(() => {
     try {
       const key = getAutoSaveKey();
@@ -270,6 +238,63 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
       console.error('Failed to clear draft:', error);
     }
   }, [getAutoSaveKey]);
+
+  const loadDraft = useCallback(() => {
+    try {
+      const autoSaveKey = getAutoSaveKey();
+      const savedData = localStorage.getItem(autoSaveKey);
+
+      if (savedData) {
+        let draft;
+        try {
+          draft = JSON.parse(savedData);
+        } catch (e) {
+          console.error('❌ Failed to parse saved draft:', e);
+          clearDraft();
+          openModal('Draft Unavailable', 'Saved draft is corrupted and has been cleared.', closeModal);
+          return false;
+        }
+
+        if (draft.version !== undefined && draft.version !== DRAFT_VERSION) {
+          console.warn('⚠️ Draft version mismatch:', { expected: DRAFT_VERSION, actual: draft.version });
+          clearDraft();
+          openModal('Draft Outdated', 'Saved draft is from an older version and has been cleared.', closeModal);
+          return false;
+        }
+
+        // Validate the draft data
+        if (!draft.employee && !draft.monthKey) {
+          console.log('📄 Draft found but appears empty, skipping load');
+          return false;
+        }
+
+        console.log('📄 Loading draft:', {
+          key: autoSaveKey,
+          employee: draft.employee,
+          step: draft.currentStep,
+          monthKey: draft.monthKey,
+          lastSaved: draft.lastSaved
+        });
+
+        // Only load draft if it has meaningful data
+        const hasEmployeeData = draft.employee?.id || draft.employee?.name || draft.employee?.phone;
+        if (hasEmployeeData || draft.monthKey) {
+          setCurrentSubmission(draft);
+          setCurrentStep(draft.currentStep || 1);
+          if (draft.lastSaved) {
+            setLastAutoSave(new Date(draft.lastSaved));
+          }
+          setHasUnsavedChanges(false); // Draft is considered saved
+          return true;
+        }
+      }
+
+      console.log('📄 No valid draft found for key:', autoSaveKey);
+    } catch (error) {
+      console.error('❌ Failed to load draft:', error);
+    }
+    return false;
+  }, [getAutoSaveKey, clearDraft, openModal, closeModal]);
   
   // Debug function to check localStorage status
   const debugAutoSave = useCallback(() => {
@@ -524,40 +549,68 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
 
   // Enhanced draft loading - only on initial mount or when meaningful employee change occurs
   const loadedDraftRef = useRef(new Set());
-  
+
+  useEffect(() => {
+    setDraftCheckComplete(false);
+  }, [selectedEmployee?.id, currentSubmission.monthKey]);
+
   useEffect(() => {
     const autoSaveKey = getAutoSaveKey();
 
-    // Only prompt when we have identifiable user info
-    const hasIdentity = currentSubmission.employee?.name && currentSubmission.employee?.phone;
-    if (!hasIdentity) return;
+    const hasIdentity = !!currentSubmission.employee?.id;
+    if (!hasIdentity) {
+      setDraftCheckComplete(true);
+      return;
+    }
 
-    // Avoid prompting multiple times for same draft
     if (loadedDraftRef.current.has(autoSaveKey)) {
+      setDraftCheckComplete(true);
       return;
     }
 
     if (autoSaveKey && autoSaveKey !== 'autosave-anonymous-new-undefined') {
       const saved = localStorage.getItem(autoSaveKey);
       if (saved) {
-        const draft = JSON.parse(saved);
+        let draftPreview;
+        try {
+          draftPreview = JSON.parse(saved);
+        } catch (e) {
+          console.error('❌ Failed to parse draft preview:', e);
+          clearDraft();
+          setDraftCheckComplete(true);
+          return;
+        }
+
+        if (draftPreview.version !== undefined && draftPreview.version !== DRAFT_VERSION) {
+          console.warn('⚠️ Draft version mismatch during preview:', { expected: DRAFT_VERSION, actual: draftPreview.version });
+          clearDraft();
+          setDraftCheckComplete(true);
+          return;
+        }
+
         openModal(
           'Resume saved draft?',
-          `A saved draft was found for ${draft.employee?.name || 'this user'} (last saved ${draft.lastSaved ? new Date(draft.lastSaved).toLocaleString() : 'previously'}).\nClick OK to resume or Cancel to start fresh.`,
+          `A saved draft was found for ${draftPreview.employee?.name || 'this user'} (last saved ${draftPreview.lastSaved ? new Date(draftPreview.lastSaved).toLocaleString() : 'previously'}).\nClick OK to resume or Cancel to start fresh.`,
           () => {
             loadDraft();
             closeModal();
             loadedDraftRef.current.add(autoSaveKey);
+            setDraftCheckComplete(true);
           },
           () => {
             clearDraft();
             closeModal();
             loadedDraftRef.current.add(autoSaveKey);
+            setDraftCheckComplete(true);
           }
         );
+      } else {
+        setDraftCheckComplete(true);
       }
+    } else {
+      setDraftCheckComplete(true);
     }
-  }, [getAutoSaveKey, currentSubmission.employee?.name, currentSubmission.employee?.phone, currentSubmission.monthKey, loadDraft, clearDraft, openModal, closeModal]);
+  }, [getAutoSaveKey, currentSubmission.employee?.id, currentSubmission.monthKey, loadDraft, clearDraft, openModal, closeModal]);
   
   // Auto-save on any form change to prevent data loss - removed autoSave from deps to prevent infinite loops
   useEffect(() => {
@@ -1659,10 +1712,14 @@ Your progress has been automatically saved, so you won't lose any other informat
     );
   }
 
+  if (!draftCheckComplete) {
+    return <div className="max-w-2xl mx-auto p-6 text-center text-gray-600">Checking for saved drafts...</div>;
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       <CelebrationEffect show={showCelebration} overall={overall} />
-      
+
       {isManagerEdit && onBack && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">

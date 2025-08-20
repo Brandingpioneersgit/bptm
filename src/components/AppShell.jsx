@@ -225,13 +225,16 @@ export function AppContent() {
         const hasCompletedSubmission = employeeSubmissions.some(s => !s.isDraft);
 
         if (employeeSubmissions.length > 0 && hasCompletedSubmission) {
+          const record = employeeSubmissions[0];
+          const userId = record.employee?.id || record.user_id || record.id || `${normalizedName}-${normalizedPhone}`;
           setAuthState({
             isLoggedIn: true,
             userType: 'employee',
             currentUser: {
-              name: employeeSubmissions[0].employee.name,
-              phone: employeeSubmissions[0].employee.phone,
-              department: employeeSubmissions[0].employee.department
+              id: userId,
+              name: record.employee.name,
+              phone: record.employee.phone,
+              department: record.employee.department
             },
             loginError: ''
           });
