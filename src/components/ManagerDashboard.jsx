@@ -1,10 +1,13 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef } from "react";
 import { useSupabase } from "./SupabaseProvider";
 import { useModal } from "./AppShell";
 import { useFetchSubmissions } from "./useFetchSubmissions";
 import { ClientManagementView } from "./ClientManagementView";
 import { ClientDashboardView } from "./ClientDashboardView";
 import { FixedLeaderboardView } from "./FixedLeaderboardView";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+import clientLogo from "../assets/client-logo.png";
 
 export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport }) {
   const supabase = useSupabase();
@@ -29,6 +32,21 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
     comments: '',
     recommendations: ''
   });
+
+  const [previewReport, setPreviewReport] = useState({
+    isOpen: false,
+    employee: null
+  });
+  const pdfRef = useRef(null);
+
+  const formatMonth = (monthKey) => {
+    if (!monthKey) return 'N/A';
+    const [year, month] = monthKey.split('-');
+    return new Date(year, month - 1).toLocaleString('default', {
+      month: 'short',
+      year: 'numeric'
+    });
+  };
 
   const processedData = useMemo(() => {
     if (!allSubmissions.length) return { employees: [], stats: {}, departments: [] };
@@ -167,121 +185,26 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
     }
   };
 
-  const downloadEmployeePDF = (employee) => {
+  const openReportPreview = (employee) => {
     const employeeData = employee.submissions;
-    const employeeName = employee.name;
-
     if (!employeeData || employeeData.length === 0) {
-      openModal('No Data', `No submissions found for ${employeeName}`, closeModal);
+      openModal('No Data', `No submissions found for ${employee.name}`, closeModal);
       return;
     }
+    setPreviewReport({ isOpen: true, employee });
+  };
 
-    const htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Performance Report - ${employeeName}</title>
-    <style>
-        body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 20px; line-height: 1.6; color: #1f2937; }
-        .header { text-align: center; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 3px solid #3b82f6; }
-        .header h1 { color: #3b82f6; margin: 0; font-size: 28px; }
-        .header h2 { color: #374151; margin: 10px 0; font-size: 24px; }
-        .header .meta { color: #6b7280; font-size: 14px; }
-        .section { margin: 30px 0; page-break-inside: avoid; }
-        .section h3 { color: #374151; border-left: 4px solid #3b82f6; padding-left: 12px; margin-bottom: 15px; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
-        .stat-card { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; text-align: center; }
-        .stat-value { font-size: 32px; font-weight: bold; color: #3b82f6; margin-bottom: 5px; }
-        .stat-label { font-size: 14px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; }
-        .performance-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        .performance-table th, .performance-table td { border: 1px solid #d1d5db; padding: 12px; text-align: left; }
-        .performance-table th { background: #3b82f6; color: white; font-weight: 600; }
-        .score-good { color: #059669; font-weight: bold; }
-        .score-medium { color: #d97706; font-weight: bold; }
-        .score-poor { color: #dc2626; font-weight: bold; }
-        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 12px; }
-        @media print { .no-print { display: none; } }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>🏢 Branding Pioneers</h1>
-        <h2>Employee Performance Report</h2>
-        <h2>${employeeName}</h2>
-        <div class="meta">
-            Department: ${employee.department} | Generated: ${new Date().toLocaleDateString()}
-        </div>
-    </div>
-
-    <div class="section">
-        <h3>📊 Performance Summary</h3>
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-value">${employee.averageScore}/10</div>
-                <div class="stat-label">Average Score</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value">${employeeData.length}</div>
-                <div class="stat-label">Reports Submitted</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value">${employee.totalHours.toFixed(1)}h</div>
-                <div class="stat-label">Total Learning</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value">${employee.performance}</div>
-                <div class="stat-label">Performance Level</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="section">
-        <h3>📈 Monthly Performance</h3>
-        <table class="performance-table">
-            <thead>
-                <tr>
-                    <th>Month</th>
-                    <th>Overall Score</th>
-                    <th>KPI Score</th>
-                    <th>Learning Score</th>
-                    <th>Learning Hours</th>
-                    <th>Manager Notes</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${employeeData.map(sub => {
-                    const learningHours = ((sub.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60).toFixed(1);
-                    const scoreClass = sub.scores?.overall >= 8 ? 'score-good' : sub.scores?.overall >= 6 ? 'score-medium' : 'score-poor';
-                    return `
-                        <tr>
-                            <td><strong>${monthLabel(sub.monthKey)}</strong></td>
-                            <td class="${scoreClass}">${sub.scores?.overall || 'N/A'}/10</td>
-                            <td>${sub.scores?.kpiScore || 'N/A'}/10</td>
-                            <td>${sub.scores?.learningScore || 'N/A'}/10</td>
-                            <td>${learningHours}h</td>
-                            <td>${sub.manager?.comments || 'No comments'}</td>
-                        </tr>
-                    `;
-                }).join('')}
-            </tbody>
-        </table>
-    </div>
-
-    <div class="footer">
-        <p>This report was generated by the Branding Pioneers Monthly Tactical System</p>
-        <p>For questions about this report, contact your HR department</p>
-    </div>
-</body>
-</html>
-    `;
-
-    const blob = new Blob([htmlContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${employeeName.replace(/\s+/g, '_')}_Performance_Report_${new Date().toISOString().split('T')[0]}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const downloadEmployeePDF = async () => {
+    if (!pdfRef.current || !previewReport.employee) return;
+    const canvas = await html2canvas(pdfRef.current, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const imgProps = pdf.getImageProperties(imgData);
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`${previewReport.employee.name.replace(/\s+/g, '_')}_Performance_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+    setPreviewReport({ isOpen: false, employee: null });
   };
 
   const exportBulkData = () => {
@@ -665,7 +588,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                               Full Report
                             </button>
                             <button
-                              onClick={() => downloadEmployeePDF(employee)}
+                              onClick={() => openReportPreview(employee)}
                               className="text-green-600 hover:text-green-900 hover:bg-green-50 px-3 py-1 rounded transition-colors"
                             >
                               Download PDF
@@ -799,6 +722,128 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
               >
                 Save Evaluation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {previewReport.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Preview Report: {previewReport.employee?.name}</h3>
+              <button
+                onClick={() => setPreviewReport({ isOpen: false, employee: null })}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6" ref={pdfRef}>
+              <div className="text-center">
+                <img src={clientLogo} alt="Client Logo" className="h-16 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold mb-1">{previewReport.employee?.name}</h2>
+                <p className="text-gray-500">{previewReport.employee?.department}</p>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center border rounded-lg p-2">
+                  <div className="text-2xl font-semibold text-gray-900">{previewReport.employee?.averageScore}</div>
+                  <div className="text-xs text-gray-500">Avg Score</div>
+                </div>
+                <div className="text-center border rounded-lg p-2">
+                  <div className="text-2xl font-semibold text-gray-900">{previewReport.employee?.submissions.length}</div>
+                  <div className="text-xs text-gray-500">Reports</div>
+                </div>
+                <div className="text-center border rounded-lg p-2">
+                  <div className="text-2xl font-semibold text-gray-900">{previewReport.employee?.totalHours.toFixed(1)}h</div>
+                  <div className="text-xs text-gray-500">Learning</div>
+                </div>
+                <div className="text-center border rounded-lg p-2">
+                  <div className="text-2xl font-semibold text-gray-900">{previewReport.employee?.performance}</div>
+                  <div className="text-xs text-gray-500">Badge</div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-lg font-semibold mb-2">KPI Trend</h4>
+                <div className="h-40 flex items-end gap-2">
+                  {previewReport.employee?.submissions.map((sub, idx) => {
+                    const height = (sub.scores?.kpiScore || 0) * 10;
+                    return (
+                      <div
+                        key={idx}
+                        className="flex-1 bg-blue-500"
+                        style={{ height: `${height}px` }}
+                        title={`${formatMonth(sub.monthKey)}: ${sub.scores?.kpiScore || 0}`}
+                      ></div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-lg font-semibold mb-2">Monthly Comparison</h4>
+                <table className="w-full text-sm border border-gray-300">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="border px-2 py-1">Month</th>
+                      <th className="border px-2 py-1">KPI</th>
+                      <th className="border px-2 py-1">Δ Prev</th>
+                      <th className="border px-2 py-1">Badge</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewReport.employee?.submissions.map((sub, idx) => {
+                      const prev = previewReport.employee?.submissions[idx + 1];
+                      const diff = prev ? (sub.scores?.kpiScore || 0) - (prev.scores?.kpiScore || 0) : null;
+                      const badge = diff == null ? 'N/A' : diff > 0 ? 'Improved' : diff < 0 ? 'Declined' : 'No Change';
+                      const badgeClass = diff == null
+                        ? 'bg-gray-200 text-gray-800'
+                        : diff > 0
+                          ? 'bg-green-100 text-green-800'
+                          : diff < 0
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-yellow-100 text-yellow-800';
+                      return (
+                        <tr key={idx}>
+                          <td className="border px-2 py-1">{formatMonth(sub.monthKey)}</td>
+                          <td className="border px-2 py-1 text-center">{sub.scores?.kpiScore || 'N/A'}</td>
+                          <td className="border px-2 py-1 text-center">{diff == null ? 'N/A' : diff.toFixed(1)}</td>
+                          <td className="border px-2 py-1 text-center">
+                            <span className={`text-xs px-2 py-1 rounded-full ${badgeClass}`}>{badge}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div>
+                <h4 className="text-lg font-semibold mb-2">Summary Recommendations</h4>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                  {previewReport.employee?.latestSubmission?.manager?.recommendations || 'No recommendations yet.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => setPreviewReport({ isOpen: false, employee: null })}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={downloadEmployeePDF}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Download PDF
               </button>
             </div>
           </div>
