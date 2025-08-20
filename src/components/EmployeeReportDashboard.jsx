@@ -7,6 +7,23 @@ import { PDFDownloadButton } from "./PDFDownloadButton";
 import { generateSummary } from "./scoring";
 import { monthLabel, round1 } from "./constants";
 
+function SummarySection({ title, items }) {
+  return (
+    <div className="mt-2">
+      <h5 className="font-medium text-gray-700">{title}:</h5>
+      {items && items.length > 0 ? (
+        <ul className="list-disc ml-5 text-sm text-gray-600">
+          {items.map((item, idx) => (
+            <li key={idx}>{item}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-gray-600">None</p>
+      )}
+    </div>
+  );
+}
+
 export function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
   const { allSubmissions, loading } = useFetchSubmissions();
   const { openModal, closeModal } = useModal();
@@ -33,6 +50,11 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
   const selectedReport = useMemo(() => {
     return employeeSubmissions.find(s => s.id === selectedReportId) || null;
   }, [employeeSubmissions, selectedReportId]);
+
+  const structuredSummary = useMemo(() => {
+    if (!selectedReport) return null;
+    return generateSummary(selectedReport);
+  }, [selectedReport]);
 
   const yearlySummary = useMemo(() => {
     if (!employeeSubmissions.length) {
@@ -333,10 +355,16 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
                 <div className="font-bold text-xl">{(selectedReport.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0) / 60}h</div>
               </div>
             </div>
-            <div className="mt-4">
-              <h4 className="font-medium text-gray-700">AI-Generated Summary:</h4>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap">{generateSummary(selectedReport)}</p>
-            </div>
+            {structuredSummary && (
+              <div className="mt-4 space-y-2">
+                <h4 className="font-medium text-gray-700">Summary</h4>
+                <p className="text-sm text-gray-600 whitespace-pre-wrap">{structuredSummary.overview}</p>
+                <SummarySection title="Strengths" items={structuredSummary.strengths} />
+                <SummarySection title="Weaknesses" items={structuredSummary.weaknesses} />
+                <SummarySection title="Missed Tasks" items={structuredSummary.missed} />
+                <SummarySection title="Next Month Tips" items={structuredSummary.tips} />
+              </div>
+            )}
             <details className="mt-4 cursor-pointer">
               <summary className="font-medium text-blue-600 hover:text-blue-800">
                 View Full Submission Data
