@@ -73,6 +73,8 @@ export const EMPTY_SUBMISSION = {
   meta: { attendance: { wfo: 0, wfh: 0 }, tasks: { count: 0, aiTableLink: "", aiTableScreenshot: "" } },
   clients: [],
   learning: [],
+  learningMonthlyMins: 0,
+  learningCumulativeMins: 0,
   aiUsageNotes: "",
   feedback: { company: "", hr: "", challenges: "" },
   flags: { missingLearningHours: false, hasEscalations: false, missingReports: false },

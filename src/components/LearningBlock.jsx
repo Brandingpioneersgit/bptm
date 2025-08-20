@@ -6,6 +6,7 @@ import { useModal } from "./AppShell";
 export function LearningBlock({ model, setModel, openModal }) {
   const [draft, setDraft] = useState({ title: '', link: '', durationMins: 0, learned: '', applied: '' });
   const total = (model.learning || []).reduce((s, e) => s + (e.durationMins || 0), 0);
+  const credited = Math.min(total, 360);
   function addEntry() {
     if (!draft.title || !draft.link || !draft.durationMins) {
       openModal('Missing Information', 'Please fill in the title, link, and duration to add a learning entry.', () => { });
@@ -29,7 +30,9 @@ export function LearningBlock({ model, setModel, openModal }) {
         <TextArea className="md:col-span-2" label="What did you learn (key points)" rows={3} value={draft.learned} onChange={v => setDraft(d => ({ ...d, learned: v }))} />
         <TextArea className="md:col-span-2" label="How did you apply it in work?" rows={3} value={draft.applied} onChange={v => setDraft(d => ({ ...d, applied: v }))} />
       </div>
-      <div className="mt-2 text-sm">Total this month: <b>{(total / 60).toFixed(1)} hours</b> {total < 360 && <span className="text-red-600">(below 6h)</span>}</div>
+      <div className="mt-2 text-sm">
+        <b>{(credited / 60).toFixed(1)}h credited</b> of <b>{(total / 60).toFixed(1)}h total</b> {total < 360 && <span className="text-red-600">(below 6h)</span>}
+      </div>
       <ul className="mt-2 space-y-1 text-xs">
         {(model.learning || []).map(item => (
           <li key={item.id} className="border rounded-lg p-2 flex items-center justify-between">

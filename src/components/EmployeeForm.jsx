@@ -832,16 +832,28 @@ Your progress has been automatically saved, so you won't lose any other informat
       console.error('Failed to create backup:', e);
     }
 
-    const final = { 
-      ...currentSubmission, 
-      isDraft: false, 
-      submittedAt: new Date().toISOString(), 
-      employee: { 
-        ...currentSubmission.employee, 
-        name: (currentSubmission.employee?.name || "").trim(), 
-        phone: currentSubmission.employee.phone 
+    const final = {
+      ...currentSubmission,
+      isDraft: false,
+      submittedAt: new Date().toISOString(),
+      employee: {
+        ...currentSubmission.employee,
+        name: (currentSubmission.employee?.name || "").trim(),
+        phone: currentSubmission.employee.phone
       }
     };
+
+    const monthlyLearningMins = (currentSubmission.learning || []).reduce((s, e) => s + (e.durationMins || 0), 0);
+    const pastLearningMins = allSubmissions
+      .filter(s => s.employee?.phone === currentSubmission.employee.phone && s.monthKey !== currentSubmission.monthKey)
+      .reduce((sum, s) => sum + (s.learningMonthlyMins ?? (s.learning || []).reduce((sm, e) => sm + (e.durationMins || 0), 0)), 0);
+    final.learningMonthlyMins = monthlyLearningMins;
+    final.learningCumulativeMins = pastLearningMins + monthlyLearningMins;
+    if (monthlyLearningMins < 300) {
+      const msg = "Appraisal delayed due to insufficient learning this month.";
+      final.manager = final.manager || {};
+      final.manager.comments = final.manager.comments ? `${final.manager.comments}\n${msg}` : msg;
+    }
 
     delete final.id;
 
@@ -870,6 +882,8 @@ Your progress has been automatically saved, so you won't lose any other informat
         throw new Error("Submission processed but no data returned. Please verify your submission was saved.");
       }
 
+      const crossedThreshold = pastLearningMins < 4320 && final.learningCumulativeMins >= 4320;
+
       // Success - remove backup and continue
       try {
         localStorage.removeItem(backupKey);
@@ -879,6 +893,9 @@ Your progress has been automatically saved, so you won't lose any other informat
       
       const performanceFeedback = generatePerformanceFeedback(final);
       showPerformanceFeedbackModal(performanceFeedback, final);
+      if (crossedThreshold) {
+        openModal('Appraisal Unlocked', 'Congratulations! You\'ve completed 72h of learning. Your appraisal is now unlocked.', closeModal);
+      }
       
       clearDraft(); // Clear draft only on success
       setCurrentSubmission({ ...EMPTY_SUBMISSION, monthKey: prevMonthKey(thisMonthKey()) });

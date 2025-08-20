@@ -169,9 +169,10 @@ export function scoreKPIs(employee, clients) {
   return 0;
 }
 
-export function scoreLearning(entries) { 
-  const total = (entries || []).reduce((s, e) => s + (e.durationMins || 0), 0); 
-  return round1(Math.min(10, (total / 360) * 10)); 
+export function scoreLearning(entries) {
+  const total = (entries || []).reduce((s, e) => s + (e.durationMins || 0), 0);
+  const credited = Math.min(total, 360);
+  return round1((credited / 360) * 10);
 }
 
 export function scoreRelationshipFromClients(clients, dept) {

@@ -63,7 +63,8 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       emp.averageScore = emp.submissions.length ? (totalScore / emp.submissions.length).toFixed(1) : 0;
       
       emp.totalHours = emp.submissions.reduce((total, sub) => {
-        return total + ((sub.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60);
+        const mins = sub.learningMonthlyMins ?? (sub.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0);
+        return total + mins / 60;
       }, 0);
       
       emp.performance = emp.averageScore >= 8 ? 'High' : emp.averageScore >= 6 ? 'Medium' : 'Low';

@@ -34,6 +34,13 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
     return employeeSubmissions.find(s => s.id === selectedReportId) || null;
   }, [employeeSubmissions, selectedReportId]);
 
+  const cumulativeLearningMins = useMemo(() => {
+    return employeeSubmissions.reduce(
+      (sum, s) => sum + (s.learningMonthlyMins ?? (s.learning || []).reduce((sm, e) => sm + (e.durationMins || 0), 0)),
+      0
+    );
+  }, [employeeSubmissions]);
+
   const yearlySummary = useMemo(() => {
     if (!employeeSubmissions.length) {
       return null;
@@ -50,7 +57,8 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
       totalLearning += s.scores?.learningScore || 0;
       totalRelationship += s.scores?.relationshipScore || 0;
       totalOverall += s.scores?.overall || 0;
-      if ((s.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0) < 360) {
+      const monthly = s.learningMonthlyMins ?? (s.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0);
+      if (monthly < 360) {
         monthsWithLearningShortfall++;
       }
     });
@@ -166,7 +174,7 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
 -   **Overall Score:** ${s.scores.overall}/10
 -   **KPI Score:** ${s.scores.kpiScore}/10
 -   **Learning Score:** ${s.scores.learningScore}/10
--   **Learning Hours:** ${(s.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0) / 60}h
+-   **Learning Hours:** ${(s.learningMonthlyMins ?? (s.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0)) / 60}h
 -   **Client Relationship Score:** ${s.scores.relationshipScore}/10
 -   **Manager Notes:** ${s.manager?.comments || 'N/A'}
 -   **Manager Score:** ${s.manager?.score || 'N/A'}
@@ -237,7 +245,11 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
         </button>
       </div>
 
-
+      {cumulativeLearningMins >= 4320 && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-green-800">
+          🎉 Appraisal unlocked! You've completed {(cumulativeLearningMins / 60).toFixed(1)} hours of learning.
+        </div>
+      )}
 
       {yearlySummary && (
         <Section title="Cumulative Summary & Recommendations">
@@ -330,7 +342,7 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
               </div>
               <div className="bg-white rounded-xl p-2 border">
                 <div className="font-medium text-gray-700">Learning Hours</div>
-                <div className="font-bold text-xl">{(selectedReport.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0) / 60}h</div>
+              <div className="font-bold text-xl">{(selectedReport.learningMonthlyMins ?? (selectedReport.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0)) / 60}h</div>
               </div>
             </div>
             <div className="mt-4">
