@@ -675,7 +675,7 @@ function KPIsOperationsHead({ client, onChange }) {
   );
 }
 
-export function DeptClientsBlock({ currentSubmission, previousSubmission, setModel, monthPrev, monthThis, openModal, closeModal }) {
+export function DeptClientsBlock({ currentSubmission, previousSubmission, setModel, monthPrev, monthThis, openModal, closeModal, repoClients }) {
   const isInternal = ["HR", "Accounts", "Sales", "Blended (HR + Sales)"].includes(currentSubmission.employee.department);
   const isWebHead = currentSubmission.employee.department === "Web Head";
   const isOpsHead = currentSubmission.employee.department === "Operations Head";
@@ -689,27 +689,30 @@ export function DeptClientsBlock({ currentSubmission, previousSubmission, setMod
       {(isInternal && !isOpsHead && !isWebHead) ? (
         <InternalKPIs model={currentSubmission} prevModel={previousSubmission} setModel={setModel} monthPrev={monthPrev} monthThis={monthThis} />
       ) : (
-        <ClientTable currentSubmission={currentSubmission} previousSubmission={previousSubmission} setModel={setModel} monthPrev={monthPrev} monthThis={monthThis} openModal={openModal} closeModal={closeModal} />
+        <ClientTable currentSubmission={currentSubmission} previousSubmission={previousSubmission} setModel={setModel} monthPrev={monthPrev} monthThis={monthThis} openModal={openModal} closeModal={closeModal} repoClients={repoClients} />
       )}
     </Section>
   );
 }
 
-function ClientTable({ currentSubmission, previousSubmission, setModel, monthPrev, monthThis, openModal, closeModal }) {
+function ClientTable({ currentSubmission, previousSubmission, setModel, monthPrev, monthThis, openModal, closeModal, repoClients }) {
   const supabase = useSupabase();
   const [draftRow, setDraftRow] = useState({ name: "", scopeOfWork: "", url: "" });
-  const [masterClients, setMasterClients] = useState([]);
-  const [showNewClientForm, setShowNewClientForm] = useState(false);
+  const [showRequestClientForm, setShowRequestClientForm] = useState(false);
   
   const serviceOptions = ['SEO', 'GBP SEO', 'Website Maintenance', 'Social Media', 'Google Ads', 'Meta Ads', 'AI'];
-  const [newClientForm, setNewClientForm] = useState({
+  const currentTeam = currentSubmission.employee.department === "Social Media" ? "Marketing" : "Web";
+  const [requestClientForm, setRequestClientForm] = useState({
     name: '',
     client_type: 'Standard',
-    team: 'Web',
+    team: currentTeam,
     scope_of_work: '',
     services: [],
     service_scopes: {}
   });
+  useEffect(() => {
+    setRequestClientForm(prev => ({ ...prev, team: currentTeam }));
+  }, [currentTeam]);
   const isOpsHead = currentSubmission.employee.department === "Operations Head";
   const isWebHead = currentSubmission.employee.department === "Web Head";
   const isGraphicDesigner = currentSubmission.employee.role?.includes("Graphic Designer");
@@ -766,88 +769,46 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
   }
 
   const prevClients = previousSubmission?.clients || [];
-  
-  useEffect(() => {
-    const fetchMasterClients = async () => {
-      if (!supabase) return;
-      
-      try {
-        const { data, error } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('status', 'Active')
-          .order('name');
-        
-        if (error) throw error;
-        setMasterClients(data || []);
-      } catch (error) {
-        console.error('Error fetching master clients:', error);
-      }
-    };
-    
-    fetchMasterClients();
-  }, [supabase]);
 
-  const currentTeam = currentSubmission.employee.department === "Social Media" ? "Marketing" : "Web";
-  
   const clientNames = useMemo(() => {
-    const names = new Set();
-    
-    masterClients
+    return (repoClients || [])
       .filter(client => client.team === currentTeam)
-      .forEach(client => names.add(client.name));
-    
-    prevClients.forEach(client => names.add(client.name));
-    
-    return [...names].sort();
-  }, [masterClients, prevClients, currentTeam]);
+      .map(client => client.name)
+      .sort();
+  }, [repoClients, currentTeam]);
 
   const addClientFromDropdown = (clientName) => {
-    const prevClient = prevClients.find(c => c.name === clientName);
-    if (prevClient) {
-      const newClient = { ...prevClient, id: uid(), reports: [] };
-      setModel(m => ({ ...m, clients: [...m.clients, newClient] }));
-      return;
-    }
-    
-    const masterClient = masterClients.find(c => c.name === clientName);
-    const newClient = masterClient 
-      ? { 
-          id: uid(), 
-          name: masterClient.name, 
-          reports: [], 
-          relationship: {},
-          client_type: masterClient.client_type,
-          team: masterClient.team,
-          scope_of_work: masterClient.scope_of_work,
-          services: masterClient.services || [],
-          service_scopes: masterClient.service_scopes || {}
-        }
-      : { 
-          id: uid(), 
-          name: clientName, 
-          reports: [], 
-          relationship: {},
-          services: [],
-          service_scopes: {}
-        };
-    
+    const repoClient = (repoClients || []).find(c => c.name === clientName);
+    if (!repoClient) return;
+
+    const newClient = {
+      id: uid(),
+      name: repoClient.name,
+      reports: [],
+      relationship: {},
+      client_type: repoClient.client_type,
+      team: repoClient.team,
+      scope_of_work: repoClient.scope_of_work,
+      services: repoClient.services || [],
+      service_scopes: repoClient.service_scopes || {}
+    };
+
     setModel(m => ({ ...m, clients: [...m.clients, newClient] }));
   };
 
   const handleServiceChange = (selectedServices) => {
-    setNewClientForm(prev => ({ ...prev, services: selectedServices }));
-    const newServiceScopes = { ...prev.service_scopes };
+    setRequestClientForm(prev => ({ ...prev, services: selectedServices }));
+    const newServiceScopes = { ...requestClientForm.service_scopes };
     Object.keys(newServiceScopes).forEach(service => {
       if (!selectedServices.includes(service)) {
         delete newServiceScopes[service];
       }
     });
-    setNewClientForm(prev => ({ ...prev, service_scopes: newServiceScopes }));
+    setRequestClientForm(prev => ({ ...prev, service_scopes: newServiceScopes }));
   };
 
   const handleServiceScopeChange = (service, field, value) => {
-    setNewClientForm(prev => ({
+    setRequestClientForm(prev => ({
       ...prev,
       service_scopes: {
         ...prev.service_scopes,
@@ -859,44 +820,43 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
     }));
   };
 
-  const handleCreateNewClient = async (e) => {
+  const handleRequestNewClient = async (e) => {
     e.preventDefault();
-    if (!supabase || !newClientForm.name.trim()) return;
+    if (!supabase || !requestClientForm.name.trim()) return;
 
     try {
-      const { data: newClient, error } = await supabase
-        .from('clients')
-        .insert([{
-          name: newClientForm.name.trim(),
-          client_type: newClientForm.client_type,
-          team: newClientForm.team,
-          scope_of_work: newClientForm.scope_of_work,
-          services: newClientForm.services,
-          service_scopes: newClientForm.service_scopes,
-          status: 'Active'
-        }])
-        .select()
-        .single();
+      const { error } = await supabase
+        .from('client_requests')
+        .insert([{ 
+          name: requestClientForm.name.trim(),
+          client_type: requestClientForm.client_type,
+          team: requestClientForm.team,
+          scope_of_work: requestClientForm.scope_of_work,
+          services: requestClientForm.services,
+          service_scopes: requestClientForm.service_scopes,
+          status: 'Pending',
+          requested_by: currentSubmission.employee?.name || '',
+          requested_phone: currentSubmission.employee?.phone || ''
+        }]);
 
       if (error) throw error;
 
       const formClient = {
         id: uid(),
-        name: newClient.name,
+        name: requestClientForm.name.trim(),
         reports: [],
         relationship: {},
-        client_type: newClient.client_type,
-        team: newClient.team,
-        scope_of_work: newClient.scope_of_work,
-        services: newClient.services,
-        service_scopes: newClient.service_scopes
+        client_type: requestClientForm.client_type,
+        team: requestClientForm.team,
+        scope_of_work: requestClientForm.scope_of_work,
+        services: requestClientForm.services,
+        service_scopes: requestClientForm.service_scopes,
+        isProvisional: true
       };
 
       setModel(m => ({ ...m, clients: [...m.clients, formClient] }));
-      
-      setMasterClients(prev => [...prev, newClient]);
-      
-      setNewClientForm({
+
+      setRequestClientForm({
         name: '',
         client_type: 'Standard',
         team: currentTeam,
@@ -904,11 +864,11 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
         services: [],
         service_scopes: {}
       });
-      setShowNewClientForm(false);
+      setShowRequestClientForm(false);
 
     } catch (error) {
-      console.error('Error creating client:', error);
-      alert('Failed to create client. Please try again.');
+      console.error('Error requesting client:', error);
+      alert('Failed to request client. Please try again.');
     }
   };
 
@@ -929,13 +889,13 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
         </select>
         <button
           type="button"
-          onClick={() => setShowNewClientForm(true)}
+          onClick={() => setShowRequestClientForm(true)}
           className="px-4 py-2 bg-blue-600 text-white text-sm rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-1"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          Create New
+          Request New
         </button>
       </div>
       <div className="overflow-auto">
@@ -1023,14 +983,14 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
         )
       })}
 
-      {showNewClientForm && (
+      {showRequestClientForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">Create New Client</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Request New Client</h3>
                 <button
-                  onClick={() => setShowNewClientForm(false)}
+                  onClick={() => setShowRequestClientForm(false)}
                   className="text-gray-400 hover:text-gray-500"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1040,14 +1000,14 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
               </div>
             </div>
 
-            <form onSubmit={handleCreateNewClient} className="px-6 py-4 space-y-4">
+            <form onSubmit={handleRequestNewClient} className="px-6 py-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Client Name *</label>
                 <input
                   type="text"
                   required
-                  value={newClientForm.name}
-                  onChange={(e) => setNewClientForm(prev => ({ ...prev, name: e.target.value }))}
+                  value={requestClientForm.name}
+                  onChange={(e) => setRequestClientForm(prev => ({ ...prev, name: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                   placeholder="Enter client name"
                 />
@@ -1056,8 +1016,8 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Client Type *</label>
                 <select
-                  value={newClientForm.client_type}
-                  onChange={(e) => setNewClientForm(prev => ({ ...prev, client_type: e.target.value }))}
+                  value={requestClientForm.client_type}
+                  onChange={(e) => setRequestClientForm(prev => ({ ...prev, client_type: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 >
                   <option value="Standard">Standard</option>
@@ -1069,8 +1029,8 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Team *</label>
                 <select
-                  value={newClientForm.team}
-                  onChange={(e) => setNewClientForm(prev => ({ ...prev, team: e.target.value }))}
+                  value={requestClientForm.team}
+                  onChange={(e) => setRequestClientForm(prev => ({ ...prev, team: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 >
                   <option value="Web">Web Team</option>
@@ -1080,15 +1040,15 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Services *</label>
-                <MultiSelect 
+                <MultiSelect
                   options={serviceOptions}
-                  selected={newClientForm.services}
+                  selected={requestClientForm.services}
                   onChange={handleServiceChange}
                   placeholder="Select services..."
                 />
               </div>
 
-              {newClientForm.services.map(service => (
+              {requestClientForm.services.map(service => (
                 <div key={service} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                   <h4 className="font-medium text-gray-800 mb-3">{service} - Scope Details</h4>
                   <div className="space-y-3">
@@ -1097,7 +1057,7 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
                       <input
                         type="number"
                         min="1"
-                        value={newClientForm.service_scopes[service]?.deliverables || ''}
+                        value={requestClientForm.service_scopes[service]?.deliverables || ''}
                         onChange={(e) => handleServiceScopeChange(service, 'deliverables', parseInt(e.target.value) || 0)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                         placeholder={`Number of ${service.toLowerCase()} deliverables per month`}
@@ -1107,7 +1067,7 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
                       <label className="block text-sm font-medium text-gray-700 mb-1">Scope Description</label>
                       <textarea
                         rows={2}
-                        value={newClientForm.service_scopes[service]?.description || ''}
+                        value={requestClientForm.service_scopes[service]?.description || ''}
                         onChange={(e) => handleServiceScopeChange(service, 'description', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                         placeholder={`Describe the ${service} scope and requirements...`}
@@ -1116,7 +1076,7 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Frequency</label>
                       <select
-                        value={newClientForm.service_scopes[service]?.frequency || 'monthly'}
+                        value={requestClientForm.service_scopes[service]?.frequency || 'monthly'}
                         onChange={(e) => handleServiceScopeChange(service, 'frequency', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                       >
@@ -1135,8 +1095,8 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
                 <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>
                 <textarea
                   rows={2}
-                  value={newClientForm.scope_of_work}
-                  onChange={(e) => setNewClientForm(prev => ({ ...prev, scope_of_work: e.target.value }))}
+                  value={requestClientForm.scope_of_work}
+                  onChange={(e) => setRequestClientForm(prev => ({ ...prev, scope_of_work: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                   placeholder="Additional notes or overall scope description..."
                 />
@@ -1145,7 +1105,7 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowNewClientForm(false)}
+                  onClick={() => setShowRequestClientForm(false)}
                   className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
                 >
                   Cancel
@@ -1154,7 +1114,7 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
                   type="submit"
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                 >
-                  Create Client
+                  Submit Request
                 </button>
               </div>
             </form>

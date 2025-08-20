@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback, useRef } from "react"
 import { useSupabase } from "./SupabaseProvider";
 import { useModal } from "./AppShell";
 import { useFetchSubmissions } from "./useFetchSubmissions";
+import { useClientSync } from "./useClientSync";
 import { EMPTY_SUBMISSION, thisMonthKey, prevMonthKey, monthLabel, DEPARTMENTS, ROLES_BY_DEPT } from "./constants";
 import { scoreKPIs, scoreLearning, scoreRelationshipFromClients, overallOutOf10, generateSummary } from "./scoring";
 import { CelebrationEffect } from "./CelebrationEffect";
@@ -15,6 +16,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   const supabase = useSupabase();
   const { openModal, closeModal } = useModal();
   const { allSubmissions } = useFetchSubmissions();
+  const { allClients: repoClients } = useClientSync();
 
   const [currentSubmission, setCurrentSubmission] = useState({ ...EMPTY_SUBMISSION, isDraft: true });
   const [previousSubmission, setPreviousSubmission] = useState(null);
@@ -850,7 +852,8 @@ Your progress has been automatically saved, so you won't lose any other informat
       if (supabase && currentSubmission.clients && currentSubmission.clients.length > 0) {
         console.log('🏢 Auto-storing clients to repository...');
         const clientRepository = getClientRepository(supabase);
-        await clientRepository.storeClientsFromSubmission(currentSubmission);
+        const approvedClients = currentSubmission.clients.filter(c => !c.isProvisional);
+        await clientRepository.storeClientsFromSubmission({ ...currentSubmission, clients: approvedClients });
       }
 
       // Use improved upsert with explicit error handling
@@ -1535,14 +1538,15 @@ Your progress has been automatically saved, so you won't lose any other informat
   function renderKPIStep() {
     return (
       <div className="space-y-6">
-        <DeptClientsBlock 
-          currentSubmission={currentSubmission} 
-          previousSubmission={previousSubmission} 
-          setModel={setModelWithTracking} 
-          monthPrev={mPrev} 
-          monthThis={mThis} 
-          openModal={openModal} 
-          closeModal={closeModal} 
+        <DeptClientsBlock
+          currentSubmission={currentSubmission}
+          previousSubmission={previousSubmission}
+          setModel={setModelWithTracking}
+          monthPrev={mPrev}
+          monthThis={mThis}
+          openModal={openModal}
+          closeModal={closeModal}
+          repoClients={repoClients}
         />
       </div>
     );
