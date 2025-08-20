@@ -38,6 +38,14 @@ export const prevMonthKey = (mk) => { if (!mk) return ""; const [y, m] = mk.spli
 
 export const monthLabel = (mk) => { if (!mk) return ""; const [y, m] = mk.split("-").map(Number); return new Date(y, m - 1, 1).toLocaleString(undefined, { month: 'short', year: 'numeric' }); };
 
+export const DISCIPLINE_PENALTY_POINTS = 1;
+
+export const submissionDeadline = (monthKey) => {
+  const [y, m] = (monthKey || "").split("-").map(Number);
+  if (!y || !m) return null;
+  return new Date(y, m, 7);
+};
+
 export const round1 = (n) => Math.round(n * 10) / 10;
 
 export const isDriveUrl = (u) => /https?:\/\/(drive|docs)\.google\.com\//i.test(u || "");
@@ -78,4 +86,5 @@ export const EMPTY_SUBMISSION = {
   flags: { missingLearningHours: false, hasEscalations: false, missingReports: false },
   manager: { verified: false, comments: "", score: 0, hiddenDataFlag: false },
   scores: { kpiScore: 0, learningScore: 0, relationshipScore: 0, overall: 0 },
+  disciplinePenalty: 0,
 };

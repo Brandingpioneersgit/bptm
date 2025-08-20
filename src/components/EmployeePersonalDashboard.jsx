@@ -55,8 +55,8 @@ export function EmployeePersonalDashboard({ employee, onBack }) {
       Overall Score: ${submission.scores?.overall?.toFixed(1) || 'N/A'}/10\n
       KPI Score: ${submission.scores?.kpiScore?.toFixed(1) || 'N/A'}/10\n
       Learning Score: ${submission.scores?.learningScore?.toFixed(1) || 'N/A'}/10\n
-      Client Relations: ${submission.scores?.relationshipScore?.toFixed(1) || 'N/A'}/10\n\n      
-
+      Client Relations: ${submission.scores?.relationshipScore?.toFixed(1) || 'N/A'}/10\n\n
+      ${submission.disciplinePenalty ? `Discipline Penalty: -${submission.disciplinePenalty} point(s)\n` : ''}
       ${submission.manager_remarks ? `MANAGER FEEDBACK:\n${submission.manager_remarks}\n\n` : ''}
       
 
@@ -76,10 +76,23 @@ export function EmployeePersonalDashboard({ employee, onBack }) {
   };
 
   const getSubmissionSummary = (submission) => {
-    return `📈 PERFORMANCE SUMMARY - ${monthLabel(submission.monthKey)}\n\n★ Overall Score: ${submission.scores?.overall?.toFixed(1) || 'N/A'}/10\n\n🎯 KPI Performance: ${submission.scores?.kpiScore?.toFixed(1) || 'N/A'}/10\n🎓 Learning Activities: ${submission.scores?.learningScore?.toFixed(1) || 'N/A'}/10\n🤝 Client Relations: ${submission.scores?.relationshipScore?.toFixed(1) || 'N/A'}/10\n\n${submission.flags?.missingLearningHours ? '⚠️ Action needed: Complete learning hours requirement\n' : ''}
-${submission.flags?.hasEscalations ? '⚠️ Action needed: Address client escalations\n' : ''}
-${submission.flags?.missingReports ? '⚠️ Action needed: Submit missing client reports\n' : ''}
-${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_remarks}` : '\n📝 No manager feedback yet'}`;
+    return (
+       +
+       +
+       +
+       +
+       +
+      (submission.disciplinePenalty ?  : '') +
+       +
+      (submission.flags?.missingLearningHours ? '⚠️ Action needed: Complete learning hours requirement
+' : '') +
+      (submission.flags?.hasEscalations ? '⚠️ Action needed: Address client escalations
+' : '') +
+      (submission.flags?.missingReports ? '⚠️ Action needed: Submit missing client reports
+' : '') +
+      (submission.manager_remarks ?  : '
+📝 No manager feedback yet')
+    );
   };
 
   if (loading) {
@@ -126,7 +139,7 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
             <div className="min-w-0 flex-1">
               <h3 className="font-semibold text-green-800 text-sm sm:text-base">Current Month Submitted</h3>
               <p className="text-xs sm:text-sm text-green-700 leading-relaxed">
-                {monthLabel(currentMonthSubmission.monthKey)} report submitted with {currentMonthSubmission.scores?.overall?.toFixed(1) || 'N/A'}/10 overall score
+                {monthLabel(currentMonthSubmission.monthKey)} report submitted with {currentMonthSubmission.scores?.overall?.toFixed(1) || 'N/A'}/10 overall score{currentMonthSubmission.disciplinePenalty ? ` (Penalty -${currentMonthSubmission.disciplinePenalty})` : ''}
               </p>
             </div>
           </div>
@@ -257,7 +270,7 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
                     <div>
                       <div className="font-medium text-sm sm:text-base">{monthLabel(submission.monthKey)}</div>
                       <div className="text-xs sm:text-sm text-gray-600">
-                        {submission.isDraft ? 'Draft' : 'Submitted'} • Score: {submission.scores?.overall?.toFixed(1) || 'N/A'}/10
+                        {submission.isDraft ? 'Draft' : 'Submitted'} • Score: {submission.scores?.overall?.toFixed(1) || 'N/A'}/10{submission.disciplinePenalty ? ` (Penalty -${submission.disciplinePenalty})` : ''}
                       </div>
                     </div>
                   </div>

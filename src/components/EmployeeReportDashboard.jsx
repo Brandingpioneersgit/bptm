@@ -168,6 +168,7 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
 -   **Learning Score:** ${s.scores.learningScore}/10
 -   **Learning Hours:** ${(s.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0) / 60}h
 -   **Client Relationship Score:** ${s.scores.relationshipScore}/10
+-   **Discipline Penalty:** ${s.disciplinePenalty ? `-${s.disciplinePenalty}` : '0'}
 -   **Manager Notes:** ${s.manager?.comments || 'N/A'}
 -   **Manager Score:** ${s.manager?.score || 'N/A'}
 ---
@@ -312,7 +313,7 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-semibold text-lg">{monthLabel(selectedReport.monthKey)} Report</h3>
               <span className={`text-sm font-semibold ${selectedReport.scores.overall >= 7 ? 'text-emerald-600' : 'text-red-600'}`}>
-                Overall Score: {selectedReport.scores.overall}/10
+                Overall Score: {selectedReport.scores.overall}/10{selectedReport.disciplinePenalty ? ` (Penalty -${selectedReport.disciplinePenalty})` : ''}
               </span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center text-sm">

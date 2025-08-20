@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback, useRef } from "react"
 import { useSupabase } from "./SupabaseProvider";
 import { useModal } from "./AppShell";
 import { useFetchSubmissions } from "./useFetchSubmissions";
-import { EMPTY_SUBMISSION, thisMonthKey, prevMonthKey, monthLabel, DEPARTMENTS, ROLES_BY_DEPT } from "./constants";
+import { EMPTY_SUBMISSION, thisMonthKey, prevMonthKey, monthLabel, DEPARTMENTS, ROLES_BY_DEPT, submissionDeadline, DISCIPLINE_PENALTY_POINTS } from "./constants";
 import { scoreKPIs, scoreLearning, scoreRelationshipFromClients, overallOutOf10, generateSummary } from "./scoring";
 import { CelebrationEffect } from "./CelebrationEffect";
 import { Section, TextField, NumField, TextArea, MultiSelect, ProgressIndicator, StepValidationIndicator } from "./ui";
@@ -832,18 +832,27 @@ Your progress has been automatically saved, so you won't lose any other informat
       console.error('Failed to create backup:', e);
     }
 
-    const final = { 
-      ...currentSubmission, 
-      isDraft: false, 
-      submittedAt: new Date().toISOString(), 
-      employee: { 
-        ...currentSubmission.employee, 
-        name: (currentSubmission.employee?.name || "").trim(), 
-        phone: currentSubmission.employee.phone 
+    const final = {
+      ...currentSubmission,
+      isDraft: false,
+      submittedAt: new Date().toISOString(),
+      employee: {
+        ...currentSubmission.employee,
+        name: (currentSubmission.employee?.name || "").trim(),
+        phone: currentSubmission.employee.phone
       }
     };
 
     delete final.id;
+
+    const deadline = submissionDeadline(final.monthKey);
+    const now = new Date();
+    if (deadline && now > deadline) {
+      final.disciplinePenalty = DISCIPLINE_PENALTY_POINTS;
+      final.scores.overall = Math.max(0, (final.scores?.overall || 0) - DISCIPLINE_PENALTY_POINTS);
+    } else {
+      final.disciplinePenalty = 0;
+    }
 
     try {
       // Store clients in repository before submitting

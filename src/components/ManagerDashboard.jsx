@@ -244,6 +244,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                     <th>Overall Score</th>
                     <th>KPI Score</th>
                     <th>Learning Score</th>
+                    <th>Penalty</th>
                     <th>Learning Hours</th>
                     <th>Manager Notes</th>
                 </tr>
@@ -258,6 +259,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                             <td class="${scoreClass}">${sub.scores?.overall || 'N/A'}/10</td>
                             <td>${sub.scores?.kpiScore || 'N/A'}/10</td>
                             <td>${sub.scores?.learningScore || 'N/A'}/10</td>
+                            <td>${sub.disciplinePenalty ? `-${sub.disciplinePenalty}` : '—'}</td>
                             <td>${learningHours}h</td>
                             <td>${sub.manager?.comments || 'No comments'}</td>
                         </tr>
@@ -625,7 +627,10 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                       <tr key={`${employee.name}-${employee.phone}`} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
-                            <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                          <div className="text-sm font-medium text-gray-900 flex items-center gap-1">
+                            {employee.name}
+                            {employee.latestSubmission?.disciplinePenalty ? <span className="text-red-600" title="Discipline penalty applied">⚠️</span> : null}
+                          </div>
                             <div className="text-sm text-gray-500">{employee.phone}</div>
                           </div>
                         </td>

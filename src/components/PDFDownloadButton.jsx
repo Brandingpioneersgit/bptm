@@ -55,6 +55,7 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
             <th>KPI</th>
             <th>Learning</th>
             <th>Client Relations</th>
+            <th>Penalty</th>
             <th>Learning Hours</th>
             <th>Manager Score</th>
             <th>Manager Comments</th>
@@ -68,6 +69,7 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
                 <td class="score-cell">${d.scores?.kpiScore || 'N/A'}/10</td>
                 <td class="score-cell">${d.scores?.learningScore || 'N/A'}/10</td>
                 <td class="score-cell">${d.scores?.relationshipScore || 'N/A'}/10</td>
+                <td>${d.disciplinePenalty ? `-${d.disciplinePenalty}` : '—'}</td>
                 <td>${learningHours}h</td>
                 <td>${d.manager?.score || 'N/A'}/10</td>
                 <td class="comments-cell">${d.manager?.comments || 'No comments'}</td>
@@ -95,6 +97,10 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
               </div>
               <div class="detail-row">
                 <strong>Tasks Completed:</strong> ${d.meta?.tasks?.count || 0}
+              </div>
+
+              <div class="detail-row">
+                <strong>Discipline Penalty:</strong> ${d.disciplinePenalty ? `-${d.disciplinePenalty} point(s)` : 'None'}
               </div>
               
               <!-- Clients -->
