@@ -1,4 +1,4 @@
-import { daysInMonth, monthLabel, isDriveUrl, isGensparkUrl } from "./constants";
+import { daysInMonth, monthLabel, isDriveUrl, isGensparkUrl, ROLES_BY_DEPT } from "./constants";
 
 export function validateSubmission(model) {
   const errors = [];
@@ -14,6 +14,10 @@ export function validateSubmission(model) {
   if (!emp.name || !emp.name.trim()) errors.push("Enter your Name.");
   if (!dept) errors.push("Select Department.");
   if (!emp.role || emp.role.length === 0) errors.push("Select at least one Role.");
+  const rolesForDept = ROLES_BY_DEPT[dept] || [];
+  if ((emp.role || []).some(r => !rolesForDept.includes(r))) {
+    errors.push("Select roles valid for the chosen department.");
+  }
   if (!monthKey) errors.push("Pick Report Month (YYYY-MM).");
   if (!emp.phone || !isPhoneNumber(emp.phone)) errors.push("Enter a valid 10-digit Phone Number.");
 

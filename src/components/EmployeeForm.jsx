@@ -137,26 +137,33 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
       const isFormEmpty = !prev.employee?.name && !prev.employee?.phone;
       
       if (isFormEmpty) {
+        const department = prevSub?.employee?.department || "Web";
         return {
           ...EMPTY_SUBMISSION,
-          employee: { 
-            name: selectedEmployee.name, 
-            phone: selectedEmployee.phone, 
-            department: prevSub?.employee?.department || "Web", 
-            role: prevSub?.employee?.role || [] 
+          employee: {
+            name: selectedEmployee.name,
+            phone: selectedEmployee.phone,
+            department,
+            role: (prevSub?.employee?.role || []).filter(r =>
+              (ROLES_BY_DEPT[department] || []).includes(r)
+            )
           },
           monthKey: prevMonthKey(thisMonthKey()),
         };
       } else {
         // Preserve existing form data, just update employee info if needed
+        const department = prev.employee.department || prevSub?.employee?.department || "Web";
+        const rolesSource = prev.employee.role?.length
+          ? prev.employee.role
+          : (prevSub?.employee?.role || []);
         return {
           ...prev,
           employee: {
             ...prev.employee,
             name: prev.employee.name || selectedEmployee.name,
             phone: prev.employee.phone || selectedEmployee.phone,
-            department: prev.employee.department || prevSub?.employee?.department || "Web",
-            role: prev.employee.role?.length ? prev.employee.role : (prevSub?.employee?.role || [])
+            department,
+            role: rolesSource.filter(r => (ROLES_BY_DEPT[department] || []).includes(r))
           }
         };
       }
@@ -238,7 +245,18 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
           monthKey: draft.monthKey,
           lastSaved: draft.lastSaved
         });
-        
+
+        // Filter any roles that no longer match the selected department
+        if (draft?.employee?.department) {
+          const validRoles = (draft.employee.role || []).filter(r =>
+            (ROLES_BY_DEPT[draft.employee.department] || []).includes(r)
+          );
+          if (validRoles.length !== (draft.employee.role || []).length) {
+            console.log('🧹 Removing invalid roles from draft:', draft.employee.role, '->', validRoles);
+          }
+          draft.employee.role = validRoles;
+        }
+
         // Only load draft if it has meaningful data
         const hasEmployeeData = draft.employee?.name || draft.employee?.phone;
         if (hasEmployeeData || draft.monthKey) {
@@ -1227,13 +1245,16 @@ Your progress has been automatically saved, so you won't lose any other informat
                       if (isFormDisabled) return;
                       const newDepartment = e.target.value;
                       const oldDepartment = currentSubmission.employee.department;
-                      
-                      // Clear roles when department changes to prevent invalid combinations
+
+                      // Clear roles and clients when department changes to prevent invalid combinations
                       if (newDepartment !== oldDepartment) {
-                        console.log(`🏢 Department changed from ${oldDepartment} to ${newDepartment} - clearing roles`);
+                        console.log(`🏢 Department changed from ${oldDepartment} to ${newDepartment} - clearing roles and clients`);
                         updateCurrentSubmission('employee.role', []);
+                        if (currentSubmission.clients && currentSubmission.clients.length > 0) {
+                          updateCurrentSubmission('clients', []);
+                        }
                       }
-                      
+
                       updateCurrentSubmission('employee.department', newDepartment);
                     }}
                     disabled={isFormDisabled}
