@@ -1,80 +1,71 @@
-import { useMemo } from 'react';
-import { useFetchSubmissions } from './useFetchSubmissions';
+import { useState, useEffect, useMemo } from 'react';
+import { useSupabase } from './SupabaseProvider';
+import { fetchEmployeeClients } from './clientServices';
 
 export function useClientSync() {
-  const { allSubmissions, loading, error } = useFetchSubmissions();
+  const supabase = useSupabase();
+  const [clientLinks, setClientLinks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Extract all unique clients from all submissions
+  useEffect(() => {
+    const load = async () => {
+      if (!supabase) return;
+      try {
+        setLoading(true);
+        const data = await fetchEmployeeClients(supabase);
+        setClientLinks(data);
+        setError(null);
+      } catch (e) {
+        console.error('Error fetching employee clients:', e);
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [supabase]);
+
   const allClients = useMemo(() => {
-    if (!allSubmissions || allSubmissions.length === 0) return [];
-
-    const clientMap = new Map();
-
-    allSubmissions.forEach(submission => {
-      if (submission.clients && Array.isArray(submission.clients)) {
-        submission.clients.forEach(client => {
-          if (client && client.name && client.name.trim()) {
-            const clientKey = client.name.trim().toLowerCase();
-            
-            // Store the most complete client info we have
-            if (!clientMap.has(clientKey) || 
-                (clientMap.get(clientKey).services || []).length < (client.services || []).length) {
-              clientMap.set(clientKey, {
-                name: client.name.trim(),
-                services: client.services || [],
-                // Add other common client properties here
-                industry: client.industry || '',
-                lastUpdated: submission.monthKey,
-                employeeName: submission.employee?.name,
-                employeePhone: submission.employee?.phone
-              });
-            }
-          }
-        });
+    const map = new Map();
+    clientLinks.forEach(link => {
+      const client = link.clients;
+      if (!client || !client.name) return;
+      const key = client.name.toLowerCase();
+      if (!map.has(key)) {
+        map.set(key, { ...client, services: [{ service: link.scope, frequency: link.frequency }] });
+      } else {
+        const existing = map.get(key);
+        existing.services = existing.services || [];
+        existing.services.push({ service: link.scope, frequency: link.frequency });
       }
     });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [clientLinks]);
 
-    // Convert Map to array and sort by name
-    return Array.from(clientMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [allSubmissions]);
-
-  // Get clients for a specific employee
-  const getClientsForEmployee = (employeeName, employeePhone) => {
-    if (!allSubmissions || allSubmissions.length === 0) return [];
-
-    const employeeClients = new Set();
-    
-    allSubmissions.forEach(submission => {
-      if (submission.employee?.name === employeeName && 
-          submission.employee?.phone === employeePhone &&
-          submission.clients) {
-        submission.clients.forEach(client => {
-          if (client && client.name && client.name.trim()) {
-            employeeClients.add(client.name.trim());
-          }
-        });
-      }
-    });
-
-    return Array.from(employeeClients).sort();
+  const getClientsForEmployee = (employeeId) => {
+    return clientLinks
+      .filter(link => link.employee_id === employeeId && link.clients)
+      .map(link => ({
+        ...link.clients,
+        scope: link.scope,
+        frequency: link.frequency
+      }));
   };
 
-  // Get client names for dropdown options
   const getClientOptions = () => {
     return allClients.map(client => ({
-      value: client.name,
+      value: client.id || client.name,
       label: client.name,
-      services: client.services,
-      lastUpdated: client.lastUpdated
+      services: client.services
     }));
   };
 
-  // Check if a client exists in the system
   const clientExists = (clientName) => {
     if (!clientName || !clientName.trim()) return false;
     const normalizedName = clientName.trim().toLowerCase();
     return allClients.some(client => client.name.toLowerCase() === normalizedName);
-  };
+    };
 
   return {
     allClients,

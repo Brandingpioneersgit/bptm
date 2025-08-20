@@ -1,6 +1,6 @@
 // Client Repository Service for automatic client management
 
-import { EMPTY_CLIENT, findClientInRepository, mergeClientData, createServiceObject } from './clientServices';
+import { EMPTY_CLIENT, findClientInRepository, mergeClientData, createServiceObject, linkEmployeeClient, fetchEmployeeClients } from './clientServices';
 
 export class ClientRepository {
   constructor(supabase) {
@@ -118,11 +118,31 @@ export class ClientRepository {
       const result = await this.upsertClient(clientData);
       if (result) {
         results.push(result);
+        if (submission.employee?.id && clientData.services?.length) {
+          for (const svc of clientData.services) {
+            await linkEmployeeClient(this.supabase, {
+              employee_id: submission.employee.id,
+              client_id: result.id,
+              scope: svc.service,
+              frequency: svc.frequency
+            });
+          }
+        }
       }
     }
     
     console.log('✅ Successfully stored clients:', results.length);
     return results;
+  }
+
+  async getEmployeeClients(employeeId) {
+    if (!this.supabase) return [];
+    try {
+      return await fetchEmployeeClients(this.supabase, employeeId);
+    } catch (error) {
+      console.error('Error fetching employee clients:', error);
+      return [];
+    }
   }
 
   // Extract services from client form data based on department

@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useSupabase } from "./SupabaseProvider";
 import { useModal } from "./AppShell";
 import { useFetchSubmissions } from "./useFetchSubmissions";
 import { ClientManagementView } from "./ClientManagementView";
 import { ClientDashboardView } from "./ClientDashboardView";
 import { FixedLeaderboardView } from "./FixedLeaderboardView";
+import { fetchEmployeeClients } from "./clientServices";
 
 export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport }) {
   const supabase = useSupabase();
@@ -21,6 +22,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
   });
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
   const [selectedEmployees, setSelectedEmployees] = useState(new Set());
+  const [employeeClients, setEmployeeClients] = useState([]);
   
   const [evaluationPanel, setEvaluationPanel] = useState({
     isOpen: false,
@@ -29,6 +31,19 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
     comments: '',
     recommendations: ''
   });
+
+  useEffect(() => {
+    const load = async () => {
+      if (!supabase) return;
+      try {
+        const data = await fetchEmployeeClients(supabase);
+        setEmployeeClients(data);
+      } catch (error) {
+        console.error('Error loading employee clients:', error);
+      }
+    };
+    load();
+  }, [supabase]);
 
   const processedData = useMemo(() => {
     if (!allSubmissions.length) return { employees: [], stats: {}, departments: [] };
@@ -67,6 +82,17 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       }, 0);
       
       emp.performance = emp.averageScore >= 8 ? 'High' : emp.averageScore >= 6 ? 'Medium' : 'Low';
+
+      const employeeId = emp.submissions[0]?.employee?.id;
+      emp.id = employeeId;
+      emp.clients = employeeClients
+        .filter(link => link.employee_id === employeeId)
+        .map(link => ({
+          id: link.client_id,
+          name: link.clients?.name,
+          scope: link.scope,
+          frequency: link.frequency
+        }));
       
       return emp;
     });
@@ -124,7 +150,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
     const departments = [...new Set(employees.map(emp => emp.department))].sort();
 
     return { employees: filteredEmployees, stats, departments, allEmployees: employees };
-  }, [allSubmissions, selectedMonth, searchQuery, filters, sortConfig]);
+  }, [allSubmissions, selectedMonth, searchQuery, filters, sortConfig, employeeClients]);
 
   const openEvaluation = (submission) => {
     setEvaluationPanel({

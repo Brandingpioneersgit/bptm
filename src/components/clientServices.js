@@ -88,3 +88,39 @@ export const mergeClientData = (repositoryClient, formClient) => ({
   // Update timestamp
   updated_at: new Date().toISOString()
 });
+// Link an employee to a client with scope and frequency
+export const linkEmployeeClient = async (supabase, { employee_id, client_id, scope, frequency }) => {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('employee_clients')
+      .upsert({ employee_id, client_id, scope, frequency }, { onConflict: 'employee_id,client_id,scope' })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error linking employee and client:', error);
+    return null;
+  }
+};
+
+// Fetch clients linked to an employee. If no employee_id provided, returns all links
+export const fetchEmployeeClients = async (supabase, employee_id = null) => {
+  if (!supabase) return [];
+  try {
+    let query = supabase
+      .from('employee_clients')
+      .select('*, clients(*)');
+    if (employee_id) {
+      query = query.eq('employee_id', employee_id);
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching employee clients:', error);
+    return [];
+  }
+};
+

@@ -10,6 +10,7 @@ import { DeptClientsBlock } from "./kpi";
 import { LearningBlock } from "./LearningBlock";
 import { getClientRepository } from "./ClientRepository";
 import { validateSubmission } from "./validation";
+import { fetchEmployeeClients } from "./clientServices";
 
 export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack = null }) {
   const supabase = useSupabase();
@@ -162,6 +163,29 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
       }
     });
   }, [selectedEmployee, allSubmissions]);
+
+  useEffect(() => {
+    const load = async () => {
+      if (!supabase || !selectedEmployee?.id) return;
+      try {
+        const links = await fetchEmployeeClients(supabase, selectedEmployee.id);
+        const linkedClients = links.map(link => ({
+          id: link.client_id,
+          name: link.clients?.name || '',
+          services: [{ service: link.scope, frequency: link.frequency }],
+          reports: [],
+          relationship: {},
+          client_type: link.clients?.client_type,
+          team: link.clients?.team,
+          scope_of_work: link.clients?.scope_of_work
+        }));
+        setCurrentSubmission(prev => ({ ...prev, clients: linkedClients }));
+      } catch (error) {
+        console.error('Error loading employee clients:', error);
+      }
+    };
+    load();
+  }, [supabase, selectedEmployee]);
 
 
   const autoSave = useCallback(async () => {
