@@ -199,18 +199,18 @@ function ScopePrompt({ client, service, title }) {
   
   const scope = client.service_scopes[service];
   const completion = calculateScopeCompletion(client, service);
-  
+
   return (
     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
       <div className="flex items-center justify-between mb-2">
         <h4 className="font-medium text-blue-800">{title} Scope Tracker</h4>
         {completion !== null && (
-          <span className={`px-2 py-1 rounded text-xs font-medium ${
-            completion >= 100 ? 'bg-green-100 text-green-800' : 
-            completion >= 75 ? 'bg-yellow-100 text-yellow-800' : 
-            'bg-red-100 text-red-800'
-          }`}>
-            {completion}% Complete
+          <span
+            className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 ${
+              completion >= 100 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            }`}
+          >
+            {completion >= 100 ? '✓ Complete' : `✗ ${completion}%`}
           </span>
         )}
       </div>
@@ -951,7 +951,27 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
           <tbody>
             {currentSubmission.clients.map(c => (
               <tr key={c.id} className="odd:bg-white even:bg-blue-50/40">
-                <td className="p-2 border font-medium">{c.name}</td>
+                <td className="p-2 border font-medium">
+                  {c.name}
+                  {c.services?.length > 0 && (
+                    <div className="mt-1 space-y-1">
+                      {c.services.map(s => {
+                        const scope = c.service_scopes?.[s] || {};
+                        return (
+                          <div key={s} className="text-xs text-gray-600 flex items-center gap-1">
+                            <span>{s}</span>
+                            {scope.deliverables !== undefined && (
+                              <span>- {scope.deliverables}</span>
+                            )}
+                            {scope.frequency && (
+                              <span className="text-[10px] text-blue-600">({scope.frequency})</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </td>
                 <td className="p-2 border" colSpan={2}>
                   <TinyLinks
                     items={(c.reports || [])}

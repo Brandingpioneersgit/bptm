@@ -163,6 +163,37 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     });
   }, [selectedEmployee, allSubmissions]);
 
+  // Fetch service scopes for any linked clients from repository
+  useEffect(() => {
+    if (!supabase) return;
+    const repo = getClientRepository(supabase);
+
+    const fetchScopes = async () => {
+      const updated = await Promise.all(
+        currentSubmission.clients.map(async (client) => {
+          if (client.service_scopes && Object.keys(client.service_scopes).length > 0) {
+            return client;
+          }
+          const repoClient = await repo.getClient(client.name);
+          if (repoClient?.service_scopes) {
+            return {
+              ...client,
+              services: repoClient.services || client.services || [],
+              service_scopes: repoClient.service_scopes,
+            };
+          }
+          return client;
+        })
+      );
+
+      const changed = JSON.stringify(updated) !== JSON.stringify(currentSubmission.clients);
+      if (changed) {
+        setCurrentSubmission((prev) => ({ ...prev, clients: updated }));
+      }
+    };
+
+    fetchScopes();
+  }, [currentSubmission.clients, supabase, setCurrentSubmission]);
 
   const autoSave = useCallback(async () => {
     // Check if there's meaningful data to save
