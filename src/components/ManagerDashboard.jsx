@@ -5,6 +5,7 @@ import { useFetchSubmissions } from "./useFetchSubmissions";
 import { ClientManagementView } from "./ClientManagementView";
 import { ClientDashboardView } from "./ClientDashboardView";
 import { FixedLeaderboardView } from "./FixedLeaderboardView";
+import { TestimonialsBadge } from "./TestimonialsBadge";
 
 export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport }) {
   const supabase = useSupabase();
@@ -49,7 +50,8 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
           latestSubmission: null,
           averageScore: 0,
           totalHours: 0,
-          performance: 'Medium'
+          performance: 'Medium',
+          testimonials: submission.employee?.testimonials || []
         };
       }
       employeeGroups[key].submissions.push(submission);
@@ -67,7 +69,9 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       }, 0);
       
       emp.performance = emp.averageScore >= 8 ? 'High' : emp.averageScore >= 6 ? 'Medium' : 'Low';
-      
+
+      emp.testimonials = emp.submissions[0]?.employee?.testimonials || [];
+
       return emp;
     });
 
@@ -625,7 +629,10 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                       <tr key={`${employee.name}-${employee.phone}`} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
-                            <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                            <div className="text-sm font-medium text-gray-900 flex items-center">
+                              {employee.name}
+                              <TestimonialsBadge testimonials={employee.testimonials} />
+                            </div>
                             <div className="text-sm text-gray-500">{employee.phone}</div>
                           </div>
                         </td>
@@ -671,7 +678,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                               Download PDF
                             </button>
                             <button
-                              onClick={() => onEditEmployee(employee.name, employee.phone)}
+                              onClick={() => onEditEmployee(employee)}
                               className="text-orange-600 hover:text-orange-900 hover:bg-orange-50 px-3 py-1 rounded transition-colors"
                             >
                               Edit Employee

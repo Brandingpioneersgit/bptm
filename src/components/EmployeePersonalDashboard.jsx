@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { TestimonialsBadge } from "./TestimonialsBadge";
 import { useFetchSubmissions } from "./useFetchSubmissions.js";
 import { useModal } from "./AppShell";
 import { thisMonthKey, monthLabel } from "./constants";
@@ -102,7 +103,10 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
               {employee.name.charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{employee.name}</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate flex items-center">
+                {employee.name}
+                <TestimonialsBadge testimonials={employee.testimonials} />
+              </h1>
               <p className="text-sm sm:text-base text-gray-600">{employee.department} Department</p>
               <p className="text-xs sm:text-sm text-gray-500">Phone: {employee.phone}</p>
             </div>

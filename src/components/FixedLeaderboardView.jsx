@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { monthLabel, round1 } from "./constants";
+import { TestimonialsBadge } from "./TestimonialsBadge";
 
 export function FixedLeaderboardView({ allSubmissions }) {
   const [selectedPeriod, setSelectedPeriod] = useState('all');
@@ -47,7 +48,8 @@ export function FixedLeaderboardView({ allSubmissions }) {
           name: submission.employee.name,
           phone: submission.employee.phone,
           department: submission.employee.department,
-          submissions: []
+          submissions: [],
+          testimonials: submission.employee?.testimonials || []
         };
       }
       employeeGroups[key].submissions.push(submission);
@@ -121,7 +123,8 @@ export function FixedLeaderboardView({ allSubmissions }) {
         avgOverall,
         totalLearningHours: round1(totalLearningHours),
         clientCount,
-        consistencyScore: round1(consistencyScore)
+        consistencyScore: round1(consistencyScore),
+        testimonials: emp.submissions[0]?.employee?.testimonials || []
       };
     });
 
@@ -266,7 +269,10 @@ export function FixedLeaderboardView({ allSubmissions }) {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                          <div className="text-sm font-medium text-gray-900 flex items-center">
+                            {employee.name}
+                            <TestimonialsBadge testimonials={employee.testimonials} />
+                          </div>
                           <div className="text-sm text-gray-500">{employee.phone}</div>
                         </div>
                       </td>

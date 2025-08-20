@@ -231,7 +231,8 @@ export function AppContent() {
             currentUser: {
               name: employeeSubmissions[0].employee.name,
               phone: employeeSubmissions[0].employee.phone,
-              department: employeeSubmissions[0].employee.department
+              department: employeeSubmissions[0].employee.department,
+              testimonials: employeeSubmissions[0].employee?.testimonials || []
             },
             loginError: ''
           });
@@ -282,8 +283,8 @@ export function AppContent() {
     setSelectedEmployee(null);
   }, [authState.userType]);
 
-  const handleEditEmployee = useCallback((employeeName, employeePhone) => {
-    setSelectedEmployee({ name: employeeName, phone: employeePhone });
+  const handleEditEmployee = useCallback((employee) => {
+    setSelectedEmployee(employee);
     setView('editEmployee');
   }, []);
 

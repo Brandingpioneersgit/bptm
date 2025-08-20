@@ -11,6 +11,8 @@ export function ManagerEditEmployee({ employee, onBack }) {
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [managerRemarks, setManagerRemarks] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [testimonials, setTestimonials] = useState(employee.testimonials || []);
+  const [newTestimonial, setNewTestimonial] = useState({ url: '', client: '' });
 
   const employeeSubmissions = useMemo(() => {
     return allSubmissions.filter(s => 
@@ -19,6 +21,36 @@ export function ManagerEditEmployee({ employee, onBack }) {
       !s.isDraft
     ).sort((a, b) => b.monthKey.localeCompare(a.monthKey));
   }, [allSubmissions, employee]);
+
+  const addTestimonial = () => {
+    if (!newTestimonial.url || !newTestimonial.client) return;
+    setTestimonials([...testimonials, newTestimonial]);
+    setNewTestimonial({ url: '', client: '' });
+  };
+
+  const removeTestimonial = (index) => {
+    setTestimonials(testimonials.filter((_, i) => i !== index));
+  };
+
+  const saveTestimonials = async () => {
+    if (!supabase) return;
+    try {
+      await Promise.all(
+        employeeSubmissions.map(sub =>
+          supabase
+            .from('submissions')
+            .update({ employee: { ...sub.employee, testimonials } })
+            .eq('id', sub.id)
+        )
+      );
+      openModal('Success', 'Testimonials updated successfully!', () => {
+        closeModal();
+        refreshSubmissions();
+      });
+    } catch (error) {
+      openModal('Error', `Failed to save testimonials: ${error.message}`, closeModal);
+    }
+  };
 
   const handleEditSubmission = (submission) => {
     setSelectedSubmission(submission);
@@ -92,6 +124,50 @@ export function ManagerEditEmployee({ employee, onBack }) {
             className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
             ← Back to Dashboard
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
+        <h3 className="text-lg font-semibold mb-4">Employee Testimonials</h3>
+        {testimonials.length === 0 ? (
+          <p className="text-sm text-gray-600 mb-4">No testimonials added yet.</p>
+        ) : (
+          <div className="space-y-2 mb-4">
+            {testimonials.map((t, idx) => (
+              <div key={idx} className="flex items-center justify-between text-sm">
+                <a href={t.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                  {t.client}
+                </a>
+                <button onClick={() => removeTestimonial(idx)} className="text-red-600 hover:text-red-800">
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="flex flex-col sm:flex-row gap-2 mb-4">
+          <input
+            type="text"
+            value={newTestimonial.client}
+            onChange={e => setNewTestimonial({ ...newTestimonial, client: e.target.value })}
+            placeholder="Client Name"
+            className="flex-1 border border-gray-300 rounded-lg p-2 text-sm"
+          />
+          <input
+            type="url"
+            value={newTestimonial.url}
+            onChange={e => setNewTestimonial({ ...newTestimonial, url: e.target.value })}
+            placeholder="YouTube URL"
+            className="flex-1 border border-gray-300 rounded-lg p-2 text-sm"
+          />
+          <button onClick={addTestimonial} className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm">
+            Add
+          </button>
+        </div>
+        <div className="text-right">
+          <button onClick={saveTestimonials} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
+            Save Testimonials
           </button>
         </div>
       </div>
