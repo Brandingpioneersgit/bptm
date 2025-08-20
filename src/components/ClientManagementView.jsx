@@ -1,5 +1,7 @@
 import React, { useMemo, useEffect, useState } from "react";
 import { useSupabase } from "./SupabaseProvider";
+import { CLIENT_SERVICES, DELIVERY_FREQUENCIES, createServiceObject, EMPTY_CLIENT } from "./clientServices";
+import { getClientRepository } from "./ClientRepository";
 
 export function ClientManagementView() {
   const supabase = useSupabase();
@@ -11,12 +13,14 @@ export function ClientManagementView() {
   const [searchQuery, setSearchQuery] = useState('');
   
   const [newClient, setNewClient] = useState({
-    name: '',
-    client_type: 'Standard',
-    team: 'Web',
-    scope_of_work: '',
-    status: 'Active'
+    ...EMPTY_CLIENT
   });
+
+  const [editingClient, setEditingClient] = useState(null);
+  const [showServicesModal, setShowServicesModal] = useState(false);
+  const [selectedClientForServices, setSelectedClientForServices] = useState(null);
+  const [selectedServices, setSelectedServices] = useState([]);
+  const [serviceFrequencies, setServiceFrequencies] = useState({});
 
   const [departureForm, setDepartureForm] = useState({
     isOpen: false,
@@ -53,25 +57,97 @@ export function ClientManagementView() {
     if (!supabase) return;
 
     try {
-      const { error } = await supabase
-        .from('clients')
-        .insert([newClient]);
+      const clientRepository = getClientRepository(supabase);
       
-      if (error) throw error;
+      // Create client with services
+      const clientData = {
+        ...newClient,
+        services: selectedServices.map(service => createServiceObject(
+          service, 
+          serviceFrequencies[service] || "Monthly",
+          ""
+        ))
+      };
       
-      setNewClient({
-        name: '',
-        client_type: 'Standard',
-        team: 'Web',
-        scope_of_work: '',
-        status: 'Active'
-      });
+      const result = await clientRepository.upsertClient(clientData);
+      
+      if (!result) {
+        throw new Error('Failed to create client');
+      }
+      
+      // Reset form
+      setNewClient({ ...EMPTY_CLIENT });
+      setSelectedServices([]);
+      setServiceFrequencies({});
       setShowCreateForm(false);
       fetchClients();
+      
+      console.log('✅ Successfully created client:', result.name);
     } catch (error) {
       console.error('Error creating client:', error);
       alert('Failed to create client. Please try again.');
     }
+  };
+
+  const handleEditServices = (client) => {
+    setSelectedClientForServices(client);
+    setSelectedServices(client.services?.map(s => s.service) || []);
+    
+    const frequencies = {};
+    client.services?.forEach(s => {
+      frequencies[s.service] = s.frequency;
+    });
+    setServiceFrequencies(frequencies);
+    setShowServicesModal(true);
+  };
+
+  const handleSaveServices = async () => {
+    if (!selectedClientForServices || !supabase) return;
+    
+    try {
+      const clientRepository = getClientRepository(supabase);
+      
+      const services = selectedServices.map(service => createServiceObject(
+        service,
+        serviceFrequencies[service] || "Monthly",
+        ""
+      ));
+      
+      await clientRepository.updateClientServices(selectedClientForServices.id, services);
+      
+      setShowServicesModal(false);
+      setSelectedClientForServices(null);
+      setSelectedServices([]);
+      setServiceFrequencies({});
+      fetchClients();
+      
+      console.log('✅ Successfully updated client services');
+    } catch (error) {
+      console.error('Error updating client services:', error);
+      alert('Failed to update services. Please try again.');
+    }
+  };
+
+  const handleServiceToggle = (service) => {
+    if (selectedServices.includes(service)) {
+      setSelectedServices(prev => prev.filter(s => s !== service));
+      const newFreqs = { ...serviceFrequencies };
+      delete newFreqs[service];
+      setServiceFrequencies(newFreqs);
+    } else {
+      setSelectedServices(prev => [...prev, service]);
+      setServiceFrequencies(prev => ({
+        ...prev,
+        [service]: "Monthly" // Default frequency
+      }));
+    }
+  };
+
+  const handleFrequencyChange = (service, frequency) => {
+    setServiceFrequencies(prev => ({
+      ...prev,
+      [service]: frequency
+    }));
   };
 
   const handleClientDeparture = async () => {
@@ -247,7 +323,7 @@ export function ClientManagementView() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scope</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Services</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
@@ -280,8 +356,19 @@ export function ClientManagementView() {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900 max-w-xs truncate" title={client.scope_of_work}>
-                      {client.scope_of_work || 'No scope defined'}
+                    <div className="flex flex-col gap-1">
+                      {client.services && client.services.length > 0 ? (
+                        client.services.slice(0, 2).map((service, idx) => (
+                          <span key={idx} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                            {service.service} ({service.frequency})
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-gray-400 text-xs">No services</span>
+                      )}
+                      {client.services && client.services.length > 2 && (
+                        <span className="text-xs text-gray-500">+{client.services.length - 2} more</span>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -293,6 +380,12 @@ export function ClientManagementView() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleEditServices(client)}
+                        className="text-blue-600 hover:text-blue-900 hover:bg-blue-50 px-3 py-1 rounded transition-colors"
+                      >
+                        Edit Services
+                      </button>
                       {client.status === 'Active' && (
                         <button
                           onClick={() => setDepartureForm({
@@ -391,12 +484,56 @@ export function ClientManagementView() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Scope of Work</label>
                 <textarea
                   rows={4}
-                  value={newClient.scope_of_work}
-                  onChange={(e) => setNewClient(prev => ({ ...prev, scope_of_work: e.target.value }))}
+                  value={newClient.scope_notes}
+                  onChange={(e) => setNewClient(prev => ({ ...prev, scope_notes: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Describe the client's scope of work, requirements, etc."
                 />
               </div>
+
+              {/* Services Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Services Provided</label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                  {CLIENT_SERVICES.map(service => (
+                    <label key={service} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedServices.includes(service)}
+                        onChange={() => handleServiceToggle(service)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">{service}</span>
+                    </label>
+                  ))}
+                </div>
+                {selectedServices.length === 0 && (
+                  <p className="text-xs text-gray-500 mt-1">Select the services you provide to this client</p>
+                )}
+              </div>
+
+              {/* Service Frequencies */}
+              {selectedServices.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Frequency per Service</label>
+                  <div className="space-y-3 max-h-32 overflow-y-auto">
+                    {selectedServices.map(service => (
+                      <div key={service} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                        <span className="text-sm font-medium text-gray-700">{service}</span>
+                        <select
+                          value={serviceFrequencies[service] || "Monthly"}
+                          onChange={(e) => handleFrequencyChange(service, e.target.value)}
+                          className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500"
+                        >
+                          {DELIVERY_FREQUENCIES.map(freq => (
+                            <option key={freq} value={freq}>{freq}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
                 <button
@@ -476,6 +613,112 @@ export function ClientManagementView() {
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
               >
                 Mark as Departed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Services Management Modal */}
+      {showServicesModal && selectedClientForServices && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Manage Services for {selectedClientForServices.name}
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Define the scope of services and delivery frequency for this client
+              </p>
+            </div>
+
+            <div className="px-6 py-4 space-y-6">
+              {/* Services Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">Select Services</label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-4">
+                  {CLIENT_SERVICES.map(service => (
+                    <label key={service} className="flex items-center space-x-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={selectedServices.includes(service)}
+                        onChange={() => handleServiceToggle(service)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-gray-700">{service}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Service Frequencies */}
+              {selectedServices.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Delivery Frequency per Service
+                  </label>
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {selectedServices.map(service => (
+                      <div key={service} className="flex items-center justify-between bg-blue-50 p-3 rounded-lg">
+                        <div>
+                          <span className="text-sm font-medium text-gray-900">{service}</span>
+                          <p className="text-xs text-gray-600">How often do you deliver this service?</p>
+                        </div>
+                        <select
+                          value={serviceFrequencies[service] || "Monthly"}
+                          onChange={(e) => handleFrequencyChange(service, e.target.value)}
+                          className="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          {DELIVERY_FREQUENCIES.map(freq => (
+                            <option key={freq} value={freq}>{freq}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-4">
+                    <h4 className="text-sm font-medium text-green-800 mb-2">Selected Services Summary</h4>
+                    <div className="space-y-1">
+                      {selectedServices.map(service => (
+                        <div key={service} className="text-xs text-green-700 flex justify-between">
+                          <span>{service}</span>
+                          <span className="font-medium">{serviceFrequencies[service] || "Monthly"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {selectedServices.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  <p className="text-sm">Select services to define scope and frequency</p>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowServicesModal(false);
+                  setSelectedClientForServices(null);
+                  setSelectedServices([]);
+                  setServiceFrequencies({});
+                }}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveServices}
+                disabled={selectedServices.length === 0}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              >
+                Save Services ({selectedServices.length})
               </button>
             </div>
           </div>

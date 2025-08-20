@@ -67,7 +67,7 @@ export function daysInMonth(monthKey) {
 export const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_ACCESS_TOKEN || "admin";
 
 export const EMPTY_SUBMISSION = {
-  monthKey: thisMonthKey(),
+  monthKey: prevMonthKey(thisMonthKey()), // Default to previous month for reporting
   isDraft: true,
   employee: { name: "", department: "Web", role: [], phone: "" },
   meta: { attendance: { wfo: 0, wfh: 0 }, tasks: { count: 0, aiTableLink: "", aiTableScreenshot: "" } },

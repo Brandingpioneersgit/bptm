@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { NumField, ProofField, TextArea, MultiSelect, PrevValue, TinyLinks, Section } from "./ui";
+import { NumField, ProofField, TextArea, MultiSelect, PrevValue, TinyLinks, Section, ComparativeField } from "./ui";
 import { monthLabel, isDriveUrl, isGensparkUrl, uid, round1 } from "./constants";
 import { useModal } from "./AppShell";
 import { useSupabase } from "./SupabaseProvider";
@@ -31,38 +31,32 @@ function InternalKPIs({ model, prevModel, setModel, monthPrev, monthThis }) {
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">HR Performance Metrics</h3>
         
-        <div className="grid md:grid-cols-2 gap-4">
-          <NumField
-            label="New Hires Processed"
-            value={currentKpis.newHires || 0}
-            onChange={(v) => updateField('newHires', v)}
-          />
-          <div className="text-sm text-gray-600 mt-6">
-            Previous: {prevKpis.newHires || 0}
-          </div>
-        </div>
+        <ComparativeField
+          label="New Hires Processed"
+          currentValue={currentKpis.newHires || 0}
+          previousValue={prevKpis.newHires || 0}
+          onChange={(v) => updateField('newHires', v)}
+          monthPrev={monthLabel(monthPrev)}
+          monthThis={monthLabel(monthThis)}
+        />
 
-        <div className="grid md:grid-cols-2 gap-4">
-          <NumField
-            label="Employee Issues Resolved"
-            value={currentKpis.issuesResolved || 0}
-            onChange={(v) => updateField('issuesResolved', v)}
-          />
-          <div className="text-sm text-gray-600 mt-6">
-            Previous: {prevKpis.issuesResolved || 0}
-          </div>
-        </div>
+        <ComparativeField
+          label="Employee Issues Resolved"
+          currentValue={currentKpis.issuesResolved || 0}
+          previousValue={prevKpis.issuesResolved || 0}
+          onChange={(v) => updateField('issuesResolved', v)}
+          monthPrev={monthLabel(monthPrev)}
+          monthThis={monthLabel(monthThis)}
+        />
 
-        <div className="grid md:grid-cols-2 gap-4">
-          <NumField
-            label="Training Sessions Conducted"
-            value={currentKpis.trainingSessions || 0}
-            onChange={(v) => updateField('trainingSessions', v)}
-          />
-          <div className="text-sm text-gray-600 mt-6">
-            Previous: {prevKpis.trainingSessions || 0}
-          </div>
-        </div>
+        <ComparativeField
+          label="Training Sessions Conducted"
+          currentValue={currentKpis.trainingSessions || 0}
+          previousValue={prevKpis.trainingSessions || 0}
+          onChange={(v) => updateField('trainingSessions', v)}
+          monthPrev={monthLabel(monthPrev)}
+          monthThis={monthLabel(monthThis)}
+        />
 
         <TextArea
           label="Key HR Achievements This Month"

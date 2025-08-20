@@ -263,6 +263,92 @@ export function PrevValue({ label, value }) {
   );
 }
 
+// Enhanced comparative field component for showing previous vs current values
+export function ComparativeField({ 
+  label, 
+  currentValue, 
+  previousValue, 
+  onChange, 
+  placeholder = "Enter value",
+  unit = "",
+  disabled = false,
+  monthPrev = "Previous Month",
+  monthThis = "This Month" 
+}) {
+  const prev = Number(previousValue || 0);
+  const curr = Number(currentValue || 0);
+  const change = curr - prev;
+  const percentChange = prev > 0 ? ((change / prev) * 100) : 0;
+  
+  const getChangeColor = () => {
+    if (change > 0) return 'text-green-600';
+    if (change < 0) return 'text-red-600';
+    return 'text-gray-600';
+  };
+  
+  const getChangeIcon = () => {
+    if (change > 0) return '📈 ↗️';
+    if (change < 0) return '📉 ↘️';
+    return '📊 ➡️';
+  };
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+        <input
+          type="number"
+          inputMode="numeric"
+          className={`w-full border rounded-xl p-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+            disabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''
+          }`}
+          placeholder={placeholder}
+          value={currentValue || ""}
+          onChange={e => disabled ? null : onChange(Number(e.target.value || 0))}
+          disabled={disabled}
+        />
+      </div>
+      
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs font-medium text-gray-600">Comparative Analysis</span>
+          <span className={`text-xs font-bold ${getChangeColor()}`}>
+            {getChangeIcon()}
+          </span>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <div className="text-xs text-gray-500">{monthPrev}</div>
+            <div className="font-semibold text-gray-700">{prev}{unit}</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500">{monthThis}</div>
+            <div className="font-semibold text-blue-700">{curr}{unit}</div>
+          </div>
+        </div>
+        
+        {prev > 0 && (
+          <div className="mt-2 pt-2 border-t border-gray-200">
+            <div className={`text-xs font-medium ${getChangeColor()}`}>
+              Change: {change >= 0 ? '+' : ''}{change}{unit} 
+              ({percentChange >= 0 ? '+' : ''}{percentChange.toFixed(1)}%)
+            </div>
+          </div>
+        )}
+        
+        {prev === 0 && curr > 0 && (
+          <div className="mt-2 pt-2 border-t border-gray-200">
+            <div className="text-xs font-medium text-green-600">
+              🎉 New activity this month!
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ProofField({ label, value, onChange }) {
   return (
     <div>

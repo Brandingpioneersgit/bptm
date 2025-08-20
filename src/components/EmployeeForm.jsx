@@ -8,6 +8,7 @@ import { CelebrationEffect } from "./CelebrationEffect";
 import { Section, TextField, NumField, TextArea, MultiSelect, ProgressIndicator, StepValidationIndicator } from "./ui";
 import { DeptClientsBlock } from "./kpi";
 import { LearningBlock } from "./LearningBlock";
+import { getClientRepository } from "./ClientRepository";
 import { validateSubmission } from "./validation";
 
 export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack = null }) {
@@ -69,7 +70,20 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
 
   const isPreviousMonth = useMemo(() => {
     const currentMonth = thisMonthKey();
-    return currentSubmission.monthKey !== currentMonth;
+    const selectedMonth = currentSubmission.monthKey;
+    
+    // Check if the selected month is a valid month format
+    if (!selectedMonth || !/^\d{4}-\d{2}$/.test(selectedMonth)) {
+      return false; // Invalid format, not a previous month issue
+    }
+    
+    // Parse the month to check if it's valid
+    const [year, month] = selectedMonth.split('-').map(Number);
+    if (month < 1 || month > 12 || year < 2020 || year > 2030) {
+      return false; // Invalid month values, not a previous month issue
+    }
+    
+    return selectedMonth !== currentMonth && selectedMonth < currentMonth;
   }, [currentSubmission.monthKey]);
 
   if (currentUser && isSubmissionFinalized && currentSubmission.monthKey === thisMonthKey() && !isManagerEdit) {
@@ -323,7 +337,21 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
 
   // Create stable onChange handlers to prevent re-renders
   const handleNameChange = useCallback((value) => updateCurrentSubmission('employee.name', value), [updateCurrentSubmission]);
-  const handlePhoneChange = useCallback((value) => updateCurrentSubmission('employee.phone', value), [updateCurrentSubmission]);
+  const handlePhoneChange = useCallback((value) => {
+    // Clean phone number input - remove non-digits and limit to 10 digits
+    const cleanPhone = value.replace(/\D/g, '').slice(0, 10);
+    console.log(`📱 Phone input: "${value}" -> cleaned: "${cleanPhone}"`);
+    
+    // Force immediate state update to prevent input lag
+    updateCurrentSubmission('employee.phone', cleanPhone);
+    
+    // Additional validation for registration issues
+    if (cleanPhone.length === 10) {
+      console.log('✅ Phone number complete (10 digits):', cleanPhone);
+    } else if (cleanPhone.length > 0) {
+      console.log(`📱 Phone number in progress (${cleanPhone.length}/10):`, cleanPhone);
+    }
+  }, [updateCurrentSubmission]);
   const handleWFOChange = useCallback((value) => updateCurrentSubmission('meta.attendance.wfo', value), [updateCurrentSubmission]);
   const handleWFHChange = useCallback((value) => updateCurrentSubmission('meta.attendance.wfh', value), [updateCurrentSubmission]);
   const handleTasksChange = useCallback((value) => updateCurrentSubmission('meta.tasks.count', value), [updateCurrentSubmission]);
@@ -397,6 +425,21 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
       }
       if (!currentSubmission.monthKey) {
         errors['monthKey'] = 'Report month is required';
+      } else {
+        // Validate month format and values
+        const monthKey = currentSubmission.monthKey;
+        if (!/^\d{4}-\d{2}$/.test(monthKey)) {
+          errors['monthKey'] = 'Invalid month format. Please select a valid month.';
+        } else {
+          const [year, month] = monthKey.split('-').map(Number);
+          if (month < 1 || month > 12) {
+            errors['monthKey'] = 'Invalid month value. Please select a month between 1-12.';
+          } else if (year < 2020 || year > 2030) {
+            errors['monthKey'] = 'Invalid year. Please select a year between 2020-2030.';
+          } else if (monthKey > thisMonthKey()) {
+            warnings['monthKey'] = 'Future month selected. Reports are typically for previous months.';
+          }
+        }
       }
     }
     
@@ -510,7 +553,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   
   // Save on page unload to prevent data loss
   useEffect(() => {
-    const handleBeforeUnload = (e) => {
+    const handleBeforeUnload = () => {
       if (selectedEmployee && hasUnsavedChanges) {
         autoSave();
         console.log('💾 Saved on page unload');
@@ -783,6 +826,13 @@ Your progress has been automatically saved, so you won't lose any other informat
     delete final.id;
 
     try {
+      // Store clients in repository before submitting
+      if (supabase && currentSubmission.clients && currentSubmission.clients.length > 0) {
+        console.log('🏢 Auto-storing clients to repository...');
+        const clientRepository = getClientRepository(supabase);
+        await clientRepository.storeClientsFromSubmission(currentSubmission);
+      }
+
       // Use improved upsert with explicit error handling
       const { data, error } = await supabase
         .from('submissions')
@@ -833,19 +883,46 @@ Your progress has been automatically saved, so you won't lose any other informat
 
   // Enhanced navigation with auto-save and validation feedback
   const goToStep = useCallback(async (stepId) => {
+    console.log(`🎯 goToStep called: ${currentStep} -> ${stepId}`);
+    
+    // If already on the target step, just return
+    if (currentStep === stepId) {
+      console.log(`👍 Already on step ${stepId}, no navigation needed`);
+      return;
+    }
+    
+    // Validate step ID
+    if (stepId < 1 || stepId > FORM_STEPS.length) {
+      console.error(`❌ Invalid step ID: ${stepId}`);
+      return;
+    }
+    
+    console.log(`🔄 Starting navigation from step ${currentStep} to step ${stepId}...`);
+    
     // Always save when changing steps if there are unsaved changes
     if (hasUnsavedChanges) {
       console.log('🔄 Saving before step navigation...');
-      await autoSave();
+      try {
+        await autoSave();
+        console.log('✅ Auto-save completed before navigation');
+      } catch (error) {
+        console.error('❌ Auto-save failed during navigation:', error);
+        // Continue with navigation even if save fails
+      }
     }
     
     // Update validation state for current step
     const validation = getStepValidation(currentStep);
     setFieldErrors(validation.errors);
     setValidationWarnings(validation.warnings);
+    console.log(`🔍 Validation updated for step ${currentStep}:`, { 
+      errors: Object.keys(validation.errors).length, 
+      warnings: Object.keys(validation.warnings).length 
+    });
     
-    console.log(`📍 Navigating from step ${currentStep} to step ${stepId}`);
+    console.log(`📍 Successfully navigating from step ${currentStep} to step ${stepId}`);
     setCurrentStep(stepId);
+    console.log(`✅ setCurrentStep(${stepId}) called`)
   }, [hasUnsavedChanges, autoSave, getStepValidation, currentStep]);
 
   const nextStep = () => {
@@ -915,12 +992,17 @@ Your progress has been automatically saved, so you won't lose any other informat
           {FORM_STEPS.map((step) => (
             <div key={step.id} className="flex flex-col items-center relative z-10">
               <button
-                onClick={() => goToStep(step.id)}
-                className={`w-12 h-12 rounded-full border-2 flex items-center justify-center text-lg font-semibold transition-all duration-200 ${ currentStep === step.id
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log(`🖱️ Step button clicked: step ${step.id}, currentStep: ${currentStep}`);
+                  goToStep(step.id);
+                }}
+                className={`w-12 h-12 rounded-full border-2 flex items-center justify-center text-lg font-semibold transition-all duration-200 cursor-pointer ${ currentStep === step.id
                     ? 'bg-blue-600 text-white border-blue-600'
                     : currentStep > step.id
                     ? 'bg-green-600 text-white border-green-600'
-                    : 'bg-gray-100 text-gray-400 border-gray-300 hover:border-gray-400'
+                    : 'bg-gray-100 text-gray-400 border-gray-300 hover:border-gray-400 hover:bg-gray-200'
                 }`}
               >
                 {currentStep > step.id ? '✓' : step.icon}
@@ -1062,14 +1144,53 @@ Your progress has been automatically saved, so you won't lose any other informat
                       disabled={isFormDisabled}
                       error={fieldErrors['employee.name']}
                     />
-                    <TextField 
-                      label="Phone Number" 
-                      placeholder="e.g., 9876543210" 
-                      value={currentSubmission.employee.phone || ""} 
-                      onChange={handlePhoneChange}
-                      disabled={isFormDisabled}
-                      error={fieldErrors['employee.phone']}
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                        Phone Number
+                        {fieldErrors['employee.phone'] && <span className="ml-2 text-red-500 text-xs">⚠️ Required</span>}
+                      </label>
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        placeholder="e.g., 9876543210"
+                        value={currentSubmission.employee.phone || ""}
+                        onChange={(e) => handlePhoneChange(e.target.value)}
+                        onFocus={(e) => {
+                          console.log('📱 Phone field focused, current value:', e.target.value);
+                          // Ensure field is properly registered for input
+                          e.target.focus();
+                        }}
+                        onBlur={(e) => {
+                          console.log('📱 Phone field blurred, final value:', e.target.value);
+                          // Force final validation on blur
+                          if (e.target.value) {
+                            handlePhoneChange(e.target.value);
+                          }
+                        }}
+                        onInput={(e) => {
+                          // Handle input event in addition to onChange for better responsiveness
+                          console.log('📱 Phone field input event:', e.target.value);
+                          handlePhoneChange(e.target.value);
+                        }}
+                        disabled={isFormDisabled}
+                        className={`w-full border rounded-xl p-3 text-base focus:ring-2 transition-colors duration-200 ${
+                          fieldErrors['employee.phone']
+                            ? 'border-red-300 focus:ring-red-500 focus:border-red-500 bg-red-50'
+                            : isFormDisabled
+                            ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300'
+                            : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                        }`}
+                        autoComplete="tel"
+                        maxLength="10"
+                      />
+                      {fieldErrors['employee.phone'] && (
+                        <p className="mt-1 text-sm text-red-600">{fieldErrors['employee.phone']}</p>
+                      )}
+                      <div className="text-xs text-gray-500 mt-1">
+                        Enter 10-digit number only (no spaces or dashes)
+                      </div>
+                    </div>
                   </div>
                 )}
               </>
@@ -1082,7 +1203,19 @@ Your progress has been automatically saved, so you won't lose any other informat
                   <select 
                     className={`w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${ isFormDisabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
                     value={currentSubmission.employee.department} 
-                    onChange={e => isFormDisabled ? null : updateCurrentSubmission('employee.department', e.target.value)}
+                    onChange={e => {
+                      if (isFormDisabled) return;
+                      const newDepartment = e.target.value;
+                      const oldDepartment = currentSubmission.employee.department;
+                      
+                      // Clear roles when department changes to prevent invalid combinations
+                      if (newDepartment !== oldDepartment) {
+                        console.log(`🏢 Department changed from ${oldDepartment} to ${newDepartment} - clearing roles`);
+                        updateCurrentSubmission('employee.role', []);
+                      }
+                      
+                      updateCurrentSubmission('employee.department', newDepartment);
+                    }}
                     disabled={isFormDisabled}
                   >
                     {DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
@@ -1139,11 +1272,15 @@ Your progress has been automatically saved, so you won't lose any other informat
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        console.log('🧪 Test: Clearing all roles');
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('🧪 Test: Clear Roles button clicked');
+                        console.log('🧪 Current roles before clearing:', currentSubmission.employee.role);
                         updateCurrentSubmission('employee.role', []);
+                        console.log('🧪 updateCurrentSubmission called with empty array');
                       }}
-                      className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded"
+                      className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded hover:bg-red-200 cursor-pointer"
                     >
                       Test: Clear Roles
                     </button>
@@ -1155,26 +1292,99 @@ Your progress has been automatically saved, so you won't lose any other informat
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Report Month</label>
+              <label className="block text-sm font-medium mb-2 flex items-center">
+                Report Month
+                {fieldErrors['monthKey'] && <span className="ml-2 text-red-500 text-xs">⚠️ Required</span>}
+              </label>
               <input 
                 type="month" 
-                className={`w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${ isFormDisabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
+                className={`w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                  fieldErrors['monthKey'] 
+                    ? 'border-red-300 focus:ring-red-500 bg-red-50' 
+                    : isFormDisabled 
+                    ? 'bg-gray-100 text-gray-500 cursor-not-allowed' 
+                    : ''
+                }`}
                 value={currentSubmission.monthKey}
                 disabled={isFormDisabled} 
-                onChange={e => updateCurrentSubmission('monthKey', e.target.value)} 
+                onChange={e => {
+                  const selectedMonth = e.target.value;
+                  const currentMonth = thisMonthKey();
+                  
+                  // Show helpful guidance about month selection
+                  if (selectedMonth === currentMonth) {
+                    console.log('⚠️ User selected current month for reporting');
+                  } else if (selectedMonth > currentMonth) {
+                    console.log('⚠️ User selected future month for reporting');
+                  }
+                  
+                  updateCurrentSubmission('monthKey', selectedMonth);
+                }} 
+                max={thisMonthKey()} // Prevent future month selection
               />
-              <div className="text-xs text-gray-500 mt-2">
-                📊 Comparison: {monthLabel(mPrev)} vs {monthLabel(mThis)}
+              {fieldErrors['monthKey'] && (
+                <p className="mt-1 text-sm text-red-600">{fieldErrors['monthKey']}</p>
+              )}
+              <div className="text-xs text-gray-500 mt-1">
+                💡 Tip: Select the month you're reporting data for (usually the previous month)
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+                <h5 className="text-sm font-medium text-blue-800 mb-2">📊 Comparative Reporting</h5>
+                <div className="text-xs text-blue-700 space-y-1">
+                  <div><strong>Report Month:</strong> {monthLabel(mThis)} (selected month)</div>
+                  <div><strong>Comparison Base:</strong> {monthLabel(mPrev)} (previous month)</div>
+                  <div className="text-blue-600 mt-2">
+                    💡 Your data for <strong>{monthLabel(mThis)}</strong> will be compared against <strong>{monthLabel(mPrev)}</strong> to show growth and improvements.
+                  </div>
+                </div>
               </div>
             </div>
 
             {previousSubmission && (
-              <div className="bg-blue-50 rounded-lg p-4">
-                <h4 className="font-medium text-blue-900 mb-2">Previous Report</h4>
-                <div className="text-sm text-blue-700 space-y-1">
-                  <div>📅 Month: {monthLabel(previousSubmission.monthKey)}</div>
-                  <div>⭐ Score: {previousSubmission.scores?.overall || 'N/A'}/10</div>
-                  <div>🏢 Department: {previousSubmission.employee?.department}</div>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <h4 className="font-medium text-green-800 mb-3 flex items-center gap-2">
+                  <span className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓</span>
+                  Previous Report Available for Comparison
+                </h4>
+                <div className="text-sm text-green-700 space-y-2">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="font-medium">📅 Report Month</div>
+                      <div>{monthLabel(previousSubmission.monthKey)}</div>
+                    </div>
+                    <div>
+                      <div className="font-medium">⭐ Overall Score</div>
+                      <div>{previousSubmission.scores?.overall || 'N/A'}/10</div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="font-medium">🏢 Department</div>
+                      <div>{previousSubmission.employee?.department}</div>
+                    </div>
+                    <div>
+                      <div className="font-medium">👥 Clients</div>
+                      <div>{previousSubmission.clients?.length || 0} clients</div>
+                    </div>
+                  </div>
+                  <div className="text-green-600 bg-green-100 p-2 rounded text-xs mt-3">
+                    💡 This previous data will be used as a baseline for comparative analysis in your KPI and performance sections.
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {!previousSubmission && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <h4 className="font-medium text-yellow-800 mb-2 flex items-center gap-2">
+                  <span className="text-yellow-500">⚠️</span>
+                  No Previous Report Found
+                </h4>
+                <div className="text-sm text-yellow-700">
+                  <p>This appears to be your first report. Comparative analysis will be limited, but you can still complete all sections.</p>
+                  <div className="text-yellow-600 bg-yellow-100 p-2 rounded text-xs mt-2">
+                    💡 Future reports will include comparative analysis against this baseline.
+                  </div>
                 </div>
               </div>
             )}
@@ -1186,6 +1396,9 @@ Your progress has been automatically saved, so you won't lose any other informat
 
   function renderAttendanceStep() {
     const validation = getStepValidation(2);
+    const prevAttendance = previousSubmission?.meta?.attendance || { wfo: 0, wfh: 0 };
+    const currentTotal = (currentSubmission.meta.attendance.wfo || 0) + (currentSubmission.meta.attendance.wfh || 0);
+    const prevTotal = (prevAttendance.wfo || 0) + (prevAttendance.wfh || 0);
     
     return (
       <div className="space-y-6">
@@ -1219,8 +1432,36 @@ Your progress has been automatically saved, so you won't lose any other informat
             <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
               📍 Total days in {monthLabel(currentSubmission.monthKey)}: {daysInMonth(currentSubmission.monthKey)}
               <br />
-              Current total: {(currentSubmission.meta.attendance.wfo || 0) + (currentSubmission.meta.attendance.wfh || 0)} days
+              Current total: {currentTotal} days
             </div>
+            
+            {/* Comparative attendance analysis */}
+            {previousSubmission && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <h5 className="text-sm font-medium text-blue-800 mb-2">📊 Attendance Comparison</h5>
+                <div className="text-xs text-blue-700 space-y-1">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="text-center">
+                      <div className="font-medium">WFO</div>
+                      <div>{prevAttendance.wfo || 0} → {currentSubmission.meta.attendance.wfo || 0}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="font-medium">WFH</div>
+                      <div>{prevAttendance.wfh || 0} → {currentSubmission.meta.attendance.wfh || 0}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="font-medium">Total</div>
+                      <div className={currentTotal > prevTotal ? 'text-green-600' : currentTotal < prevTotal ? 'text-red-600' : 'text-gray-600'}>
+                        {prevTotal} → {currentTotal}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-center text-blue-600 mt-2">
+                    Comparing {monthLabel(mPrev)} vs {monthLabel(mThis)}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-4">
@@ -1245,6 +1486,26 @@ Your progress has been automatically saved, so you won't lose any other informat
               value={currentSubmission.meta.tasks.aiTableScreenshot} 
               onChange={handleAITableScreenshotChange} 
             />
+            
+            {/* Comparative task analysis */}
+            {previousSubmission && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <h5 className="text-sm font-medium text-green-800 mb-2">📊 Task Completion Comparison</h5>
+                <div className="text-xs text-green-700">
+                  <div className="flex justify-between items-center">
+                    <span>{monthLabel(mPrev)}: {previousSubmission.meta?.tasks?.count || 0} tasks</span>
+                    <span className="text-green-600">→</span>
+                    <span className="font-semibold">{monthLabel(mThis)}: {currentSubmission.meta.tasks.count || 0} tasks</span>
+                  </div>
+                  {(currentSubmission.meta.tasks.count || 0) > (previousSubmission.meta?.tasks?.count || 0) && (
+                    <div className="text-green-600 mt-1 text-center">📈 Improved productivity!</div>
+                  )}
+                  {(currentSubmission.meta.tasks.count || 0) < (previousSubmission.meta?.tasks?.count || 0) && (
+                    <div className="text-yellow-600 mt-1 text-center">📋 Consider reviewing task management strategies</div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
