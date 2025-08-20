@@ -310,7 +310,12 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
         {selectedReport && (
           <div className="border rounded-2xl p-4 shadow-sm bg-blue-50/50">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold text-lg">{monthLabel(selectedReport.monthKey)} Report</h3>
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                {monthLabel(selectedReport.monthKey)} Report
+                {selectedReport.flags?.incorrect && (
+                  <span className="px-2 py-0.5 bg-red-100 text-red-800 rounded-full text-xs">Flagged</span>
+                )}
+              </h3>
               <span className={`text-sm font-semibold ${selectedReport.scores.overall >= 7 ? 'text-emerald-600' : 'text-red-600'}`}>
                 Overall Score: {selectedReport.scores.overall}/10
               </span>

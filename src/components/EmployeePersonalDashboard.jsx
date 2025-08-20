@@ -20,6 +20,8 @@ export function EmployeePersonalDashboard({ employee, onBack }) {
     return employeeSubmissions.find(s => s.monthKey === currentMonth);
   }, [employeeSubmissions]);
 
+  const latestFlagged = employeeSubmissions[0]?.flags?.incorrect || false;
+
   const overallStats = useMemo(() => {
     if (employeeSubmissions.length === 0) return null;
     
@@ -102,7 +104,12 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
               {employee.name.charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{employee.name}</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate flex items-center gap-2">
+                {employee.name}
+                {latestFlagged && (
+                  <span className="px-2 py-0.5 bg-red-100 text-red-800 rounded-full text-xs">Flagged</span>
+                )}
+              </h1>
               <p className="text-sm sm:text-base text-gray-600">{employee.department} Department</p>
               <p className="text-xs sm:text-sm text-gray-500">Phone: {employee.phone}</p>
             </div>

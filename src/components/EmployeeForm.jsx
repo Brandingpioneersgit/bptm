@@ -627,7 +627,8 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     const missingLearningHours = learningMins < 360;
     const hasEscalations = (debouncedSubmission.clients || []).some(c => (c.relationship?.escalations || []).length > 0);
     const missingReports = (debouncedSubmission.clients || []).some(c => (c.reports || []).length === 0);
-    return { missingLearningHours, hasEscalations, missingReports };
+    const incorrect = debouncedSubmission.flags?.incorrect || false;
+    return { missingLearningHours, hasEscalations, missingReports, incorrect };
   }, [debouncedSubmission]);
 
   useEffect(() => {

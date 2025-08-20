@@ -5,6 +5,7 @@ import { useFetchSubmissions } from "./useFetchSubmissions";
 import { ClientManagementView } from "./ClientManagementView";
 import { ClientDashboardView } from "./ClientDashboardView";
 import { FixedLeaderboardView } from "./FixedLeaderboardView";
+import { FLAG_PENALTY } from "./constants";
 
 export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport }) {
   const supabase = useSupabase();
@@ -21,14 +22,28 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
   });
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
   const [selectedEmployees, setSelectedEmployees] = useState(new Set());
-  
+
   const [evaluationPanel, setEvaluationPanel] = useState({
     isOpen: false,
     submission: null,
     score: 8,
     comments: '',
-    recommendations: ''
+    recommendations: '',
+    flagged: false
   });
+
+  const logFlagEvent = (submissionId, flagged) => {
+    const timestamp = new Date().toISOString();
+    const entry = { id: submissionId, flagged, timestamp };
+    console.log('Flag audit:', entry);
+    try {
+      const logs = JSON.parse(localStorage.getItem('flag_audit_log') || '[]');
+      logs.push(entry);
+      localStorage.setItem('flag_audit_log', JSON.stringify(logs));
+    } catch (e) {
+      console.error('Failed to log flag event', e);
+    }
+  };
 
   const processedData = useMemo(() => {
     if (!allSubmissions.length) return { employees: [], stats: {}, departments: [] };
@@ -132,7 +147,8 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       submission,
       score: submission.manager?.score || 8,
       comments: submission.manager?.comments || '',
-      recommendations: submission.manager?.recommendations || ''
+      recommendations: submission.manager?.recommendations || '',
+      flagged: submission.flags?.incorrect || false
     });
   };
 
@@ -140,8 +156,21 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
     if (!evaluationPanel.submission || !supabase) return;
 
     try {
+      const prevFlag = evaluationPanel.submission.flags?.incorrect;
+      const updatedFlags = {
+        ...(evaluationPanel.submission.flags || {}),
+        incorrect: evaluationPanel.flagged
+      };
+      let overallScore = evaluationPanel.submission.scores?.overall || 0;
+      if (evaluationPanel.flagged && !prevFlag) {
+        overallScore = Math.max(0, overallScore - FLAG_PENALTY);
+      } else if (!evaluationPanel.flagged && prevFlag) {
+        overallScore = Math.min(10, overallScore + FLAG_PENALTY);
+      }
       const updatedSubmission = {
         ...evaluationPanel.submission,
+        flags: updatedFlags,
+        scores: { ...(evaluationPanel.submission.scores || {}), overall: overallScore },
         manager: {
           score: evaluationPanel.score,
           comments: evaluationPanel.comments,
@@ -158,8 +187,10 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
 
       if (error) throw error;
 
+      logFlagEvent(evaluationPanel.submission.id, evaluationPanel.flagged);
+
       await refreshSubmissions();
-      setEvaluationPanel({ isOpen: false, submission: null, score: 8, comments: '', recommendations: '' });
+      setEvaluationPanel({ isOpen: false, submission: null, score: 8, comments: '', recommendations: '', flagged: false });
       openModal('Success', 'Employee evaluation saved successfully!', closeModal);
     } catch (error) {
       console.error('Failed to save evaluation:', error);
@@ -625,7 +656,12 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                       <tr key={`${employee.name}-${employee.phone}`} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
-                            <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                            <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                              {employee.name}
+                              {employee.latestSubmission?.flags?.incorrect && (
+                                <span className="px-2 py-0.5 bg-red-100 text-red-800 rounded-full text-xs">Flagged</span>
+                              )}
+                            </div>
                             <div className="text-sm text-gray-500">{employee.phone}</div>
                           </div>
                         </td>
@@ -745,12 +781,25 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                   min="1"
                   max="10"
                   value={evaluationPanel.score}
-                  onChange={(e) => setEvaluationPanel(prev => ({ 
-                    ...prev, 
-                    score: parseInt(e.target.value) 
+                  onChange={(e) => setEvaluationPanel(prev => ({
+                    ...prev,
+                    score: parseInt(e.target.value)
                   }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={evaluationPanel.flagged}
+                  onChange={(e) => setEvaluationPanel(prev => ({
+                    ...prev,
+                    flagged: e.target.checked
+                  }))}
+                  className="mr-2"
+                />
+                <span className="text-sm font-medium text-gray-700">Flag as incorrect</span>
               </div>
 
               <div>

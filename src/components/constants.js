@@ -65,6 +65,7 @@ export function daysInMonth(monthKey) {
 }
 
 export const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_ACCESS_TOKEN || "admin";
+export const FLAG_PENALTY = 2;
 
 export const EMPTY_SUBMISSION = {
   monthKey: prevMonthKey(thisMonthKey()), // Default to previous month for reporting
@@ -75,7 +76,7 @@ export const EMPTY_SUBMISSION = {
   learning: [],
   aiUsageNotes: "",
   feedback: { company: "", hr: "", challenges: "" },
-  flags: { missingLearningHours: false, hasEscalations: false, missingReports: false },
+  flags: { missingLearningHours: false, hasEscalations: false, missingReports: false, incorrect: false },
   manager: { verified: false, comments: "", score: 0, hiddenDataFlag: false },
   scores: { kpiScore: 0, learningScore: 0, relationshipScore: 0, overall: 0 },
 };

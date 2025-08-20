@@ -215,6 +215,7 @@ export function generateSummary(model) {
   parts.push(`Learning: ${(learnMin / 60).toFixed(1)}h (${learnMin >= 360 ? 'Meets 6h' : 'Below 6h'}).`);
   if (model.flags?.missingReports) parts.push('⚠️ Missing report links for some clients.');
   if (model.flags?.hasEscalations) parts.push('⚠️ Escalations present — investigate.');
+  if (model.flags?.incorrect) parts.push('⚠️ Marked incorrect by manager.');
   parts.push(`Scores — KPI ${model.scores?.kpiScore}/10, Learning ${model.scores?.learningScore}/10, Client Status ${model.scores?.relationshipScore}/10, Overall ${model.scores?.overall}/10.`);
   if (model.manager?.score) parts.push(`Manager Score: ${model.manager.score}/10`);
   return parts.join(' ');
