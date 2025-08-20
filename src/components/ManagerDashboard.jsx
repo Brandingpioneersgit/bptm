@@ -55,20 +55,20 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       employeeGroups[key].submissions.push(submission);
     });
 
-    const employees = Object.values(employeeGroups).map(emp => {
+    const employees = Object.entries(employeeGroups).map(([key, emp]) => {
       emp.submissions.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
       emp.latestSubmission = emp.submissions[0];
-      
+
       const totalScore = emp.submissions.reduce((sum, sub) => sum + (sub.scores?.overall || 0), 0);
       emp.averageScore = emp.submissions.length ? (totalScore / emp.submissions.length).toFixed(1) : 0;
-      
+
       emp.totalHours = emp.submissions.reduce((total, sub) => {
         return total + ((sub.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60);
       }, 0);
-      
+
       emp.performance = emp.averageScore >= 8 ? 'High' : emp.averageScore >= 6 ? 'Medium' : 'Low';
-      
-      return emp;
+
+      return { ...emp, key };
     });
 
     let filteredEmployees = employees.filter(emp => {
@@ -351,6 +351,78 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
     onEditReport(employee.name, employee.phone);
   };
 
+  const toggleEmployeeSelection = (key) => {
+    setSelectedEmployees(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (checked) => {
+    if (checked) {
+      setSelectedEmployees(new Set(processedData.employees.map(e => e.key)));
+    } else {
+      setSelectedEmployees(new Set());
+    }
+  };
+
+  const bulkSendMessage = async () => {
+    if (!supabase || selectedEmployees.size === 0) return;
+    const message = window.prompt('Enter message to send to selected employees:');
+    if (!message) return;
+
+    try {
+      const targets = processedData.employees.filter(emp => selectedEmployees.has(emp.key) && emp.latestSubmission);
+      await Promise.all(targets.map(emp =>
+        supabase
+          .from('submissions')
+          .update({ manager_message: message })
+          .eq('id', emp.latestSubmission.id)
+      ));
+      openModal('Success', 'Message sent successfully!', closeModal);
+      await refreshSubmissions();
+      setSelectedEmployees(new Set());
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      openModal('Error', 'Failed to send message to employees.', closeModal);
+    }
+  };
+
+  const bulkAdjustScore = async () => {
+    if (!supabase || selectedEmployees.size === 0) return;
+    const scoreInput = window.prompt('Enter new score (0-10) for selected employees:');
+    const score = parseFloat(scoreInput);
+    if (isNaN(score)) return;
+
+    try {
+      const targets = processedData.employees.filter(emp => selectedEmployees.has(emp.key) && emp.latestSubmission);
+      await Promise.all(targets.map(emp =>
+        supabase
+          .from('submissions')
+          .update({
+            manager: {
+              ...(emp.latestSubmission.manager || {}),
+              score,
+              evaluatedAt: new Date().toISOString(),
+              evaluatedBy: 'Manager'
+            }
+          })
+          .eq('id', emp.latestSubmission.id)
+      ));
+      openModal('Success', 'Scores updated successfully!', closeModal);
+      await refreshSubmissions();
+      setSelectedEmployees(new Set());
+    } catch (err) {
+      console.error('Failed to adjust scores:', err);
+      openModal('Error', 'Failed to adjust scores.', closeModal);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -607,98 +679,121 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                 <div className="text-gray-500">Try adjusting your filters or search query</div>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Performance</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Score</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Learning Hours</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reports</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {processedData.employees.map((employee, index) => (
-                      <tr key={`${employee.name}-${employee.phone}`} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{employee.name}</div>
-                            <div className="text-sm text-gray-500">{employee.phone}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {employee.department}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${employee.performance === 'High' ? 'bg-green-100 text-green-800' : employee.performance === 'Medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
-                            {employee.performance}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className={`text-lg font-semibold ${employee.averageScore >= 8 ? 'text-green-600' : employee.averageScore >= 6 ? 'text-yellow-600' : 'text-red-600'}`}>
-                            {employee.averageScore}/10
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {employee.totalHours.toFixed(1)}h
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {employee.submissions.length}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleViewReport(employee)}
-                              className="text-blue-600 hover:text-blue-900 hover:bg-blue-50 px-3 py-1 rounded transition-colors"
-                            >
-                              View Report
-                            </button>
-                            <button
-                              onClick={() => handleFullReport(employee)}
-                              className="text-blue-600 hover:text-blue-900 hover:bg-blue-50 px-3 py-1 rounded transition-colors"
-                            >
-                              Full Report
-                            </button>
-                            <button
-                              onClick={() => downloadEmployeePDF(employee)}
-                              className="text-green-600 hover:text-green-900 hover:bg-green-50 px-3 py-1 rounded transition-colors"
-                            >
-                              Download PDF
-                            </button>
-                            <button
-                              onClick={() => onEditEmployee(employee.name, employee.phone)}
-                              className="text-orange-600 hover:text-orange-900 hover:bg-orange-50 px-3 py-1 rounded transition-colors"
-                            >
-                              Edit Employee
-                            </button>
-                            {employee.latestSubmission && (
-                              <button
-                                onClick={() => handleEditReport(employee)}
-                                className="text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 px-3 py-1 rounded transition-colors"
-                              >
-                                Edit Report
-                              </button>
-                            )}
-                            {employee.latestSubmission && (
-                              <button
-                                onClick={() => openEvaluation(employee.latestSubmission)}
-                                className="text-purple-600 hover:text-purple-900 hover:bg-purple-50 px-3 py-1 rounded transition-colors"
-                              >
-                                Evaluate
-                              </button>
-                            )}
-                          </div>
-                        </td>
+              <>
+                {selectedEmployees.size > 0 && (
+                  <div className="px-6 py-2 bg-gray-50 flex items-center gap-2">
+                    <span className="text-sm text-gray-700">{selectedEmployees.size} selected</span>
+                    <button onClick={bulkSendMessage} className="px-3 py-1 bg-blue-600 text-white rounded">Send Message</button>
+                    <button onClick={bulkAdjustScore} className="px-3 py-1 bg-green-600 text-white rounded">Adjust Score</button>
+                  </div>
+                )}
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3">
+                          <input
+                            type="checkbox"
+                            onChange={(e) => toggleSelectAll(e.target.checked)}
+                            checked={selectedEmployees.size === processedData.employees.length && processedData.employees.length > 0}
+                          />
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Performance</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Score</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Learning Hours</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reports</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {processedData.employees.map((employee, index) => (
+                        <tr key={employee.key} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <input
+                              type="checkbox"
+                              checked={selectedEmployees.has(employee.key)}
+                              onChange={() => toggleEmployeeSelection(employee.key)}
+                            />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                              <div className="text-sm text-gray-500">{employee.phone}</div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {employee.department}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${employee.performance === 'High' ? 'bg-green-100 text-green-800' : employee.performance === 'Medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                              {employee.performance}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className={`text-lg font-semibold ${employee.averageScore >= 8 ? 'text-green-600' : employee.averageScore >= 6 ? 'text-yellow-600' : 'text-red-600'}`}> 
+                              {employee.averageScore}/10
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {employee.totalHours.toFixed(1)}h
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {employee.submissions.length}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleViewReport(employee)}
+                                className="text-blue-600 hover:text-blue-900 hover:bg-blue-50 px-3 py-1 rounded transition-colors"
+                              >
+                                View Report
+                              </button>
+                              <button
+                                onClick={() => handleFullReport(employee)}
+                                className="text-blue-600 hover:text-blue-900 hover:bg-blue-50 px-3 py-1 rounded transition-colors"
+                              >
+                                Full Report
+                              </button>
+                              <button
+                                onClick={() => downloadEmployeePDF(employee)}
+                                className="text-green-600 hover:text-green-900 hover:bg-green-50 px-3 py-1 rounded transition-colors"
+                              >
+                                Download PDF
+                              </button>
+                              <button
+                                onClick={() => onEditEmployee(employee.name, employee.phone)}
+                                className="text-orange-600 hover:text-orange-900 hover:bg-orange-50 px-3 py-1 rounded transition-colors"
+                              >
+                                Edit Employee
+                              </button>
+                              {employee.latestSubmission && (
+                                <button
+                                  onClick={() => handleEditReport(employee)}
+                                  className="text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 px-3 py-1 rounded transition-colors"
+                                >
+                                  Edit Report
+                                </button>
+                              )}
+                              {employee.latestSubmission && (
+                                <button
+                                  onClick={() => openEvaluation(employee.latestSubmission)}
+                                  className="text-purple-600 hover:text-purple-900 hover:bg-purple-50 px-3 py-1 rounded transition-colors"
+                                >
+                                  Evaluate
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         </>
