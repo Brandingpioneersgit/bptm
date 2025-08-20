@@ -1,6 +1,6 @@
 // Client Repository Service for automatic client management
 
-import { EMPTY_CLIENT, findClientInRepository, mergeClientData, createServiceObject } from './clientServices';
+import { EMPTY_CLIENT, EMPTY_EMPLOYEE_CLIENT, findClientInRepository, mergeClientData, createServiceObject, createEmployeeClientObject } from './clientServices';
 
 export class ClientRepository {
   constructor(supabase) {
@@ -197,6 +197,97 @@ export class ClientRepository {
     } catch (error) {
       console.error('Error fetching client:', error);
       return null;
+    }
+  }
+
+  // Get clients assigned to a specific employee
+  async getClientsForEmployee(employeeId) {
+    if (!this.supabase || !employeeId) return [];
+
+    try {
+      const { data, error } = await this.supabase
+        .from('employee_clients')
+        .select('employee_id, client_id, services, frequency, clients(*)')
+        .eq('employee_id', employeeId);
+
+      if (error) throw error;
+
+      return (data || []).map(row => ({
+        ...row.clients,
+        services: row.services || [],
+        frequency: row.frequency,
+      }));
+    } catch (error) {
+      console.error('Error fetching employee clients:', error);
+      return [];
+    }
+  }
+
+  // Assign or update a client for an employee
+  async upsertEmployeeClient({ employee_id, client_id, services = [], frequency = null }) {
+    if (!this.supabase) return null;
+
+    try {
+      const payload = {
+        ...EMPTY_EMPLOYEE_CLIENT,
+        ...createEmployeeClientObject(employee_id, client_id, services, frequency),
+        updated_at: new Date().toISOString()
+      };
+
+      const { data, error } = await this.supabase
+        .from('employee_clients')
+        .upsert(payload, { onConflict: 'employee_id,client_id' })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error upserting employee client:', error);
+      return null;
+    }
+  }
+
+  // Update services or frequency for an employee-client relation
+  async updateEmployeeClient(employeeId, clientId, updates) {
+    if (!this.supabase) return null;
+
+    try {
+      const { data, error } = await this.supabase
+        .from('employee_clients')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('employee_id', employeeId)
+        .eq('client_id', clientId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error updating employee client:', error);
+      return null;
+    }
+  }
+
+  // Remove a client assignment from an employee
+  async removeEmployeeClient(employeeId, clientId) {
+    if (!this.supabase) return false;
+
+    try {
+      const { error } = await this.supabase
+        .from('employee_clients')
+        .delete()
+        .eq('employee_id', employeeId)
+        .eq('client_id', clientId);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error removing employee client:', error);
+      return false;
     }
   }
 

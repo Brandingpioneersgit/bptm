@@ -19,6 +19,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   const [currentSubmission, setCurrentSubmission] = useState({ ...EMPTY_SUBMISSION, isDraft: true });
   const [previousSubmission, setPreviousSubmission] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(currentUser);
+  const [approvedClients, setApprovedClients] = useState([]);
   
   const [currentStep, setCurrentStep] = useState(1);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -162,6 +163,20 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
       }
     });
   }, [selectedEmployee, allSubmissions]);
+
+  // Load manager-approved clients for the selected employee
+  useEffect(() => {
+    const loadApprovedClients = async () => {
+      if (!supabase || !selectedEmployee?.id) {
+        setApprovedClients([]);
+        return;
+      }
+      const repo = getClientRepository(supabase);
+      const clients = await repo.getClientsForEmployee(selectedEmployee.id);
+      setApprovedClients(clients);
+    };
+    loadApprovedClients();
+  }, [supabase, selectedEmployee?.id]);
 
 
   const autoSave = useCallback(async () => {
@@ -1535,14 +1550,15 @@ Your progress has been automatically saved, so you won't lose any other informat
   function renderKPIStep() {
     return (
       <div className="space-y-6">
-        <DeptClientsBlock 
-          currentSubmission={currentSubmission} 
-          previousSubmission={previousSubmission} 
-          setModel={setModelWithTracking} 
-          monthPrev={mPrev} 
-          monthThis={mThis} 
-          openModal={openModal} 
-          closeModal={closeModal} 
+        <DeptClientsBlock
+          currentSubmission={currentSubmission}
+          previousSubmission={previousSubmission}
+          setModel={setModelWithTracking}
+          monthPrev={mPrev}
+          monthThis={mThis}
+          openModal={openModal}
+          closeModal={closeModal}
+          allowedClients={approvedClients}
         />
       </div>
     );

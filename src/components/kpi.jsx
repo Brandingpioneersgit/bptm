@@ -675,7 +675,7 @@ function KPIsOperationsHead({ client, onChange }) {
   );
 }
 
-export function DeptClientsBlock({ currentSubmission, previousSubmission, setModel, monthPrev, monthThis, openModal, closeModal }) {
+export function DeptClientsBlock({ currentSubmission, previousSubmission, setModel, monthPrev, monthThis, openModal, closeModal, allowedClients = [] }) {
   const isInternal = ["HR", "Accounts", "Sales", "Blended (HR + Sales)"].includes(currentSubmission.employee.department);
   const isWebHead = currentSubmission.employee.department === "Web Head";
   const isOpsHead = currentSubmission.employee.department === "Operations Head";
@@ -689,17 +689,21 @@ export function DeptClientsBlock({ currentSubmission, previousSubmission, setMod
       {(isInternal && !isOpsHead && !isWebHead) ? (
         <InternalKPIs model={currentSubmission} prevModel={previousSubmission} setModel={setModel} monthPrev={monthPrev} monthThis={monthThis} />
       ) : (
-        <ClientTable currentSubmission={currentSubmission} previousSubmission={previousSubmission} setModel={setModel} monthPrev={monthPrev} monthThis={monthThis} openModal={openModal} closeModal={closeModal} />
+        <ClientTable currentSubmission={currentSubmission} previousSubmission={previousSubmission} setModel={setModel} monthPrev={monthPrev} monthThis={monthThis} openModal={openModal} closeModal={closeModal} allowedClients={allowedClients} />
       )}
     </Section>
   );
 }
 
-function ClientTable({ currentSubmission, previousSubmission, setModel, monthPrev, monthThis, openModal, closeModal }) {
+function ClientTable({ currentSubmission, previousSubmission, setModel, monthPrev, monthThis, openModal, closeModal, allowedClients = [] }) {
   const supabase = useSupabase();
   const [draftRow, setDraftRow] = useState({ name: "", scopeOfWork: "", url: "" });
-  const [masterClients, setMasterClients] = useState([]);
+  const [masterClients, setMasterClients] = useState(allowedClients);
   const [showNewClientForm, setShowNewClientForm] = useState(false);
+
+  useEffect(() => {
+    setMasterClients(allowedClients);
+  }, [allowedClients]);
   
   const serviceOptions = ['SEO', 'GBP SEO', 'Website Maintenance', 'Social Media', 'Google Ads', 'Meta Ads', 'AI'];
   const [newClientForm, setNewClientForm] = useState({
@@ -767,26 +771,6 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
 
   const prevClients = previousSubmission?.clients || [];
   
-  useEffect(() => {
-    const fetchMasterClients = async () => {
-      if (!supabase) return;
-      
-      try {
-        const { data, error } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('status', 'Active')
-          .order('name');
-        
-        if (error) throw error;
-        setMasterClients(data || []);
-      } catch (error) {
-        console.error('Error fetching master clients:', error);
-      }
-    };
-    
-    fetchMasterClients();
-  }, [supabase]);
 
   const currentTeam = currentSubmission.employee.department === "Social Media" ? "Marketing" : "Web";
   

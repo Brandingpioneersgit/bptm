@@ -88,3 +88,19 @@ export const mergeClientData = (repositoryClient, formClient) => ({
   // Update timestamp
   updated_at: new Date().toISOString()
 });
+
+// Default structure for employee-client relationship records
+export const EMPTY_EMPLOYEE_CLIENT = {
+  employee_id: "",
+  client_id: "",
+  services: [],
+  frequency: ""
+};
+
+// Helper to create an employee-client join record
+export const createEmployeeClientObject = (employee_id, client_id, services = [], frequency = "") => ({
+  employee_id,
+  client_id,
+  services,
+  frequency
+});
