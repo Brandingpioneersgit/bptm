@@ -306,6 +306,60 @@ function calculateScopeCompletion(client, service) {
   }
 }
 
+function ScopePreview({ client, department }) {
+  const servicesMap = {
+    'Web': ['Website Maintenance', 'AI'],
+    'Web Head': ['Website Maintenance', 'AI'],
+    'Social Media': ['Social Media'],
+    'Ads': ['Google Ads', 'Meta Ads'],
+    'SEO': ['SEO', 'GBP SEO']
+  };
+
+  const services = servicesMap[department] || [];
+  const scopeEntries = services
+    .map(service => ({ service, scope: client.service_scopes?.[service] }))
+    .filter(entry => entry.scope);
+
+  if (!client.scope_of_work && scopeEntries.length === 0) return null;
+
+  return (
+    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4 text-sm">
+      {client.scope_of_work && (
+        <p className="mb-2"><strong>Scope of Work:</strong> {client.scope_of_work}</p>
+      )}
+      {scopeEntries.map(({ service, scope }) => {
+        const completion = calculateScopeCompletion(client, service);
+        const complete = completion >= 100;
+        return (
+          <div
+            key={service}
+            className={`mt-2 p-2 rounded border ${
+              complete ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-medium">{service}</span>
+              <span
+                className={`text-xs px-2 py-1 rounded ${
+                  complete ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                }`}
+              >
+                {completion}% complete
+              </span>
+            </div>
+            <p><strong>Deliverables:</strong> {scope.deliverables}</p>
+            {scope.frequency && (
+              <p className={complete ? '' : 'text-red-700 font-semibold'}>
+                <strong>Frequency:</strong> {scope.frequency}
+              </p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function KPIsSocial({ client, prevClient, employeeRole, onChange, monthPrev, monthThis, isNewClient }) {
   const folDelta = (client.sm_followersThis || 0) - (isNewClient ? (client.sm_followersPrev || 0) : (prevClient.sm_followersThis || 0));
   const reachDelta = (client.sm_reachThis || 0) - (isNewClient ? (client.sm_reachPrev || 0) : (prevClient.sm_reachThis || 0));
@@ -998,6 +1052,7 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
         return (
           <div key={c.id} className="border rounded-2xl p-4 my-4 bg-white">
             <div className="font-semibold mb-2">KPIs • {c.name} <span className="text-xs text-gray-500">({monthLabel(monthPrev)} vs {monthLabel(monthThis)})</span></div>
+            <ScopePreview client={c} department={currentSubmission.employee.department} />
             {currentSubmission.employee.department === 'Web' && (
               <KPIsWeb client={c} prevClient={prevClient} onChange={(cc) => setModel(m => ({ ...m, clients: m.clients.map(x => x.id === c.id ? cc : x) }))} monthPrev={monthPrev} monthThis={monthThis} isNewClient={isNewClient} />
             )}
