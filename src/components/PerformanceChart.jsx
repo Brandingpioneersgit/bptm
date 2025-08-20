@@ -1,10 +1,12 @@
 import React from 'react';
 
-export const PerformanceChart = ({ data, title }) => {
+export const PerformanceChart = ({ currentData = [], comparisonData = [], title }) => {
+  const data = currentData;
   if (!data || data.length === 0) return null;
 
-  const maxScore = Math.max(...data.map(d => d.score), 10);
   const chartHeight = 200;
+  const xPos = i => 50 + (i * (100 / Math.max(data.length - 1, 1)) * 8);
+  const yPos = score => chartHeight - (score / 10) * (chartHeight - 40);
 
   return (
     <div className="bg-white rounded-xl p-4 border border-gray-200">
@@ -16,15 +18,15 @@ export const PerformanceChart = ({ data, title }) => {
             <g key={score}>
               <line
                 x1="40"
-                y1={chartHeight - (score / 10) * (chartHeight - 40)}
+                y1={yPos(score)}
                 x2="100%"
-                y2={chartHeight - (score / 10) * (chartHeight - 40)}
+                y2={yPos(score)}
                 stroke="#e5e7eb"
                 strokeWidth="1"
               />
               <text
                 x="35"
-                y={chartHeight - (score / 10) * (chartHeight - 40) + 4}
+                y={yPos(score) + 4}
                 fontSize="12"
                 fill="#6b7280"
                 textAnchor="end"
@@ -34,11 +36,11 @@ export const PerformanceChart = ({ data, title }) => {
             </g>
           ))}
 
-          {/* Chart line */}
+          {/* Current month line */}
           <polyline
-            points={data.map((d, i) =>
-              `${50 + (i * (100 / Math.max(data.length - 1, 1)) * 8)},${chartHeight - (d.score / 10) * (chartHeight - 40)}`
-            ).join(' ')}
+            points={data
+              .map((d, i) => `${xPos(i)},${yPos(d.score)}`)
+              .join(' ')}
             fill="none"
             stroke="#3b82f6"
             strokeWidth="3"
@@ -46,17 +48,27 @@ export const PerformanceChart = ({ data, title }) => {
             strokeLinejoin="round"
           />
 
+          {/* Comparison month line */}
+          {comparisonData.length > 0 && (
+            <polyline
+              points={comparisonData
+                .map((d, i) => `${xPos(i)},${yPos(d.score)}`)
+                .join(' ')}
+              fill="none"
+              stroke="#9ca3af"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray="4 2"
+            />
+          )}
+
           {/* Data points */}
           {data.map((d, i) => (
-            <g key={i}>
-              <circle
-                cx={50 + (i * (100 / Math.max(data.length - 1, 1)) * 8)}
-                cy={chartHeight - (d.score / 10) * (chartHeight - 40)}
-                r="4"
-                fill="#3b82f6"
-              />
+            <g key={`cur-${i}`}>
+              <circle cx={xPos(i)} cy={yPos(d.score)} r="4" fill="#3b82f6" />
               <text
-                x={50 + (i * (100 / Math.max(data.length - 1, 1)) * 8)}
+                x={xPos(i)}
                 y={chartHeight - 10}
                 fontSize="10"
                 fill="#6b7280"
@@ -64,6 +76,12 @@ export const PerformanceChart = ({ data, title }) => {
               >
                 {d.month}
               </text>
+            </g>
+          ))}
+
+          {comparisonData.map((d, i) => (
+            <g key={`cmp-${i}`}>
+              <circle cx={xPos(i)} cy={yPos(d.score)} r="3" fill="#9ca3af" />
             </g>
           ))}
         </svg>

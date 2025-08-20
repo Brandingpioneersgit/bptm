@@ -5,7 +5,7 @@ import { Section } from "./ui";
 import { PerformanceChart } from "./PerformanceChart";
 import { PDFDownloadButton } from "./PDFDownloadButton";
 import { generateSummary } from "./scoring";
-import { monthLabel, round1 } from "./constants";
+import { monthLabel, round1, prevMonthKey } from "./constants";
 
 export function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
   const { allSubmissions, loading } = useFetchSubmissions();
@@ -33,6 +33,15 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
   const selectedReport = useMemo(() => {
     return employeeSubmissions.find(s => s.id === selectedReportId) || null;
   }, [employeeSubmissions, selectedReportId]);
+
+  const comparisonMonthKey = useMemo(() => {
+    return selectedReport ? prevMonthKey(selectedReport.monthKey) : null;
+  }, [selectedReport]);
+
+  const comparisonReport = useMemo(() => {
+    if (!comparisonMonthKey) return null;
+    return employeeSubmissions.find(s => s.monthKey === comparisonMonthKey) || null;
+  }, [comparisonMonthKey, employeeSubmissions]);
 
   const yearlySummary = useMemo(() => {
     if (!employeeSubmissions.length) {
@@ -69,6 +78,23 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
       totalMonths,
       monthsWithLearningShortfall
     };
+  }, [employeeSubmissions]);
+
+  const performanceCurrent = useMemo(() => {
+    return employeeSubmissions.map(s => ({
+      month: monthLabel(s.monthKey),
+      score: s.scores?.overall || 0
+    }));
+  }, [employeeSubmissions]);
+
+  const performanceComparison = useMemo(() => {
+    return employeeSubmissions.map((s, idx) => {
+      const prev = employeeSubmissions[idx - 1];
+      return {
+        month: monthLabel(s.monthKey),
+        score: prev ? prev.scores?.overall || 0 : 0
+      };
+    });
   }, [employeeSubmissions]);
 
   useEffect(() => {
@@ -266,10 +292,8 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
           {employeeSubmissions.length > 1 && (
             <div className="mb-6">
               <PerformanceChart
-                data={employeeSubmissions.map(s => ({
-                  month: monthLabel(s.monthKey),
-                  score: s.scores?.overall || 0
-                }))}
+                currentData={performanceCurrent}
+                comparisonData={performanceComparison}
                 title="📈 Performance Trend Over Time"
               />
             </div>
@@ -308,43 +332,84 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
         </div>
 
         {selectedReport && (
-          <div className="border rounded-2xl p-4 shadow-sm bg-blue-50/50">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold text-lg">{monthLabel(selectedReport.monthKey)} Report</h3>
-              <span className={`text-sm font-semibold ${selectedReport.scores.overall >= 7 ? 'text-emerald-600' : 'text-red-600'}`}>
-                Overall Score: {selectedReport.scores.overall}/10
-              </span>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="border rounded-2xl p-4 shadow-sm bg-blue-50/50">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold text-lg">{monthLabel(selectedReport.monthKey)} Report</h3>
+                <span className={`text-sm font-semibold ${selectedReport.scores.overall >= 7 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  Overall Score: {selectedReport.scores.overall}/10
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center text-sm">
+                <div className="bg-white rounded-xl p-2 border">
+                  <div className="font-medium text-gray-700">KPI</div>
+                  <div className="font-bold text-xl">{selectedReport.scores.kpiScore}/10</div>
+                </div>
+                <div className="bg-white rounded-xl p-2 border">
+                  <div className="font-medium text-gray-700">Learning</div>
+                  <div className="font-bold text-xl">{selectedReport.scores.learningScore}/10</div>
+                </div>
+                <div className="bg-white rounded-xl p-2 border">
+                  <div className="font-medium text-gray-700">Client Status</div>
+                  <div className="font-bold text-xl">{selectedReport.scores.relationshipScore}/10</div>
+                </div>
+                <div className="bg-white rounded-xl p-2 border">
+                  <div className="font-medium text-gray-700">Learning Hours</div>
+                  <div className="font-bold text-xl">{(selectedReport.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0) / 60}h</div>
+                </div>
+              </div>
+              <div className="mt-4">
+                <h4 className="font-medium text-gray-700">AI-Generated Summary:</h4>
+                <p className="text-sm text-gray-600 whitespace-pre-wrap">{generateSummary(selectedReport)}</p>
+              </div>
+              <details className="mt-4 cursor-pointer">
+                <summary className="font-medium text-blue-600 hover:text-blue-800">
+                  View Full Submission Data
+                </summary>
+                <pre className="text-xs bg-gray-50 border rounded-xl p-2 overflow-auto max-h-60 mt-2">
+                  {JSON.stringify(selectedReport, null, 2)}
+                </pre>
+              </details>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center text-sm">
-              <div className="bg-white rounded-xl p-2 border">
-                <div className="font-medium text-gray-700">KPI</div>
-                <div className="font-bold text-xl">{selectedReport.scores.kpiScore}/10</div>
-              </div>
-              <div className="bg-white rounded-xl p-2 border">
-                <div className="font-medium text-gray-700">Learning</div>
-                <div className="font-bold text-xl">{selectedReport.scores.learningScore}/10</div>
-              </div>
-              <div className="bg-white rounded-xl p-2 border">
-                <div className="font-medium text-gray-700">Client Status</div>
-                <div className="font-bold text-xl">{selectedReport.scores.relationshipScore}/10</div>
-              </div>
-              <div className="bg-white rounded-xl p-2 border">
-                <div className="font-medium text-gray-700">Learning Hours</div>
-                <div className="font-bold text-xl">{(selectedReport.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0) / 60}h</div>
-              </div>
+
+            <div className="border rounded-2xl p-4 shadow-sm bg-gray-50">
+              {comparisonReport ? (
+                <>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold text-lg">{monthLabel(comparisonReport.monthKey)} Report</h3>
+                    <span className={`text-sm font-semibold ${comparisonReport.scores.overall >= 7 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      Overall Score: {comparisonReport.scores.overall}/10
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center text-sm">
+                    <div className="bg-white rounded-xl p-2 border">
+                      <div className="font-medium text-gray-700">KPI</div>
+                      <div className="font-bold text-xl">{comparisonReport.scores.kpiScore}/10</div>
+                    </div>
+                    <div className="bg-white rounded-xl p-2 border">
+                      <div className="font-medium text-gray-700">Learning</div>
+                      <div className="font-bold text-xl">{comparisonReport.scores.learningScore}/10</div>
+                    </div>
+                    <div className="bg-white rounded-xl p-2 border">
+                      <div className="font-medium text-gray-700">Client Status</div>
+                      <div className="font-bold text-xl">{comparisonReport.scores.relationshipScore}/10</div>
+                    </div>
+                    <div className="bg-white rounded-xl p-2 border">
+                      <div className="font-medium text-gray-700">Learning Hours</div>
+                      <div className="font-bold text-xl">{(comparisonReport.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0) / 60}h</div>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <h4 className="font-medium text-gray-700">AI-Generated Summary:</h4>
+                    <p className="text-sm text-gray-600 whitespace-pre-wrap">{generateSummary(comparisonReport)}</p>
+                  </div>
+                </>
+              ) : (
+                <div className="h-full flex items-center justify-center text-center text-gray-600 p-4">
+                  No baseline found—first report. Future reports will compare against this month.
+                </div>
+              )}
             </div>
-            <div className="mt-4">
-              <h4 className="font-medium text-gray-700">AI-Generated Summary:</h4>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap">{generateSummary(selectedReport)}</p>
-            </div>
-            <details className="mt-4 cursor-pointer">
-              <summary className="font-medium text-blue-600 hover:text-blue-800">
-                View Full Submission Data
-              </summary>
-              <pre className="text-xs bg-gray-50 border rounded-xl p-2 overflow-auto max-h-60 mt-2">
-                {JSON.stringify(selectedReport, null, 2)}
-              </pre>
-            </details>
           </div>
         )}
       </Section>
