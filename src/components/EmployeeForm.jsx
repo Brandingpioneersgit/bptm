@@ -832,18 +832,36 @@ Your progress has been automatically saved, so you won't lose any other informat
       console.error('Failed to create backup:', e);
     }
 
-    const final = { 
-      ...currentSubmission, 
-      isDraft: false, 
-      submittedAt: new Date().toISOString(), 
-      employee: { 
-        ...currentSubmission.employee, 
-        name: (currentSubmission.employee?.name || "").trim(), 
-        phone: currentSubmission.employee.phone 
+    const final = {
+      ...currentSubmission,
+      isDraft: false,
+      submittedAt: new Date().toISOString(),
+      employee: {
+        ...currentSubmission.employee,
+        name: (currentSubmission.employee?.name || "").trim(),
+        phone: currentSubmission.employee.phone
       }
     };
 
     delete final.id;
+
+    // Fetch previous month's submission for summary comparison
+    let prevForSummary = null;
+    try {
+      const { data: prevData } = await supabase
+        .from('submissions')
+        .select('*')
+        .eq('employee_phone', final.employee.phone)
+        .lt('monthKey', final.monthKey)
+        .order('monthKey', { ascending: false })
+        .limit(1);
+      prevForSummary = prevData?.[0] || null;
+    } catch (err) {
+      console.error('Failed to fetch previous submission:', err);
+    }
+
+    // Generate summary with deltas and attach to submission
+    final.summary = generateSummary(final, prevForSummary);
 
     try {
       // Store clients in repository before submitting

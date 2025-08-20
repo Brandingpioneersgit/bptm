@@ -34,6 +34,14 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
     return employeeSubmissions.find(s => s.id === selectedReportId) || null;
   }, [employeeSubmissions, selectedReportId]);
 
+  const selectedSummary = useMemo(() => {
+    if (!selectedReport) return "";
+    if (selectedReport.summary) return selectedReport.summary;
+    const index = employeeSubmissions.findIndex(s => s.id === selectedReport.id);
+    const prev = index > 0 ? employeeSubmissions[index - 1] : null;
+    return generateSummary(selectedReport, prev);
+  }, [selectedReport, employeeSubmissions]);
+
   const yearlySummary = useMemo(() => {
     if (!employeeSubmissions.length) {
       return null;
@@ -335,7 +343,7 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
             </div>
             <div className="mt-4">
               <h4 className="font-medium text-gray-700">AI-Generated Summary:</h4>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap">{generateSummary(selectedReport)}</p>
+              <p className="text-sm text-gray-600 whitespace-pre-wrap">{selectedSummary}</p>
             </div>
             <details className="mt-4 cursor-pointer">
               <summary className="font-medium text-blue-600 hover:text-blue-800">

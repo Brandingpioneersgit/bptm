@@ -203,19 +203,43 @@ export function overallOutOf10(kpi, learning, rel, manager) {
   return round1((kpi * 0.4 + learning * 0.3 + rel * 0.2 + manager * 0.1)); 
 }
 
-export function generateSummary(model) {
+export function generateSummary(model, previous = null) {
   const names = (model.clients || []).map(c => c.name).filter(Boolean);
   const meet = (model.clients || []).reduce((s, c) => s + (c.relationship?.meetings?.length || 0), 0);
   const esc = (model.clients || []).reduce((s, c) => s + (c.relationship?.escalations?.length || 0), 0);
   const appr = (model.clients || []).reduce((s, c) => s + (c.relationship?.appreciations?.length || 0), 0);
   const learnMin = (model.learning || []).reduce((s, e) => s + (e.durationMins || 0), 0);
+
+  const prevMeet = previous ? (previous.clients || []).reduce((s, c) => s + (c.relationship?.meetings?.length || 0), 0) : null;
+  const prevEsc = previous ? (previous.clients || []).reduce((s, c) => s + (c.relationship?.escalations?.length || 0), 0) : null;
+  const prevAppr = previous ? (previous.clients || []).reduce((s, c) => s + (c.relationship?.appreciations?.length || 0), 0) : null;
+  const prevLearnMin = previous ? (previous.learning || []).reduce((s, e) => s + (e.durationMins || 0), 0) : null;
+  const prevScores = previous ? previous.scores || {} : null;
+
+  const formatDelta = (curr, prev, higherIsBetter = true, decimals = 1) => {
+    if (prev === null || prev === undefined) return '';
+    const diff = curr - prev;
+    if (Math.abs(diff) < (decimals ? 0.05 : 0.5)) return ' (→0)';
+    const arrow = diff > 0 ? (higherIsBetter ? '↑' : '↓') : (higherIsBetter ? '↓' : '↑');
+    const sign = diff > 0 ? '+' : '';
+    const val = decimals === 0 ? Math.round(diff) : diff.toFixed(decimals);
+    return ` (${arrow}${sign}${val})`;
+  };
+
   const parts = [];
   parts.push(`Handled ${names.length} client(s): ${names.join(', ') || '—'}.`);
-  parts.push(`Meetings ${meet}, Appreciations ${appr}, Escalations ${esc}.`);
-  parts.push(`Learning: ${(learnMin / 60).toFixed(1)}h (${learnMin >= 360 ? 'Meets 6h' : 'Below 6h'}).`);
+  parts.push(
+    `Meetings ${meet}${formatDelta(meet, prevMeet, true, 0)}, Appreciations ${appr}${formatDelta(appr, prevAppr, true, 0)}, Escalations ${esc}${formatDelta(esc, prevEsc, false, 0)}.`
+  );
+  const prevLearnHours = prevLearnMin !== null ? prevLearnMin / 60 : null;
+  parts.push(
+    `Learning: ${(learnMin / 60).toFixed(1)}h${formatDelta(learnMin / 60, prevLearnHours, true, 1)} (${learnMin >= 360 ? 'Meets 6h' : 'Below 6h'}).`
+  );
   if (model.flags?.missingReports) parts.push('⚠️ Missing report links for some clients.');
   if (model.flags?.hasEscalations) parts.push('⚠️ Escalations present — investigate.');
-  parts.push(`Scores — KPI ${model.scores?.kpiScore}/10, Learning ${model.scores?.learningScore}/10, Client Status ${model.scores?.relationshipScore}/10, Overall ${model.scores?.overall}/10.`);
+  parts.push(
+    `Scores — KPI ${model.scores?.kpiScore}/10${formatDelta(model.scores?.kpiScore, prevScores?.kpiScore)}, Learning ${model.scores?.learningScore}/10${formatDelta(model.scores?.learningScore, prevScores?.learningScore)}, Client Status ${model.scores?.relationshipScore}/10${formatDelta(model.scores?.relationshipScore, prevScores?.relationshipScore)}, Overall ${model.scores?.overall}/10${formatDelta(model.scores?.overall, prevScores?.overall)}.`
+  );
   if (model.manager?.score) parts.push(`Manager Score: ${model.manager.score}/10`);
   return parts.join(' ');
 }

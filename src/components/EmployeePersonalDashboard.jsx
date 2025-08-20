@@ -3,6 +3,7 @@ import { useFetchSubmissions } from "./useFetchSubmissions.js";
 import { useModal } from "./AppShell";
 import { thisMonthKey, monthLabel } from "./constants";
 import { ClientReportsView } from "./ClientReportsView";
+import { generateSummary } from "./scoring";
 
 export function EmployeePersonalDashboard({ employee, onBack }) {
   const { allSubmissions, loading } = useFetchSubmissions();
@@ -74,12 +75,9 @@ export function EmployeePersonalDashboard({ employee, onBack }) {
     a.click();
     URL.revokeObjectURL(url);
   };
-
   const getSubmissionSummary = (submission) => {
-    return `📈 PERFORMANCE SUMMARY - ${monthLabel(submission.monthKey)}\n\n★ Overall Score: ${submission.scores?.overall?.toFixed(1) || 'N/A'}/10\n\n🎯 KPI Performance: ${submission.scores?.kpiScore?.toFixed(1) || 'N/A'}/10\n🎓 Learning Activities: ${submission.scores?.learningScore?.toFixed(1) || 'N/A'}/10\n🤝 Client Relations: ${submission.scores?.relationshipScore?.toFixed(1) || 'N/A'}/10\n\n${submission.flags?.missingLearningHours ? '⚠️ Action needed: Complete learning hours requirement\n' : ''}
-${submission.flags?.hasEscalations ? '⚠️ Action needed: Address client escalations\n' : ''}
-${submission.flags?.missingReports ? '⚠️ Action needed: Submit missing client reports\n' : ''}
-${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_remarks}` : '\n📝 No manager feedback yet'}`;
+    const base = submission.summary || generateSummary(submission);
+    return `${base}${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_remarks}` : '\n📝 No manager feedback yet'}`;
   };
 
   if (loading) {

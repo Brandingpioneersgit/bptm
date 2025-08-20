@@ -736,6 +736,11 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
             </div>
             
             <div className="px-6 py-4 space-y-6">
+              {evaluationPanel.submission?.summary && (
+                <div className="bg-gray-50 p-3 rounded-md text-sm text-gray-700 whitespace-pre-wrap">
+                  {evaluationPanel.submission.summary}
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Manager Score (1-10)
