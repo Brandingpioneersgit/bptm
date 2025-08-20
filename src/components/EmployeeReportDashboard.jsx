@@ -43,6 +43,7 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
     let totalLearning = 0;
     let totalRelationship = 0;
     let totalOverall = 0;
+    let totalClientSatisfaction = 0;
     let monthsWithLearningShortfall = 0;
 
     employeeSubmissions.forEach(s => {
@@ -50,6 +51,7 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
       totalLearning += s.scores?.learningScore || 0;
       totalRelationship += s.scores?.relationshipScore || 0;
       totalOverall += s.scores?.overall || 0;
+      totalClientSatisfaction += s.manager?.clientSatisfaction || 0;
       if ((s.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0) < 360) {
         monthsWithLearningShortfall++;
       }
@@ -60,12 +62,14 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
     const avgLearning = round1(totalLearning / totalMonths);
     const avgRelationship = round1(totalRelationship / totalMonths);
     const avgOverall = round1(totalOverall / totalMonths);
+    const avgClientSatisfaction = round1(totalClientSatisfaction / totalMonths);
 
     return {
       avgKpi,
       avgLearning,
       avgRelationship,
       avgOverall,
+      avgClientSatisfaction,
       totalMonths,
       monthsWithLearningShortfall
     };
@@ -157,6 +161,7 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
 ### Employee Performance Report for ${employeeName}
 -   **Total Months Submitted:** ${yearlySummary.totalMonths}
 -   **Average Overall Score:** ${yearlySummary.avgOverall}/10
+-   **Average Client Satisfaction:** ${yearlySummary.avgClientSatisfaction}/10
 -   **Months with Learning Shortfall:** ${yearlySummary.monthsWithLearningShortfall}
 ---
 
@@ -170,6 +175,8 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
 -   **Client Relationship Score:** ${s.scores.relationshipScore}/10
 -   **Manager Notes:** ${s.manager?.comments || 'N/A'}
 -   **Manager Score:** ${s.manager?.score || 'N/A'}
+-   **Client Satisfaction:** ${s.manager?.clientSatisfaction || 'N/A'}/10
+-   **Review Notes:** ${s.manager?.reviewNotes || 'N/A'}
 ---
 `;
     });
@@ -241,7 +248,7 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
 
       {yearlySummary && (
         <Section title="Cumulative Summary & Recommendations">
-          <div className="grid md:grid-cols-4 gap-4 text-center mb-6">
+          <div className="grid md:grid-cols-5 gap-4 text-center mb-6">
             <div className="bg-blue-600 text-white rounded-2xl p-4">
               <div className="text-sm opacity-80">Average Overall</div>
               <div className="text-3xl font-semibold">{yearlySummary.avgOverall}/10</div>
@@ -253,6 +260,10 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
             <div className="bg-white border rounded-2xl p-4 shadow-sm">
               <div className="text-sm opacity-80">Average Learning</div>
               <div className="font-bold text-3xl">{yearlySummary.avgLearning}/10</div>
+            </div>
+            <div className="bg-white border rounded-2xl p-4 shadow-sm">
+              <div className="text-sm opacity-80">Avg Client Sat.</div>
+              <div className="text-3xl font-semibold">{yearlySummary.avgClientSatisfaction}/10</div>
             </div>
             <div className="bg-white border rounded-2xl p-4 shadow-sm">
               <div className="text-sm opacity-80">Learning Shortfall</div>
@@ -271,6 +282,18 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
                   score: s.scores?.overall || 0
                 }))}
                 title="📈 Performance Trend Over Time"
+              />
+            </div>
+          )}
+
+          {employeeSubmissions.some(s => s.manager?.clientSatisfaction) && (
+            <div className="mb-6">
+              <PerformanceChart
+                data={employeeSubmissions.map(s => ({
+                  month: monthLabel(s.monthKey),
+                  score: s.manager?.clientSatisfaction || 0
+                }))}
+                title="😊 Client Satisfaction Trend"
               />
             </div>
           )}

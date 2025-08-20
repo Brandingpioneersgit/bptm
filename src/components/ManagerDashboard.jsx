@@ -27,7 +27,9 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
     submission: null,
     score: 8,
     comments: '',
-    recommendations: ''
+    recommendations: '',
+    clientSatisfaction: 8,
+    reviewNotes: ''
   });
 
   const processedData = useMemo(() => {
@@ -132,12 +134,27 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       submission,
       score: submission.manager?.score || 8,
       comments: submission.manager?.comments || '',
-      recommendations: submission.manager?.recommendations || ''
+      recommendations: submission.manager?.recommendations || '',
+      clientSatisfaction: submission.manager?.clientSatisfaction || 8,
+      reviewNotes: submission.manager?.reviewNotes || ''
     });
   };
 
   const saveEvaluation = async () => {
     if (!evaluationPanel.submission || !supabase) return;
+
+    if (
+      evaluationPanel.clientSatisfaction < 1 ||
+      evaluationPanel.clientSatisfaction > 10 ||
+      !evaluationPanel.reviewNotes.trim()
+    ) {
+      openModal(
+        'Missing Feedback',
+        'Please provide a client satisfaction score between 1-10 and review notes.',
+        closeModal
+      );
+      return;
+    }
 
     try {
       const updatedSubmission = {
@@ -146,6 +163,8 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
           score: evaluationPanel.score,
           comments: evaluationPanel.comments,
           recommendations: evaluationPanel.recommendations,
+          clientSatisfaction: evaluationPanel.clientSatisfaction,
+          reviewNotes: evaluationPanel.reviewNotes,
           evaluatedAt: new Date().toISOString(),
           evaluatedBy: 'Manager'
         }
@@ -159,7 +178,15 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       if (error) throw error;
 
       await refreshSubmissions();
-      setEvaluationPanel({ isOpen: false, submission: null, score: 8, comments: '', recommendations: '' });
+      setEvaluationPanel({
+        isOpen: false,
+        submission: null,
+        score: 8,
+        comments: '',
+        recommendations: '',
+        clientSatisfaction: 8,
+        reviewNotes: ''
+      });
       openModal('Success', 'Employee evaluation saved successfully!', closeModal);
     } catch (error) {
       console.error('Failed to save evaluation:', error);
@@ -755,6 +782,23 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Client Satisfaction (1-10)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={evaluationPanel.clientSatisfaction}
+                  onChange={(e) => setEvaluationPanel(prev => ({
+                    ...prev,
+                    clientSatisfaction: parseInt(e.target.value)
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Comments
                 </label>
                 <textarea
@@ -765,6 +809,22 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                     comments: e.target.value 
                   }))}
                   placeholder="Add your feedback about the employee's performance..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Review Notes
+                </label>
+                <textarea
+                  rows={3}
+                  value={evaluationPanel.reviewNotes}
+                  onChange={(e) => setEvaluationPanel(prev => ({
+                    ...prev,
+                    reviewNotes: e.target.value
+                  }))}
+                  placeholder="Summarize the client review call and key points discussed..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
