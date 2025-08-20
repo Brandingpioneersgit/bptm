@@ -52,6 +52,8 @@ create table if not exists public.clients (
   client_type text not null check (client_type in ('Standard', 'Premium', 'Enterprise')),
   team text not null check (team in ('Web', 'Marketing')),
   scope_of_work text,
+  services jsonb, -- array of services: ['SEO', 'Social Media', etc.]
+  service_scopes jsonb, -- object with service details: {"SEO": {"deliverables": 10, "description": "...", "frequency": "monthly"}}
   status text default 'Active' check (status in ('Active', 'Departed')),
   departed_reason text,
   departed_employees jsonb, -- array of employee names who caused departure

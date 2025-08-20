@@ -160,6 +160,41 @@ function daysInMonth(monthKey) {
 /********************
  * Scoring Functions *
  ********************/
+
+// Helper function to calculate average scope completion score
+function getScopeCompletionScore(clients, employee) {
+  if (!clients || clients.length === 0) return 0;
+  
+  let totalCompletion = 0;
+  let clientsWithServices = 0;
+  
+  clients.forEach(client => {
+    if (client.services && client.services.length > 0) {
+      let clientCompletion = 0;
+      let serviceCount = 0;
+      
+      client.services.forEach(service => {
+        const completion = calculateScopeCompletion(client, service);
+        if (completion !== null) {
+          clientCompletion += completion;
+          serviceCount++;
+        }
+      });
+      
+      if (serviceCount > 0) {
+        totalCompletion += (clientCompletion / serviceCount);
+        clientsWithServices++;
+      }
+    }
+  });
+  
+  if (clientsWithServices === 0) return 0;
+  
+  const avgCompletion = totalCompletion / clientsWithServices;
+  // Convert percentage (0-100) to score (0-10)
+  return round1(Math.min(10, (avgCompletion / 100) * 10));
+}
+
 function scoreKPIs(employee, clients) {
   const dept = employee.department;
   if (dept === "Web") {
@@ -168,7 +203,8 @@ function scoreKPIs(employee, clients) {
     const pagesScore = Math.min(10, (pages / 10) * 10);
     const onTimeScore = Math.min(10, (onTime / n) / 10);
     const bugsScore = Math.min(10, (bugs / 20) * 10);
-    return round1(pagesScore * 0.5 + onTimeScore * 0.3 + bugsScore * 0.2);
+    const scopeScore = getScopeCompletionScore(clients, employee);
+    return round1(pagesScore * 0.4 + onTimeScore * 0.25 + bugsScore * 0.15 + scopeScore * 0.2);
   }
   if (dept === "Social Media") {
     let folDelta = 0, reach = 0, er = 0, campaigns = 0, creatives = 0, quality = 0, hasDesignerRole = false;
@@ -194,11 +230,13 @@ function scoreKPIs(employee, clients) {
     const creativeScore = Math.min(10, (creatives / n / 10) * 10);
     const qualityScore = quality > 0 ? (quality / n) : 0;
 
+    const scopeScore = getScopeCompletionScore(clients, employee);
+    
     if (hasDesignerRole) {
-      return round1(creativeScore * 0.5 + qualityScore * 0.5);
+      return round1(creativeScore * 0.4 + qualityScore * 0.4 + scopeScore * 0.2);
     }
 
-    return round1(growthScore * 0.35 + reachScore * 0.25 + erScore * 0.25 + campScore * 0.15);
+    return round1(growthScore * 0.3 + reachScore * 0.2 + erScore * 0.2 + campScore * 0.1 + scopeScore * 0.2);
   }
   if (dept === "Ads") {
     let ctr = 0, cpl = 0, leads = 0, newAds = 0; (clients || []).forEach(c => { ctr += (c.ads_ctrThis || 0); cpl += (c.ads_cplThis || 0); leads += (c.ads_leadsThis || 0); newAds += (c.ads_newAds || 0); });
@@ -207,7 +245,8 @@ function scoreKPIs(employee, clients) {
     const cplScore = Math.min(10, (3 / Math.max(0.1, (cpl / n))) * 10); // lower is better
     const leadsScore = Math.min(10, ((leads / n) / 150) * 10);
     const buildScore = Math.min(10, ((newAds / n) / 15) * 10);
-    return round1(ctrScore * 0.3 + cplScore * 0.3 + leadsScore * 0.3 + buildScore * 0.1);
+    const scopeScore = getScopeCompletionScore(clients, employee);
+    return round1(ctrScore * 0.25 + cplScore * 0.25 + leadsScore * 0.25 + buildScore * 0.05 + scopeScore * 0.2);
   }
   if (dept === "SEO") {
     let trafThis = 0, trafPrev = 0, kwImproved = 0, aiCount = 0, volSum = 0, kwCount = 0, llmThis = 0, llmPrev = 0, leadsThis = 0, leadsPrev = 0, top3 = 0;
@@ -228,7 +267,8 @@ function scoreKPIs(employee, clients) {
     const llmDelta = ((llmThis - llmPrev) / Math.max(1, llmPrev)) * 100; const llmScore = Math.min(10, (Math.max(0, llmDelta) / 20) * 10);
     const leadsDelta = ((leadsThis - leadsPrev) / Math.max(1, leadsPrev)) * 100; const leadsScore = Math.min(10, (Math.max(0, leadsDelta) / 20) * 10);
     const top3Score = Math.min(10, ((top3 / n) / 10) * 10);
-    return round1(trafScore * 0.25 + kwScore * 0.2 + aiScore * 0.1 + volScore * 0.1 + llmScore * 0.15 + leadsScore * 0.15 + top3Score * 0.05);
+    const scopeScore = getScopeCompletionScore(clients, employee);
+    return round1(trafScore * 0.2 + kwScore * 0.15 + aiScore * 0.08 + volScore * 0.08 + llmScore * 0.12 + leadsScore * 0.12 + top3Score * 0.05 + scopeScore * 0.2);
   }
   if (dept === "HR") {
     const c = clients?.[0] || {}; const hiresThis = c.hr_hiresThis || 0, screened = c.hr_screened || 0, activities = c.hr_engagements || 0;
@@ -1141,19 +1181,29 @@ function AppContent() {
   }, []);
 
   const handleBackToDashboard = useCallback(() => {
-    setView('main');
+    // Go back to appropriate dashboard based on user type
+    if (authState.userType === 'manager') {
+      setView('managerDashboard');
+    } else {
+      setView('main');
+    }
     setSelectedEmployee(null);
-  }, []);
+  }, [authState.userType]);
 
   const handleEditEmployee = useCallback((employeeName, employeePhone) => {
     setSelectedEmployee({ name: employeeName, phone: employeePhone });
     setView('editEmployee');
   }, []);
 
+  const handleEditReport = useCallback((employeeName, employeePhone) => {
+    setSelectedEmployee({ name: employeeName, phone: employeePhone });
+    setView('editReport');
+  }, []);
+
   const renderCurrentView = () => {
     switch (view) {
       case 'managerDashboard':
-        return <ManagerDashboard onViewReport={handleViewEmployeeReport} onEditEmployee={handleEditEmployee} />;
+        return <ManagerDashboard onViewReport={handleViewEmployeeReport} onEditEmployee={handleEditEmployee} onEditReport={handleEditReport} />;
       case 'employeeReport':
         return (
           <EmployeeReportDashboard 
@@ -1169,6 +1219,14 @@ function AppContent() {
             onBack={handleBackToDashboard}
           />
         );
+      case 'editReport':
+        return (
+          <EmployeeForm 
+            currentUser={selectedEmployee}
+            isManagerEdit={true}
+            onBack={handleBackToDashboard}
+          />
+        );
       case 'employeeDashboard':
         return (
           <EmployeePersonalDashboard 
@@ -1180,7 +1238,7 @@ function AppContent() {
           />
         );
       default:
-        return <EmployeeForm currentUser={null} />;
+        return <EmployeeForm currentUser={authState.isLoggedIn && authState.userType === 'employee' ? authState.currentUser : null} />;
     }
   };
 
@@ -1335,7 +1393,7 @@ export default function App() {
 /**********************
  * Employee Form View *
  **********************/
-function EmployeeForm({ currentUser = null }) {
+function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack = null }) {
   const supabase = useSupabase();
   const { openModal, closeModal } = useModal();
   const { allSubmissions } = useFetchSubmissions();
@@ -1395,6 +1453,36 @@ function EmployeeForm({ currentUser = null }) {
     const currentMonth = thisMonthKey();
     return currentSubmission.monthKey !== currentMonth;
   }, [currentSubmission.monthKey]);
+
+  // If logged-in employee has already submitted for current month, redirect to dashboard
+  // But allow managers to edit submitted reports
+  if (currentUser && isSubmissionFinalized && currentSubmission.monthKey === thisMonthKey() && !isManagerEdit) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
+          <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center text-white text-2xl mx-auto mb-4">
+            ✓
+          </div>
+          <h2 className="text-xl font-bold text-green-800 mb-2">Monthly Report Already Submitted!</h2>
+          <p className="text-green-700 mb-4">
+            You have already submitted your report for {monthLabel(currentSubmission.monthKey)}. 
+            Your submission is complete and locked.
+          </p>
+          <p className="text-green-600 text-sm mb-6">
+            Only managers can edit submitted reports. Check your dashboard to view your performance and manager feedback.
+          </p>
+          <button
+            onClick={() => {
+              window.location.hash = '#/dashboard';
+            }}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
+            View My Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Effect to load previous submission data when an employee is selected
   useEffect(() => {
@@ -1791,7 +1879,7 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
   // Step Content Component
   const StepContent = () => {
     const stepData = getCurrentStepData();
-    const isFormDisabled = isSubmissionFinalized || isPreviousMonth;
+    const isFormDisabled = (isSubmissionFinalized || isPreviousMonth) && !isManagerEdit;
     
     return (
       <div className={`bg-white rounded-xl shadow-sm border p-6 ${
@@ -1809,6 +1897,11 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
             {isFormDisabled && (
               <p className="text-sm text-red-600 mt-1">
                 {isSubmissionFinalized ? '✓ Submission completed - form locked' : '🔒 Previous month - editing restricted'}
+              </p>
+            )}
+            {isManagerEdit && isSubmissionFinalized && (
+              <p className="text-sm text-blue-600 mt-1">
+                ✏️ Manager editing mode - submission can be modified
               </p>
             )}
           </div>
@@ -1843,6 +1936,29 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
     <div className="max-w-4xl mx-auto">
       <CelebrationEffect show={showCelebration} />
       
+      {/* Manager Edit Header */}
+      {isManagerEdit && onBack && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+              ✏️
+            </div>
+            <div>
+              <h4 className="font-semibold text-blue-800">Manager Edit Mode</h4>
+              <p className="text-sm text-blue-700">
+                Editing {selectedEmployee?.name}'s submission for {monthLabel(currentSubmission.monthKey)}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onBack}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      )}
+      
       {/* Submission Status Banner */}
       {isSubmissionFinalized && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4 flex items-center gap-3">
@@ -1850,9 +1966,14 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
             ✓
           </div>
           <div>
-            <h4 className="font-semibold text-green-800">Submission Complete</h4>
+            <h4 className="font-semibold text-green-800">
+              {isManagerEdit ? "Editing Submitted Report" : "Submission Complete"}
+            </h4>
             <p className="text-sm text-green-700">
-              This month's report has been successfully submitted and locked. No further edits are allowed.
+              {isManagerEdit 
+                ? "This report has been submitted. As a manager, you can edit and re-submit it."
+                : "This month's report has been successfully submitted and locked. No further edits are allowed."
+              }
             </p>
           </div>
         </div>
@@ -2414,11 +2535,16 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
   const [draftRow, setDraftRow] = useState({ name: "", scopeOfWork: "", url: "" });
   const [masterClients, setMasterClients] = useState([]);
   const [showNewClientForm, setShowNewClientForm] = useState(false);
+  
+  // Service options for multi-select
+  const serviceOptions = ['SEO', 'GBP SEO', 'Website Maintenance', 'Social Media', 'Google Ads', 'Meta Ads', 'AI'];
   const [newClientForm, setNewClientForm] = useState({
     name: '',
     client_type: 'Standard',
     team: 'Web',
-    scope_of_work: ''
+    scope_of_work: '',
+    services: [],
+    service_scopes: {}
   });
   const isOpsHead = currentSubmission.employee.department === "Operations Head";
   const isWebHead = currentSubmission.employee.department === "Web Head";
@@ -2520,16 +2646,45 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
           relationship: {},
           client_type: masterClient.client_type,
           team: masterClient.team,
-          scope_of_work: masterClient.scope_of_work
+          scope_of_work: masterClient.scope_of_work,
+          services: masterClient.services || [],
+          service_scopes: masterClient.service_scopes || {}
         }
       : { 
           id: uid(), 
           name: clientName, 
           reports: [], 
-          relationship: {} 
+          relationship: {},
+          services: [],
+          service_scopes: {}
         };
     
     setModel(m => ({ ...m, clients: [...m.clients, newClient] }));
+  };
+
+  const handleServiceChange = (selectedServices) => {
+    setNewClientForm(prev => ({ ...prev, services: selectedServices }));
+    // Remove scope configurations for unselected services
+    const newServiceScopes = { ...prev.service_scopes };
+    Object.keys(newServiceScopes).forEach(service => {
+      if (!selectedServices.includes(service)) {
+        delete newServiceScopes[service];
+      }
+    });
+    setNewClientForm(prev => ({ ...prev, service_scopes: newServiceScopes }));
+  };
+
+  const handleServiceScopeChange = (service, field, value) => {
+    setNewClientForm(prev => ({
+      ...prev,
+      service_scopes: {
+        ...prev.service_scopes,
+        [service]: {
+          ...prev.service_scopes[service],
+          [field]: value
+        }
+      }
+    }));
   };
 
   const handleCreateNewClient = async (e) => {
@@ -2545,6 +2700,8 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
           client_type: newClientForm.client_type,
           team: newClientForm.team,
           scope_of_work: newClientForm.scope_of_work,
+          services: newClientForm.services,
+          service_scopes: newClientForm.service_scopes,
           status: 'Active'
         }])
         .select()
@@ -2560,7 +2717,9 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
         relationship: {},
         client_type: newClient.client_type,
         team: newClient.team,
-        scope_of_work: newClient.scope_of_work
+        scope_of_work: newClient.scope_of_work,
+        services: newClient.services,
+        service_scopes: newClient.service_scopes
       };
 
       setModel(m => ({ ...m, clients: [...m.clients, formClient] }));
@@ -2573,7 +2732,9 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
         name: '',
         client_type: 'Standard',
         team: currentTeam,
-        scope_of_work: ''
+        scope_of_work: '',
+        services: [],
+        service_scopes: {}
       });
       setShowNewClientForm(false);
 
@@ -2751,13 +2912,67 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Scope of Work</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Services *</label>
+                <MultiSelect 
+                  options={serviceOptions}
+                  selected={newClientForm.services}
+                  onChange={handleServiceChange}
+                  placeholder="Select services..."
+                />
+              </div>
+
+              {/* Service Scope Configuration */}
+              {newClientForm.services.map(service => (
+                <div key={service} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <h4 className="font-medium text-gray-800 mb-3">{service} - Scope Details</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Deliverables</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={newClientForm.service_scopes[service]?.deliverables || ''}
+                        onChange={(e) => handleServiceScopeChange(service, 'deliverables', parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        placeholder={`Number of ${service.toLowerCase()} deliverables per month`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Scope Description</label>
+                      <textarea
+                        rows={2}
+                        value={newClientForm.service_scopes[service]?.description || ''}
+                        onChange={(e) => handleServiceScopeChange(service, 'description', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        placeholder={`Describe the ${service} scope and requirements...`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Frequency</label>
+                      <select
+                        value={newClientForm.service_scopes[service]?.frequency || 'monthly'}
+                        onChange={(e) => handleServiceScopeChange(service, 'frequency', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      >
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="bi-weekly">Bi-weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={newClientForm.scope_of_work}
                   onChange={(e) => setNewClientForm(prev => ({ ...prev, scope_of_work: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                  placeholder="Describe the client's scope of work..."
+                  placeholder="Additional notes or overall scope description..."
                 />
               </div>
 
@@ -2862,7 +3077,10 @@ function ProofField({ label, value, onChange }) {
 function KPIsWeb({ client, prevClient, onChange, monthPrev, monthThis, isNewClient }) {
   const delta = (a, b) => (a || 0) - (b || 0);
   return (
-    <div className="grid md:grid-cols-4 gap-3 mt-3">
+    <div>
+      <ScopePrompt client={client} service="Website Maintenance" title="Website Maintenance" />
+      <ScopePrompt client={client} service="AI" title="AI" />
+      <div className="grid md:grid-cols-4 gap-3 mt-3">
       {isNewClient ? (
         <NumField label={`# Pages (${monthLabel(monthPrev)})`} value={client.web_pagesPrev || 0} onChange={v => onChange({ ...client, web_pagesPrev: v })} />
       ) : (
@@ -2892,6 +3110,7 @@ function KPIsWeb({ client, prevClient, onChange, monthPrev, monthThis, isNewClie
       <NumField label="Security Audits Completed" value={client.web_securityAudits || 0} onChange={v => onChange({ ...client, web_securityAudits: v })} />
 
       <div className="md:col-span-4 text-xs text-gray-600">MoM Pages Δ: {delta(client.web_pagesThis, isNewClient ? client.web_pagesPrev : prevClient.web_pagesThis)} • On-time Δ: {round1((client.web_onTimeThis || 0) - (isNewClient ? client.web_onTimePrev : prevClient.web_onTimeThis || 0))} • Bugs Δ: {delta(client.web_bugsThis, isNewClient ? client.web_bugsPrev : prevClient.web_bugsThis)}</div>
+      </div>
     </div>
   );
 }
@@ -2908,13 +3127,83 @@ function KPIsWebHead({ client, prevClient, onChange }) {
 }
 
 
+// Helper function to calculate scope completion
+function calculateScopeCompletion(client, service) {
+  if (!client.service_scopes || !client.service_scopes[service]) return null;
+  
+  const scope = client.service_scopes[service];
+  const deliverables = scope.deliverables || 0;
+  
+  // Calculate completion based on service type and actual work done
+  switch (service) {
+    case 'Social Media':
+      const totalPosts = (client.sm_graphicsPhotoshop || 0) + (client.sm_graphicsCanva || 0) + 
+                        (client.sm_graphicsAi || 0) + (client.sm_shortVideos || 0) + (client.sm_longVideos || 0);
+      return deliverables > 0 ? Math.min(100, Math.round((totalPosts / deliverables) * 100)) : 0;
+    case 'SEO':
+    case 'GBP SEO':
+      const keywordsWorked = client.seo_keywordsWorked ? client.seo_keywordsWorked.length : 0;
+      const top3Keywords = client.seo_top3 ? client.seo_top3.length : 0;
+      const totalSeoWork = keywordsWorked + top3Keywords + (client.seo_technicalIssues || 0);
+      return deliverables > 0 ? Math.min(100, Math.round((totalSeoWork / deliverables) * 100)) : 0;
+    case 'Google Ads':
+    case 'Meta Ads':
+      const adsCreated = client.ads_newAds || 0;
+      return deliverables > 0 ? Math.min(100, Math.round((adsCreated / deliverables) * 100)) : 0;
+    case 'Website Maintenance':
+      // Calculate based on web-related metrics
+      const webPages = (client.web_pagesThis || 0);
+      const webTasks = webPages + (client.web_saasUpsells || 0);
+      return deliverables > 0 ? Math.min(100, Math.round((webTasks / deliverables) * 100)) : 0;
+    case 'AI':
+      // Placeholder for AI-related deliverables
+      return 0;
+    default:
+      return 0;
+  }
+}
+
+// Helper component to show scope prompts
+function ScopePrompt({ client, service, title }) {
+  if (!client.services || !client.services.includes(service) || !client.service_scopes || !client.service_scopes[service]) {
+    return null;
+  }
+  
+  const scope = client.service_scopes[service];
+  const completion = calculateScopeCompletion(client, service);
+  
+  return (
+    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="font-medium text-blue-800">{title} Scope Tracker</h4>
+        {completion !== null && (
+          <span className={`px-2 py-1 rounded text-xs font-medium ${
+            completion >= 100 ? 'bg-green-100 text-green-800' : 
+            completion >= 75 ? 'bg-yellow-100 text-yellow-800' : 
+            'bg-red-100 text-red-800'
+          }`}>
+            {completion}% Complete
+          </span>
+        )}
+      </div>
+      <div className="text-sm text-blue-700">
+        <p>📋 <strong>Target:</strong> {scope.deliverables} {service.toLowerCase()} deliverables this month</p>
+        {scope.description && <p>📝 <strong>Scope:</strong> {scope.description}</p>}
+        <p>⏰ <strong>Frequency:</strong> {scope.frequency}</p>
+      </div>
+    </div>
+  );
+}
+
 function KPIsSocial({ client, prevClient, employeeRole, onChange, monthPrev, monthThis, isNewClient }) {
   const folDelta = (client.sm_followersThis || 0) - (isNewClient ? (client.sm_followersPrev || 0) : (prevClient.sm_followersThis || 0));
   const reachDelta = (client.sm_reachThis || 0) - (isNewClient ? (client.sm_reachPrev || 0) : (prevClient.sm_reachThis || 0));
   const erDelta = (client.sm_erThis || 0) - (isNewClient ? (client.sm_erPrev || 0) : (prevClient.sm_erThis || 0));
   const isDesigner = employeeRole?.includes('Graphic Designer');
   return (
-    <div className="grid md:grid-cols-4 gap-3 mt-3">
+    <div>
+      <ScopePrompt client={client} service="Social Media" title="Social Media" />
+      <div className="grid md:grid-cols-4 gap-3 mt-3">
       {!isDesigner && (
         <>
           {isNewClient ? (
@@ -2970,6 +3259,7 @@ function KPIsSocial({ client, prevClient, employeeRole, onChange, monthPrev, mon
           <NumField label="Hashtag Performance Score (1-10)" value={client.sm_hashtagScore || 0} onChange={v => onChange({ ...client, sm_hashtagScore: v })} />
         </div>
       </div>
+      </div>
     </div>
   );
 }
@@ -2979,7 +3269,10 @@ function KPIsAds({ client, prevClient, onChange, monthPrev, monthThis, isNewClie
   const ctrDelta = (client.ads_ctrThis || 0) - (isNewClient ? (client.ads_ctrPrev || 0) : (prevClient.ads_ctrThis || 0));
   const leadsDelta = (client.ads_leadsThis || 0) - (isNewClient ? (client.ads_leadsPrev || 0) : (prevClient.ads_leadsThis || 0));
   return (
-    <div className="grid md:grid-cols-4 gap-3 mt-3">
+    <div>
+      <ScopePrompt client={client} service="Google Ads" title="Google Ads" />
+      <ScopePrompt client={client} service="Meta Ads" title="Meta Ads" />
+      <div className="grid md:grid-cols-4 gap-3 mt-3">
       <NumField label="# New Ads Created (this)" value={client.ads_newAds || 0} onChange={v => onChange({ ...client, ads_newAds: v })} />
       {isNewClient ? (
         <NumField label={`CTR % (${monthLabel(monthPrev)})`} value={client.ads_ctrPrev || 0} onChange={v => onChange({ ...client, ads_ctrPrev: v })} />
@@ -3018,6 +3311,7 @@ function KPIsAds({ client, prevClient, onChange, monthPrev, monthThis, isNewClie
           <NumField label="A/B Tests Conducted" value={client.ads_abTests || 0} onChange={v => onChange({ ...client, ads_abTests: v })} />
           <NumField label="Negative Keywords Added" value={client.ads_negativeKeywords || 0} onChange={v => onChange({ ...client, ads_negativeKeywords: v })} />
         </div>
+      </div>
       </div>
     </div>
   );
@@ -3109,7 +3403,10 @@ function KPIsSEO({ client, prevClient, onChange, monthPrev, monthThis, openModal
   const leadsDelta = (client.seo_leadsThis || 0) - (isNewClient ? (client.seo_leadsPrev || 0) : (prevClient.seo_leadsThis || 0));
   const localCallsDelta = (client.seo_localCallsThis || 0) - (isNewClient ? (client.seo_localCallsPrev || 0) : (prevClient.seo_localCallsThis || 0));
   return (
-    <div className="grid md:grid-cols-4 gap-3 mt-3">
+    <div>
+      <ScopePrompt client={client} service="SEO" title="SEO" />
+      <ScopePrompt client={client} service="GBP SEO" title="GBP SEO" />
+      <div className="grid md:grid-cols-4 gap-3 mt-3">
       {isNewClient ? (
         <NumField label={`Organic Traffic (${monthLabel(monthPrev)})`} value={client.seo_trafficPrev || 0} onChange={v => onChange({ ...client, seo_trafficPrev: v })} />
       ) : (
@@ -3183,6 +3480,7 @@ function KPIsSEO({ client, prevClient, onChange, monthPrev, monthThis, openModal
           <NumField label="Page Speed Score (1-100)" value={client.seo_pageSpeed || 0} onChange={v => onChange({ ...client, seo_pageSpeed: v })} />
           <NumField label="Mobile Usability Score (1-100)" value={client.seo_mobileUsability || 0} onChange={v => onChange({ ...client, seo_mobileUsability: v })} />
         </div>
+      </div>
       </div>
     </div>
   );
@@ -5319,7 +5617,11 @@ function ClientDashboardView() {
   const [clients, setClients] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState('All');
   const [selectedClient, setSelectedClient] = useState(null);
+  const [editingClient, setEditingClient] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  // Service options for multi-select
+  const serviceOptions = ['SEO', 'GBP SEO', 'Website Maintenance', 'Social Media', 'Google Ads', 'Meta Ads', 'AI'];
 
   // Fetch clients
   useEffect(() => {
@@ -5390,6 +5692,73 @@ function ClientDashboardView() {
   const filteredClients = processedClients.filter(client => 
     selectedTeam === 'All' || client.team === selectedTeam
   );
+  
+  // Handle editing client
+  const handleEditClient = (client) => {
+    setEditingClient({
+      ...client,
+      services: client.services || [],
+      service_scopes: client.service_scopes || {}
+    });
+  };
+  
+  const handleServiceChange = (selectedServices) => {
+    setEditingClient(prev => ({ ...prev, services: selectedServices }));
+    // Remove scope configurations for unselected services
+    const newServiceScopes = { ...prev.service_scopes };
+    Object.keys(newServiceScopes).forEach(service => {
+      if (!selectedServices.includes(service)) {
+        delete newServiceScopes[service];
+      }
+    });
+    setEditingClient(prev => ({ ...prev, service_scopes: newServiceScopes }));
+  };
+
+  const handleServiceScopeChange = (service, field, value) => {
+    setEditingClient(prev => ({
+      ...prev,
+      service_scopes: {
+        ...prev.service_scopes,
+        [service]: {
+          ...prev.service_scopes[service],
+          [field]: value
+        }
+      }
+    }));
+  };
+  
+  const handleSaveClient = async () => {
+    if (!supabase || !editingClient) return;
+    
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update({
+          client_type: editingClient.client_type,
+          services: editingClient.services,
+          service_scopes: editingClient.service_scopes,
+          scope_of_work: editingClient.scope_of_work
+        })
+        .eq('id', editingClient.id);
+        
+      if (error) throw error;
+      
+      // Refresh clients list
+      const { data, error: fetchError } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('status', 'Active')
+        .order('name');
+        
+      if (fetchError) throw fetchError;
+      setClients(data || []);
+      setEditingClient(null);
+      
+    } catch (error) {
+      console.error('Error updating client:', error);
+      alert('Failed to update client. Please try again.');
+    }
+  };
 
   if (loading) {
     return (
@@ -5447,7 +5816,37 @@ function ClientDashboardView() {
                     {client.team}
                   </span>
                 </div>
+                
+                {/* Services Display */}
+                {client.services && client.services.length > 0 && (
+                  <div className="mt-2">
+                    <div className="flex flex-wrap gap-1">
+                      {client.services.map((service, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex px-1.5 py-0.5 text-xs font-medium rounded bg-indigo-50 text-indigo-700"
+                        >
+                          {service}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
+              
+              {/* Edit Client Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleEditClient(client);
+                }}
+                className="text-gray-400 hover:text-gray-600 p-1"
+                title="Edit Client Services"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
             </div>
 
             {/* Client Metrics */}
@@ -5509,6 +5908,142 @@ function ClientDashboardView() {
           </svg>
           <h3 className="mt-2 text-sm font-medium text-gray-900">No clients found</h3>
           <p className="mt-1 text-sm text-gray-500">Try adjusting your team filter.</p>
+        </div>
+      )}
+
+      {/* Edit Client Modal */}
+      {editingClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Edit Client Services</h3>
+                <button
+                  onClick={() => setEditingClient(null)}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 space-y-4">
+              <div>
+                <h4 className="font-medium text-gray-900 mb-2">{editingClient.name}</h4>
+                <div className="flex gap-2 mb-4">
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                    editingClient.client_type === 'Enterprise' 
+                      ? 'bg-purple-100 text-purple-800'
+                      : editingClient.client_type === 'Premium'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {editingClient.client_type}
+                  </span>
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                    editingClient.team === 'Web' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'
+                  }`}>
+                    {editingClient.team}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Client Type</label>
+                <select
+                  value={editingClient.client_type}
+                  onChange={(e) => setEditingClient(prev => ({ ...prev, client_type: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                >
+                  <option value="Standard">Standard</option>
+                  <option value="Premium">Premium</option>
+                  <option value="Enterprise">Enterprise</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Services *</label>
+                <MultiSelect 
+                  options={serviceOptions}
+                  selected={editingClient.services}
+                  onChange={handleServiceChange}
+                  placeholder="Select services..."
+                />
+              </div>
+
+              {/* Service Scope Configuration */}
+              {editingClient.services.map(service => (
+                <div key={service} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <h4 className="font-medium text-gray-800 mb-3">{service} - Scope Details</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Deliverables</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={editingClient.service_scopes[service]?.deliverables || ''}
+                        onChange={(e) => handleServiceScopeChange(service, 'deliverables', parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        placeholder={`Number of ${service.toLowerCase()} deliverables per month`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Scope Description</label>
+                      <textarea
+                        rows={2}
+                        value={editingClient.service_scopes[service]?.description || ''}
+                        onChange={(e) => handleServiceScopeChange(service, 'description', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        placeholder={`Describe the ${service} scope and requirements...`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Frequency</label>
+                      <select
+                        value={editingClient.service_scopes[service]?.frequency || 'monthly'}
+                        onChange={(e) => handleServiceScopeChange(service, 'frequency', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      >
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="bi-weekly">Bi-weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>
+                <textarea
+                  rows={2}
+                  value={editingClient.scope_of_work}
+                  onChange={(e) => setEditingClient(prev => ({ ...prev, scope_of_work: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  placeholder="Additional notes or overall scope description..."
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  onClick={() => setEditingClient(null)}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveClient}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -5638,15 +6173,14 @@ function ClientDashboardView() {
   );
 }
 
-function ManagerDashboard({ onViewReport, onEditEmployee }) {
+function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport }) {
   const supabase = useSupabase();
   const { allSubmissions, loading, error, refreshSubmissions } = useFetchSubmissions();
   const { openModal, closeModal } = useModal();
   
   // Modern state management
   const [activeView, setActiveView] = useState('dashboard');
-  const [selectedMonth, setSelectedMonth] = useState(thisMonthKey());
-  const [dateRange, setDateRange] = useState({ start: thisMonthKey(), end: thisMonthKey() });
+  const [selectedMonth, setSelectedMonth] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({
     department: 'All',
@@ -5669,10 +6203,10 @@ function ManagerDashboard({ onViewReport, onEditEmployee }) {
   const processedData = useMemo(() => {
     if (!allSubmissions.length) return { employees: [], stats: {}, departments: [] };
 
-    // Filter by date range
-    const filteredByDate = allSubmissions.filter(sub => 
-      sub.monthKey >= dateRange.start && sub.monthKey <= dateRange.end
-    );
+    // Filter by selected month (if specific month selected, otherwise show all)
+    const filteredByDate = selectedMonth === 'all' 
+      ? allSubmissions 
+      : allSubmissions.filter(sub => sub.monthKey === selectedMonth);
 
     // Group by employee
     const employeeGroups = {};
@@ -5770,7 +6304,7 @@ function ManagerDashboard({ onViewReport, onEditEmployee }) {
     const departments = [...new Set(employees.map(emp => emp.department))].sort();
 
     return { employees: filteredEmployees, stats, departments, allEmployees: employees };
-  }, [allSubmissions, dateRange, searchQuery, filters, sortConfig]);
+  }, [allSubmissions, selectedMonth, searchQuery, filters, sortConfig]);
 
   // Handle employee evaluation
   const openEvaluation = (submission) => {
@@ -5959,6 +6493,25 @@ function ManagerDashboard({ onViewReport, onEditEmployee }) {
     URL.revokeObjectURL(url);
   };
 
+  // Handle View Report - for viewing individual employee reports
+  const handleViewReport = (employee) => {
+    console.log('📊 Opening Report View for:', employee.name);
+    
+    if (!employee.submissions || employee.submissions.length === 0) {
+      openModal('No Data', `No submissions found for ${employee.name}`, closeModal);
+      return;
+    }
+
+    // Use the most recent submission's phone number for consistency
+    const phoneNumber = employee.phone && employee.phone !== 'N/A' ? employee.phone : 'no-phone';
+    
+    console.log('📞 Using phone number:', phoneNumber);
+    console.log('📊 Submissions count:', employee.submissions.length);
+    
+    // Call the parent component's onViewReport function
+    onViewReport(employee.name, phoneNumber);
+  };
+  
   // Handle Full Report - FIXED VERSION
   const handleFullReport = (employee) => {
     console.log('🚀 Opening Full Report for:', employee.name);
@@ -5976,6 +6529,18 @@ function ManagerDashboard({ onViewReport, onEditEmployee }) {
     
     // Call the parent component's onViewReport function
     onViewReport(employee.name, phoneNumber);
+  };
+
+  const handleEditReport = (employee) => {
+    console.log('✏️ Opening Report Editor for:', employee.name);
+    
+    if (!employee.latestSubmission) {
+      openModal('No Data', `No submissions found for ${employee.name}`, closeModal);
+      return;
+    }
+
+    // Call the parent component's onEditReport function
+    onEditReport(employee.name, employee.phone);
   };
 
   if (loading) {
@@ -6179,12 +6744,27 @@ function ManagerDashboard({ onViewReport, onEditEmployee }) {
               <option value="Low">Needs Attention</option>
             </select>
 
-            <input
-              type="month"
+            <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
+            >
+              <option value="all">All Months</option>
+              {(() => {
+                const months = new Set();
+                allSubmissions.forEach(sub => {
+                  if (sub.monthKey) months.add(sub.monthKey);
+                });
+                return Array.from(months).sort((a, b) => b.localeCompare(a)).map(month => (
+                  <option key={month} value={month}>
+                    {new Date(month + '-01').toLocaleDateString('en-US', { 
+                      year: 'numeric', 
+                      month: 'long' 
+                    })}
+                  </option>
+                ));
+              })()}
+            </select>
           </div>
         </div>
       </div>
@@ -6283,6 +6863,12 @@ function ManagerDashboard({ onViewReport, onEditEmployee }) {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center gap-2">
                         <button
+                          onClick={() => handleViewReport(employee)}
+                          className="text-blue-600 hover:text-blue-900 hover:bg-blue-50 px-3 py-1 rounded transition-colors"
+                        >
+                          View Report
+                        </button>
+                        <button
                           onClick={() => handleFullReport(employee)}
                           className="text-blue-600 hover:text-blue-900 hover:bg-blue-50 px-3 py-1 rounded transition-colors"
                         >
@@ -6300,6 +6886,14 @@ function ManagerDashboard({ onViewReport, onEditEmployee }) {
                         >
                           Edit Employee
                         </button>
+                        {employee.latestSubmission && (
+                          <button
+                            onClick={() => handleEditReport(employee)}
+                            className="text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 px-3 py-1 rounded transition-colors"
+                          >
+                            Edit Report
+                          </button>
+                        )}
                         {employee.latestSubmission && (
                           <button
                             onClick={() => openEvaluation(employee.latestSubmission)}
