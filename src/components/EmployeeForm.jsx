@@ -16,13 +16,48 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   const { openModal, closeModal } = useModal();
   const { allSubmissions } = useFetchSubmissions();
 
-  const [currentSubmission, setCurrentSubmission] = useState({ ...EMPTY_SUBMISSION, isDraft: true });
+  // Determine draft key based on authenticated user on initial render
+  const initialAutoSaveKey = currentUser
+    ? `autosave-${currentUser.name}-${currentUser.phone}-${thisMonthKey()}`
+    : null;
+  const parsedInitialDraft = initialAutoSaveKey
+    ? (() => {
+        const saved = localStorage.getItem(initialAutoSaveKey);
+        if (saved) {
+          try {
+            return JSON.parse(saved);
+          } catch {
+            return null;
+          }
+        }
+        return null;
+      })()
+    : null;
+
+  const baseSubmission = { ...EMPTY_SUBMISSION, isDraft: true };
+  if (currentUser) {
+    baseSubmission.employee = {
+      ...baseSubmission.employee,
+      name: currentUser.name,
+      phone: currentUser.phone,
+    };
+  }
+
+  const [currentSubmission, setCurrentSubmission] = useState(
+    parsedInitialDraft || baseSubmission
+  );
   const [previousSubmission, setPreviousSubmission] = useState(null);
-  const [selectedEmployee, setSelectedEmployee] = useState(currentUser);
-  
-  const [currentStep, setCurrentStep] = useState(1);
+  const [selectedEmployee, setSelectedEmployee] = useState(
+    parsedInitialDraft?.employee || currentUser
+  );
+
+  const [currentStep, setCurrentStep] = useState(
+    parsedInitialDraft?.currentStep || 1
+  );
   const [isEditMode, setIsEditMode] = useState(false);
-  const [lastAutoSave, setLastAutoSave] = useState(null);
+  const [lastAutoSave, setLastAutoSave] = useState(
+    parsedInitialDraft?.lastSaved ? new Date(parsedInitialDraft.lastSaved) : null
+  );
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
   const FORM_STEPS = [
@@ -34,17 +69,27 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   ];
 
   const getAutoSaveKey = useCallback(() => {
-    // Use form data for key if employee not selected yet but form has data
-    const employeeName = selectedEmployee?.name || currentSubmission.employee?.name || 'anonymous';
-    const employeePhone = selectedEmployee?.phone || currentSubmission.employee?.phone || 'new';
+    // Prioritize authenticated user for key generation
+    const employeeName =
+      currentUser?.name || selectedEmployee?.name || currentSubmission.employee?.name || 'anonymous';
+    const employeePhone =
+      currentUser?.phone || selectedEmployee?.phone || currentSubmission.employee?.phone || 'new';
     const monthKey = currentSubmission.monthKey || thisMonthKey();
-    
+
     const employeeId = `${employeeName}-${employeePhone}`;
     const key = `autosave-${employeeId}-${monthKey}`;
-    
+
     console.log('🔑 Auto-save key generated:', key);
     return key;
-  }, [selectedEmployee, currentSubmission.employee?.name, currentSubmission.employee?.phone, currentSubmission.monthKey]);
+  }, [
+    currentUser?.name,
+    currentUser?.phone,
+    selectedEmployee?.name,
+    selectedEmployee?.phone,
+    currentSubmission.employee?.name,
+    currentSubmission.employee?.phone,
+    currentSubmission.monthKey,
+  ]);
 
   const uniqueEmployees = useMemo(() => {
     const employees = {};
@@ -522,9 +567,48 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     return () => clearInterval(timer);
   }, [currentStep, selectedEmployee, getStepValidation]);
 
-  // Enhanced draft loading - only on initial mount or when meaningful employee change occurs
+  // Track which drafts have been handled to avoid repeated prompts
   const loadedDraftRef = useRef(new Set());
-  
+
+  // Prompt immediately on login if a saved draft exists for the authenticated user
+  useEffect(() => {
+    if (!currentUser || !parsedInitialDraft) return;
+    if (loadedDraftRef.current.has(initialAutoSaveKey)) return;
+
+    const lastSaved = parsedInitialDraft.lastSaved
+      ? new Date(parsedInitialDraft.lastSaved).toLocaleString()
+      : 'previously';
+
+    openModal(
+      'Resume saved draft?',
+      `A saved draft was found for ${currentUser.name} (last saved ${lastSaved}).\nClick OK to resume or Cancel to start fresh.`,
+      () => {
+        // Draft already loaded during initialization
+        loadedDraftRef.current.add(initialAutoSaveKey);
+        setHasUnsavedChanges(false);
+        closeModal();
+      },
+      () => {
+        localStorage.removeItem(initialAutoSaveKey);
+        setCurrentSubmission({
+          ...EMPTY_SUBMISSION,
+          isDraft: true,
+          employee: {
+            ...EMPTY_SUBMISSION.employee,
+            name: currentUser.name,
+            phone: currentUser.phone,
+          },
+        });
+        setCurrentStep(1);
+        setLastAutoSave(null);
+        setHasUnsavedChanges(false);
+        loadedDraftRef.current.add(initialAutoSaveKey);
+        closeModal();
+      }
+    );
+  }, [currentUser, parsedInitialDraft, initialAutoSaveKey, openModal, closeModal]);
+
+  // Enhanced draft loading - only on initial mount or when meaningful employee change occurs
   useEffect(() => {
     const autoSaveKey = getAutoSaveKey();
 
