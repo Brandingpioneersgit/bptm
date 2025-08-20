@@ -45,6 +45,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
           name: submission.employee?.name || 'Unknown',
           phone: submission.employee?.phone || 'N/A',
           department: submission.employee?.department || 'Unknown',
+          testimonials: submission.employee?.testimonials || [],
           submissions: [],
           latestSubmission: null,
           averageScore: 0,

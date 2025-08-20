@@ -139,11 +139,12 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
       if (isFormEmpty) {
         return {
           ...EMPTY_SUBMISSION,
-          employee: { 
-            name: selectedEmployee.name, 
-            phone: selectedEmployee.phone, 
-            department: prevSub?.employee?.department || "Web", 
-            role: prevSub?.employee?.role || [] 
+          employee: {
+            name: selectedEmployee.name,
+            phone: selectedEmployee.phone,
+            department: prevSub?.employee?.department || "Web",
+            role: prevSub?.employee?.role || [],
+            testimonials: prevSub?.employee?.testimonials || []
           },
           monthKey: prevMonthKey(thisMonthKey()),
         };
@@ -156,7 +157,8 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
             name: prev.employee.name || selectedEmployee.name,
             phone: prev.employee.phone || selectedEmployee.phone,
             department: prev.employee.department || prevSub?.employee?.department || "Web",
-            role: prev.employee.role?.length ? prev.employee.role : (prevSub?.employee?.role || [])
+            role: prev.employee.role?.length ? prev.employee.role : (prevSub?.employee?.role || []),
+            testimonials: prev.employee.testimonials?.length ? prev.employee.testimonials : (prevSub?.employee?.testimonials || [])
           }
         };
       }

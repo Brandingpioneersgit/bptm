@@ -102,7 +102,23 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
               {employee.name.charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{employee.name}</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-1 flex-wrap">
+                <span className="truncate">{employee.name}</span>
+                {employee.testimonials?.map((t, idx) => (
+                  <a
+                    key={idx}
+                    href={t.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="relative group"
+                  >
+                    <span className="text-yellow-500 ml-1">🏅</span>
+                    <span className="absolute left-1/2 -translate-x-1/2 mt-1 hidden group-hover:block bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
+                      {t.client}
+                    </span>
+                  </a>
+                ))}
+              </h1>
               <p className="text-sm sm:text-base text-gray-600">{employee.department} Department</p>
               <p className="text-xs sm:text-sm text-gray-500">Phone: {employee.phone}</p>
             </div>
