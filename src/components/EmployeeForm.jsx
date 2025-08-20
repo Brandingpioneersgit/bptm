@@ -117,11 +117,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   useEffect(() => {
     if (!selectedEmployee) {
       setPreviousSubmission(null);
-      // Don't reset the entire submission - preserve any entered data
-      setCurrentSubmission(prev => ({
-        ...prev,
-        employee: { ...prev.employee, name: "", phone: "" }
-      }));
+      // Preserve user-entered values when no employee is selected
       return;
     }
 
@@ -153,8 +149,9 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
           ...prev,
           employee: {
             ...prev.employee,
-            name: prev.employee.name || selectedEmployee.name,
-            phone: prev.employee.phone || selectedEmployee.phone,
+            // Always switch to the newly selected employee's identity
+            name: selectedEmployee.name,
+            phone: selectedEmployee.phone,
             department: prev.employee.department || prevSub?.employee?.department || "Web",
             role: prev.employee.role?.length ? prev.employee.role : (prevSub?.employee?.role || [])
           }
