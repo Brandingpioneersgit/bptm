@@ -201,7 +201,7 @@ export class ClientRepository {
   }
 
   // Update client services
-  async updateClientServices(clientId, services) {
+  async updateClientServices(clientId, services, service_scopes) {
     if (!this.supabase) return null;
     
     try {
@@ -209,6 +209,7 @@ export class ClientRepository {
         .from('clients')
         .update({
           services,
+          service_scopes,
           updated_at: new Date().toISOString()
         })
         .eq('id', clientId)

@@ -1,5 +1,13 @@
 import { round1 } from './constants';
 
+const FREQUENCY_WEIGHTS = {
+  daily: 30,
+  weekly: 4,
+  'bi-weekly': 2,
+  monthly: 1,
+  quarterly: 0.25,
+};
+
 function getScopeCompletionScore(clients, employee) {
   if (!clients || clients.length === 0) return 0;
   
@@ -7,23 +15,28 @@ function getScopeCompletionScore(clients, employee) {
   let clientsWithServices = 0;
   
   clients.forEach(client => {
-    if (client.services && client.services.length > 0) {
-      let clientCompletion = 0;
-      let serviceCount = 0;
-      
-      client.services.forEach(service => {
-        const completion = calculateScopeCompletion(client, service);
-        if (completion !== null) {
-          clientCompletion += completion;
-          serviceCount++;
+      if (client.services && client.services.length > 0) {
+        let weightedCompletion = 0;
+        let totalWeight = 0;
+
+        client.services.forEach(clientService => {
+          const service = typeof clientService === 'string' ? clientService : clientService.service;
+          const completion = calculateScopeCompletion(client, service);
+          const scope = client.service_scopes ? client.service_scopes[service] : null;
+          if (completion !== null && scope) {
+            const weight = (scope.deliverables || 0) * (FREQUENCY_WEIGHTS[scope.frequency] || 1);
+            if (weight > 0) {
+              weightedCompletion += completion * weight;
+              totalWeight += weight;
+            }
+          }
+        });
+
+        if (totalWeight > 0) {
+          totalCompletion += (weightedCompletion / totalWeight);
+          clientsWithServices++;
         }
-      });
-      
-      if (serviceCount > 0) {
-        totalCompletion += (clientCompletion / serviceCount);
-        clientsWithServices++;
       }
-    }
   });
   
   if (clientsWithServices === 0) return 0;
@@ -220,7 +233,7 @@ export function generateSummary(model) {
   return parts.join(' ');
 }
 
-function calculateScopeCompletion(client, service) {
+export function calculateScopeCompletion(client, service) {
   if (!client.service_scopes || !client.service_scopes[service]) return null;
   
   const scope = client.service_scopes[service];

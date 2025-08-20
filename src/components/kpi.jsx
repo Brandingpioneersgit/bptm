@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { NumField, ProofField, TextArea, MultiSelect, PrevValue, TinyLinks, Section, ComparativeField } from "./ui";
 import { monthLabel, isDriveUrl, isGensparkUrl, uid, round1 } from "./constants";
+import { calculateScopeCompletion } from "./scoring.js";
 import { useModal } from "./AppShell";
 import { useSupabase } from "./SupabaseProvider";
 import { ClientReportStatus } from "./ClientReportStatus";
@@ -272,38 +273,6 @@ function KPIsWebHead({ client, prevClient, onChange }) {
       <ProofField label="Upsell proof / invoice" value={client.web_saasProof} onChange={v => onChange({ ...client, web_saasProof: v })} />
     </div>
   );
-}
-
-function calculateScopeCompletion(client, service) {
-  if (!client.service_scopes || !client.service_scopes[service]) return null;
-  
-  const scope = client.service_scopes[service];
-  const deliverables = scope.deliverables || 0;
-  
-  switch (service) {
-    case 'Social Media':
-      const totalPosts = (client.sm_graphicsPhotoshop || 0) + (client.sm_graphicsCanva || 0) + 
-                        (client.sm_graphicsAi || 0) + (client.sm_shortVideos || 0) + (client.sm_longVideos || 0);
-      return deliverables > 0 ? Math.min(100, Math.round((totalPosts / deliverables) * 100)) : 0;
-    case 'SEO':
-    case 'GBP SEO':
-      const keywordsWorked = client.seo_keywordsWorked ? client.seo_keywordsWorked.length : 0;
-      const top3Keywords = client.seo_top3 ? client.seo_top3.length : 0;
-      const totalSeoWork = keywordsWorked + top3Keywords + (client.seo_technicalIssues || 0);
-      return deliverables > 0 ? Math.min(100, Math.round((totalSeoWork / deliverables) * 100)) : 0;
-    case 'Google Ads':
-    case 'Meta Ads':
-      const adsCreated = client.ads_newAds || 0;
-      return deliverables > 0 ? Math.min(100, Math.round((adsCreated / deliverables) * 100)) : 0;
-    case 'Website Maintenance':
-      const webPages = (client.web_pagesThis || 0);
-      const webTasks = webPages + (client.web_saasUpsells || 0);
-      return deliverables > 0 ? Math.min(100, Math.round((webTasks / deliverables) * 100)) : 0;
-    case 'AI':
-      return 0;
-    default:
-      return 0;
-  }
 }
 
 function KPIsSocial({ client, prevClient, employeeRole, onChange, monthPrev, monthThis, isNewClient }) {

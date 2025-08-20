@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useState } from "react";
 import { useSupabase } from "./SupabaseProvider";
-import { CLIENT_SERVICES, DELIVERY_FREQUENCIES, createServiceObject, EMPTY_CLIENT } from "./clientServices";
+import { CLIENT_SERVICES, EMPTY_CLIENT } from "./clientServices";
 import { getClientRepository } from "./ClientRepository";
 
 export function ClientManagementView() {
@@ -20,7 +20,7 @@ export function ClientManagementView() {
   const [showServicesModal, setShowServicesModal] = useState(false);
   const [selectedClientForServices, setSelectedClientForServices] = useState(null);
   const [selectedServices, setSelectedServices] = useState([]);
-  const [serviceFrequencies, setServiceFrequencies] = useState({});
+  const [serviceScopes, setServiceScopes] = useState({});
 
   const [departureForm, setDepartureForm] = useState({
     isOpen: false,
@@ -59,15 +59,12 @@ export function ClientManagementView() {
     try {
       const clientRepository = getClientRepository(supabase);
       
-      // Create client with services
-      const clientData = {
-        ...newClient,
-        services: selectedServices.map(service => createServiceObject(
-          service, 
-          serviceFrequencies[service] || "Monthly",
-          ""
-        ))
-      };
+        // Create client with services
+        const clientData = {
+          ...newClient,
+          services: selectedServices,
+          service_scopes: serviceScopes
+        };
       
       const result = await clientRepository.upsertClient(clientData);
       
@@ -77,8 +74,8 @@ export function ClientManagementView() {
       
       // Reset form
       setNewClient({ ...EMPTY_CLIENT });
-      setSelectedServices([]);
-      setServiceFrequencies({});
+        setSelectedServices([]);
+        setServiceScopes({});
       setShowCreateForm(false);
       fetchClients();
       
@@ -91,13 +88,18 @@ export function ClientManagementView() {
 
   const handleEditServices = (client) => {
     setSelectedClientForServices(client);
-    setSelectedServices(client.services?.map(s => s.service) || []);
-    
-    const frequencies = {};
-    client.services?.forEach(s => {
-      frequencies[s.service] = s.frequency;
+    const services = (client.services || []).map(s =>
+      typeof s === 'string' ? s : s.service
+    );
+    setSelectedServices(services);
+
+    const scopes = { ...(client.service_scopes || {}) };
+    services.forEach(s => {
+      if (!scopes[s]) {
+        scopes[s] = { deliverables: 0, description: "", frequency: "monthly" };
+      }
     });
-    setServiceFrequencies(frequencies);
+    setServiceScopes(scopes);
     setShowServicesModal(true);
   };
 
@@ -107,19 +109,17 @@ export function ClientManagementView() {
     try {
       const clientRepository = getClientRepository(supabase);
       
-      const services = selectedServices.map(service => createServiceObject(
-        service,
-        serviceFrequencies[service] || "Monthly",
-        ""
-      ));
-      
-      await clientRepository.updateClientServices(selectedClientForServices.id, services);
-      
-      setShowServicesModal(false);
-      setSelectedClientForServices(null);
-      setSelectedServices([]);
-      setServiceFrequencies({});
-      fetchClients();
+        await clientRepository.updateClientServices(
+          selectedClientForServices.id,
+          selectedServices,
+          serviceScopes
+        );
+
+        setShowServicesModal(false);
+        setSelectedClientForServices(null);
+        setSelectedServices([]);
+        setServiceScopes({});
+        fetchClients();
       
       console.log('✅ Successfully updated client services');
     } catch (error) {
@@ -128,27 +128,30 @@ export function ClientManagementView() {
     }
   };
 
-  const handleServiceToggle = (service) => {
-    if (selectedServices.includes(service)) {
-      setSelectedServices(prev => prev.filter(s => s !== service));
-      const newFreqs = { ...serviceFrequencies };
-      delete newFreqs[service];
-      setServiceFrequencies(newFreqs);
-    } else {
-      setSelectedServices(prev => [...prev, service]);
-      setServiceFrequencies(prev => ({
-        ...prev,
-        [service]: "Monthly" // Default frequency
-      }));
-    }
-  };
+    const handleServiceToggle = (service) => {
+      if (selectedServices.includes(service)) {
+        setSelectedServices(prev => prev.filter(s => s !== service));
+        const newScopes = { ...serviceScopes };
+        delete newScopes[service];
+        setServiceScopes(newScopes);
+      } else {
+        setSelectedServices(prev => [...prev, service]);
+        setServiceScopes(prev => ({
+          ...prev,
+          [service]: { deliverables: 0, description: "", frequency: "monthly" }
+        }));
+      }
+    };
 
-  const handleFrequencyChange = (service, frequency) => {
-    setServiceFrequencies(prev => ({
-      ...prev,
-      [service]: frequency
-    }));
-  };
+    const handleServiceScopeChange = (service, field, value) => {
+      setServiceScopes(prev => ({
+        ...prev,
+        [service]: {
+          ...prev[service],
+          [field]: value
+        }
+      }));
+    };
 
   const handleClientDeparture = async () => {
     if (!supabase || !departureForm.clientId) return;
@@ -512,26 +515,51 @@ export function ClientManagementView() {
                 )}
               </div>
 
-              {/* Service Frequencies */}
+              {/* Service Scope Details */}
               {selectedServices.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Frequency per Service</label>
-                  <div className="space-y-3 max-h-32 overflow-y-auto">
-                    {selectedServices.map(service => (
-                      <div key={service} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                        <span className="text-sm font-medium text-gray-700">{service}</span>
-                        <select
-                          value={serviceFrequencies[service] || "Monthly"}
-                          onChange={(e) => handleFrequencyChange(service, e.target.value)}
-                          className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500"
-                        >
-                          {DELIVERY_FREQUENCIES.map(freq => (
-                            <option key={freq} value={freq}>{freq}</option>
-                          ))}
-                        </select>
+                <div className="space-y-4">
+                  {selectedServices.map(service => (
+                    <div key={service} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                      <h4 className="font-medium text-gray-800 mb-3">{service} - Scope Details</h4>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Deliverables</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={serviceScopes[service]?.deliverables || ''}
+                            onChange={(e) => handleServiceScopeChange(service, 'deliverables', parseInt(e.target.value) || 0)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            placeholder={`Number of ${service.toLowerCase()} deliverables per month`}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Scope Description</label>
+                          <textarea
+                            rows={2}
+                            value={serviceScopes[service]?.description || ''}
+                            onChange={(e) => handleServiceScopeChange(service, 'description', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            placeholder={`Describe the ${service} scope and requirements...`}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Frequency</label>
+                          <select
+                            value={serviceScopes[service]?.frequency || 'monthly'}
+                            onChange={(e) => handleServiceScopeChange(service, 'frequency', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                          >
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="bi-weekly">Bi-weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                          </select>
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               )}
 
@@ -651,43 +679,51 @@ export function ClientManagementView() {
                 </div>
               </div>
 
-              {/* Service Frequencies */}
+              {/* Service Scope Details */}
               {selectedServices.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Delivery Frequency per Service
-                  </label>
-                  <div className="space-y-3 max-h-64 overflow-y-auto">
-                    {selectedServices.map(service => (
-                      <div key={service} className="flex items-center justify-between bg-blue-50 p-3 rounded-lg">
+                <div className="space-y-4">
+                  {selectedServices.map(service => (
+                    <div key={service} className="border border-gray-200 rounded-lg p-4 bg-blue-50">
+                      <h4 className="text-sm font-medium text-gray-900 mb-3">{service} - Scope Details</h4>
+                      <div className="space-y-3">
                         <div>
-                          <span className="text-sm font-medium text-gray-900">{service}</span>
-                          <p className="text-xs text-gray-600">How often do you deliver this service?</p>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Deliverables</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={serviceScopes[service]?.deliverables || ''}
+                            onChange={(e) => handleServiceScopeChange(service, 'deliverables', parseInt(e.target.value) || 0)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            placeholder={`Number of ${service.toLowerCase()} deliverables per month`}
+                          />
                         </div>
-                        <select
-                          value={serviceFrequencies[service] || "Monthly"}
-                          onChange={(e) => handleFrequencyChange(service, e.target.value)}
-                          className="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                          {DELIVERY_FREQUENCIES.map(freq => (
-                            <option key={freq} value={freq}>{freq}</option>
-                          ))}
-                        </select>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Scope Description</label>
+                          <textarea
+                            rows={2}
+                            value={serviceScopes[service]?.description || ''}
+                            onChange={(e) => handleServiceScopeChange(service, 'description', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            placeholder={`Describe the ${service} scope and requirements...`}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Frequency</label>
+                          <select
+                            value={serviceScopes[service]?.frequency || 'monthly'}
+                            onChange={(e) => handleServiceScopeChange(service, 'frequency', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                          >
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="bi-weekly">Bi-weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                          </select>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                  
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-4">
-                    <h4 className="text-sm font-medium text-green-800 mb-2">Selected Services Summary</h4>
-                    <div className="space-y-1">
-                      {selectedServices.map(service => (
-                        <div key={service} className="text-xs text-green-700 flex justify-between">
-                          <span>{service}</span>
-                          <span className="font-medium">{serviceFrequencies[service] || "Monthly"}</span>
-                        </div>
-                      ))}
                     </div>
-                  </div>
+                  ))}
                 </div>
               )}
 
