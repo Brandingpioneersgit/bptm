@@ -1,4 +1,6 @@
 import React from 'react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { monthLabel } from './constants';
 
 export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
@@ -20,6 +22,42 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
     const avgOverallScore = data.reduce((sum, d) => sum + (d.scores?.overall || 0), 0) / data.length;
     const avgKpiScore = data.reduce((sum, d) => sum + (d.scores?.kpiScore || 0), 0) / data.length;
     const avgLearningScore = data.reduce((sum, d) => sum + (d.scores?.learningScore || 0), 0) / data.length;
+
+    const uniqueClients = Array.from(new Set(data.flatMap(d => (d.clients || []).map(c => c.op_clientName || 'Unnamed'))));
+
+    const strengths = [];
+    if (avgKpiScore >= 7) strengths.push('Strong KPI performance');
+    if (avgLearningScore >= 7) strengths.push('Consistent learning');
+    if (yearlySummary?.avgRelationship >= 7) strengths.push('Positive client relationships');
+
+    const weaknesses = [];
+    if (avgKpiScore < 7) weaknesses.push('KPIs below target');
+    if (avgLearningScore < 7) weaknesses.push('Learning scores need improvement');
+    if ((yearlySummary?.avgRelationship || 0) < 7) weaknesses.push('Client relationships need attention');
+    if (yearlySummary?.monthsWithLearningShortfall > 0) weaknesses.push(`${yearlySummary.monthsWithLearningShortfall} month(s) with learning shortfall`);
+
+    const actionItems = [];
+    if (yearlySummary?.monthsWithLearningShortfall > 0) actionItems.push('Complete required learning hours each month');
+    if (avgKpiScore < 7) actionItems.push('Focus on KPI improvements');
+    if ((yearlySummary?.avgRelationship || 0) < 7) actionItems.push('Increase client relationship efforts');
+    if (actionItems.length === 0) actionItems.push('Keep up the great work!');
+
+    const chartSvg = (() => {
+      const width = 500;
+      const height = 200;
+      const padding = 40;
+      const points = data.map((d, i) => {
+        const x = padding + (i / Math.max(data.length - 1, 1)) * (width - padding * 2);
+        const y = height - padding - ((d.scores?.overall || 0) / 10) * (height - padding * 2);
+        return `${x},${y}`;
+      }).join(' ');
+      const circles = data.map((d, i) => {
+        const x = padding + (i / Math.max(data.length - 1, 1)) * (width - padding * 2);
+        const y = height - padding - ((d.scores?.overall || 0) / 10) * (height - padding * 2);
+        return `<circle cx="${x}" cy="${y}" r="4" fill="#3b82f6" />`;
+      }).join('');
+      return `<svg width="${width}" height="${height}"><polyline points="${points}" fill="none" stroke="#3b82f6" stroke-width="3" />${circles}</svg>`;
+    })();
 
     return `
       <!-- Executive Summary -->
@@ -43,6 +81,35 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
             <div class="metric-label">Average KPI Score</div>
           </div>
         </div>
+      </div>
+
+      <!-- Client Logos -->
+      <div class="section">
+        <h3>🤝 Client Portfolio</h3>
+        <div class="logo-grid">
+          ${uniqueClients.length ? uniqueClients.map(name => `<div class="logo-item"><img src="https://placehold.co/80x40?text=${encodeURIComponent(name.charAt(0))}" alt="${name}" /><div>${name}</div></div>`).join('') : '<p>No client data available</p>'}
+        </div>
+      </div>
+
+      <!-- Testimonials & Achievements -->
+      <div class="section">
+        <h3>🏅 Testimonials & Achievements</h3>
+        <div class="badge-grid">
+          <div class="badge">
+            <img src="https://placehold.co/60x60?text=%F0%9F%8F%86" alt="Top Performer" />
+            <span>Top Performer</span>
+          </div>
+          <div class="badge">
+            <img src="https://placehold.co/60x60?text=%E2%AD%90" alt="Client Kudos" />
+            <span>Client Kudos</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Performance Chart -->
+      <div class="section">
+        <h3>📈 Overall Score Trend</h3>
+        <div class="chart">${chartSvg}</div>
       </div>
 
       <!-- Performance Trends -->
@@ -75,6 +142,19 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
             `;
           }).join('')}
         </table>
+      </div>
+
+      <!-- Growth vs. Shortcomings -->
+      <div class="section">
+        <h3>📉 Growth vs. Shortcomings</h3>
+        <p><strong>Growth:</strong> ${strengths.length ? strengths.join(', ') : 'No standout strengths identified'}</p>
+        <p><strong>Shortcomings:</strong> ${weaknesses.length ? weaknesses.join(', ') : 'No significant shortcomings detected'}</p>
+      </div>
+
+      <!-- Action Items -->
+      <div class="section">
+        <h3>✅ Action Items</h3>
+        <ul>${actionItems.map(item => `<li>${item}</li>`).join('')}</ul>
       </div>
 
       <!-- Detailed Monthly Breakdown -->
@@ -146,6 +226,7 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
   };
 
   const downloadPDF = () => {
+    window.html2canvas = html2canvas;
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -290,7 +371,7 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
             .detail-section li {
               margin: 3px 0;
             }
-            
+
             .footer {
               margin-top: 40px;
               padding-top: 20px;
@@ -298,6 +379,44 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
               text-align: center;
               font-size: 12px;
               color: #6b7280;
+            }
+
+            .logo-grid {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 15px;
+              align-items: center;
+            }
+
+            .logo-item {
+              text-align: center;
+            }
+
+            .logo-item img {
+              max-height: 40px;
+            }
+
+            .badge-grid {
+              display: flex;
+              gap: 15px;
+              flex-wrap: wrap;
+            }
+
+            .badge {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              font-size: 12px;
+            }
+
+            .badge img {
+              width: 60px;
+              height: 60px;
+              border-radius: 50%;
+            }
+
+            .chart {
+              text-align: center;
             }
           </style>
         </head>
@@ -318,15 +437,18 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
         </body>
       </html>
     `;
+    const container = document.createElement('div');
+    container.innerHTML = htmlContent;
+    document.body.appendChild(container);
 
-    // Create blob and download
-    const blob = new Blob([htmlContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${employeeName.replace(/\s+/g, '_')}_Complete_Performance_Report_${new Date().toISOString().split('T')[0]}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const doc = new jsPDF('p', 'pt', 'a4');
+    doc.html(container, {
+      callback: function (doc) {
+        doc.save(`${employeeName.replace(/\s+/g, '_')}_Complete_Performance_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+        document.body.removeChild(container);
+      },
+      html2canvas: { scale: 0.6 }
+    });
   };
 
   return (
