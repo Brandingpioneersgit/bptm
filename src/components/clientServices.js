@@ -56,6 +56,7 @@ export const EMPTY_CLIENT = {
   services: [], // Array of service objects: {service: string, frequency: string, notes: string}
   contact_email: "",
   contact_phone: "",
+  logo_url: "",
   start_date: "",
   scope_notes: "",
   created_at: "",

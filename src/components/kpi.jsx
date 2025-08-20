@@ -790,46 +790,52 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
 
   const currentTeam = currentSubmission.employee.department === "Social Media" ? "Marketing" : "Web";
   
-  const clientNames = useMemo(() => {
-    const names = new Set();
-    
+  const clientOptions = useMemo(() => {
+    const map = new Map();
+
     masterClients
       .filter(client => client.team === currentTeam)
-      .forEach(client => names.add(client.name));
-    
-    prevClients.forEach(client => names.add(client.name));
-    
-    return [...names].sort();
+      .forEach(client => map.set(client.name, client.logo_url || ""));
+
+    prevClients.forEach(client => {
+      if (!map.has(client.name)) {
+        map.set(client.name, client.logo_url || "");
+      }
+    });
+
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [masterClients, prevClients, currentTeam]);
 
   const addClientFromDropdown = (clientName) => {
     const prevClient = prevClients.find(c => c.name === clientName);
     if (prevClient) {
-      const newClient = { ...prevClient, id: uid(), reports: [] };
+      const newClient = { ...prevClient, id: uid(), reports: [], logo_url: prevClient.logo_url };
       setModel(m => ({ ...m, clients: [...m.clients, newClient] }));
       return;
     }
-    
+
     const masterClient = masterClients.find(c => c.name === clientName);
-    const newClient = masterClient 
-      ? { 
-          id: uid(), 
-          name: masterClient.name, 
-          reports: [], 
+    const newClient = masterClient
+      ? {
+          id: uid(),
+          name: masterClient.name,
+          reports: [],
           relationship: {},
           client_type: masterClient.client_type,
           team: masterClient.team,
           scope_of_work: masterClient.scope_of_work,
           services: masterClient.services || [],
-          service_scopes: masterClient.service_scopes || {}
+          service_scopes: masterClient.service_scopes || {},
+          logo_url: masterClient.logo_url || ""
         }
-      : { 
-          id: uid(), 
-          name: clientName, 
-          reports: [], 
+      : {
+          id: uid(),
+          name: clientName,
+          reports: [],
           relationship: {},
           services: [],
-          service_scopes: {}
+          service_scopes: {},
+          logo_url: ""
         };
     
     setModel(m => ({ ...m, clients: [...m.clients, newClient] }));
@@ -923,8 +929,14 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
           value=""
         >
           <option value="" disabled>Select from agency clients ({currentTeam} team)...</option>
-          {clientNames.map(name => (
-            <option key={name} value={name}>{name}</option>
+          {clientOptions.map(([name, logo]) => (
+            <option
+              key={name}
+              value={name}
+              style={logo ? { backgroundImage: `url(${logo})`, backgroundRepeat: 'no-repeat', backgroundSize: '16px 16px', paddingLeft: '20px' } : {}}
+            >
+              {name}
+            </option>
           ))}
         </select>
         <button
@@ -951,7 +963,14 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
           <tbody>
             {currentSubmission.clients.map(c => (
               <tr key={c.id} className="odd:bg-white even:bg-blue-50/40">
-                <td className="p-2 border font-medium">{c.name}</td>
+                <td className="p-2 border font-medium">
+                  <div className="flex items-center gap-2">
+                    {c.logo_url && (
+                      <img src={c.logo_url} alt="logo" className="w-5 h-5 object-cover" />
+                    )}
+                    <span>{c.name}</span>
+                  </div>
+                </td>
                 <td className="p-2 border" colSpan={2}>
                   <TinyLinks
                     items={(c.reports || [])}
@@ -997,7 +1016,13 @@ function ClientTable({ currentSubmission, previousSubmission, setModel, monthPre
         const isNewClient = !previousSubmission || Object.keys(prevClient).length === 0;
         return (
           <div key={c.id} className="border rounded-2xl p-4 my-4 bg-white">
-            <div className="font-semibold mb-2">KPIs • {c.name} <span className="text-xs text-gray-500">({monthLabel(monthPrev)} vs {monthLabel(monthThis)})</span></div>
+            <div className="font-semibold mb-2 flex items-center gap-2">
+              {c.logo_url && (
+                <img src={c.logo_url} alt="logo" className="w-5 h-5 object-cover" />
+              )}
+              <span>KPIs • {c.name}</span>
+              <span className="text-xs text-gray-500">({monthLabel(monthPrev)} vs {monthLabel(monthThis)})</span>
+            </div>
             {currentSubmission.employee.department === 'Web' && (
               <KPIsWeb client={c} prevClient={prevClient} onChange={(cc) => setModel(m => ({ ...m, clients: m.clients.map(x => x.id === c.id ? cc : x) }))} monthPrev={monthPrev} monthThis={monthThis} isNewClient={isNewClient} />
             )}

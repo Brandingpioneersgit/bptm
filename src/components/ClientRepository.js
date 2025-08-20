@@ -110,6 +110,7 @@ export class ClientRepository {
         client_type: "Standard",
         contact_email: client.contact_email || "",
         contact_phone: client.contact_phone || "",
+        logo_url: client.logo_url || "",
         scope_notes: client.scope_notes || "",
         // Extract services from client data
         services: this.extractServicesFromClient(client, submission.employee?.department)

@@ -179,25 +179,29 @@ export function ClientDashboardView() {
         {filteredClients.map((client) => (
           <div key={client.id} className="bg-white rounded-xl shadow-sm border p-6 hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">{client.name}</h3>
-                <div className="flex items-center gap-2">
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                    client.client_type === 'Enterprise' 
-                      ? 'bg-purple-100 text-purple-800'
-                      : client.client_type === 'Premium'
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {client.client_type}
-                  </span>
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                    client.team === 'Web' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'
-                  }`}>
-                    {client.team}
-                  </span>
-                </div>
-                
+              <div className="flex-1 flex items-start gap-3">
+                {client.logo_url && (
+                  <img src={client.logo_url} alt={`${client.name} logo`} className="w-10 h-10 rounded object-cover" />
+                )}
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">{client.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      client.client_type === 'Enterprise'
+                        ? 'bg-purple-100 text-purple-800'
+                        : client.client_type === 'Premium'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {client.client_type}
+                    </span>
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      client.team === 'Web' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'
+                    }`}>
+                      {client.team}
+                    </span>
+                  </div>
+
                 {client.services && client.services.length > 0 && (
                   <div className="mt-2">
                     <div className="flex flex-wrap gap-1">
@@ -212,8 +216,9 @@ export function ClientDashboardView() {
                     </div>
                   </div>
                 )}
+                </div>
               </div>
-              
+
               <button
                 onClick={(e) => {
                   e.stopPropagation();

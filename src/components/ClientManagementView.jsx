@@ -11,7 +11,7 @@ export function ClientManagementView() {
   const [selectedTeam, setSelectedTeam] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('Active');
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   const [newClient, setNewClient] = useState({
     ...EMPTY_CLIENT
   });
@@ -52,40 +52,78 @@ export function ClientManagementView() {
     fetchClients();
   }, [supabase]);
 
-  const handleCreateClient = async (e) => {
+  const openCreateForm = () => {
+    setNewClient({ ...EMPTY_CLIENT });
+    setSelectedServices([]);
+    setServiceFrequencies({});
+    setEditingClient(null);
+    setShowCreateForm(true);
+  };
+
+  const handleEditClient = (client) => {
+    setNewClient({
+      ...EMPTY_CLIENT,
+      ...client
+    });
+    setSelectedServices(client.services?.map(s => s.service) || []);
+    const frequencies = {};
+    client.services?.forEach(s => {
+      frequencies[s.service] = s.frequency;
+    });
+    setServiceFrequencies(frequencies);
+    setEditingClient(client);
+    setShowCreateForm(true);
+  };
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !supabase) return;
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${crypto.randomUUID()}.${fileExt}`;
+      const { error } = await supabase.storage.from('client-logos').upload(filePath, file);
+      if (error) throw error;
+      const { data } = supabase.storage.from('client-logos').getPublicUrl(filePath);
+      setNewClient(prev => ({ ...prev, logo_url: data.publicUrl }));
+    } catch (err) {
+      console.error('Error uploading logo:', err);
+      alert('Failed to upload logo');
+    }
+  };
+
+  const handleSaveClient = async (e) => {
     e.preventDefault();
     if (!supabase) return;
 
     try {
       const clientRepository = getClientRepository(supabase);
-      
-      // Create client with services
+
       const clientData = {
         ...newClient,
         services: selectedServices.map(service => createServiceObject(
-          service, 
+          service,
           serviceFrequencies[service] || "Monthly",
           ""
         ))
       };
-      
+
       const result = await clientRepository.upsertClient(clientData);
-      
+
       if (!result) {
-        throw new Error('Failed to create client');
+        throw new Error('Failed to save client');
       }
-      
-      // Reset form
+
       setNewClient({ ...EMPTY_CLIENT });
       setSelectedServices([]);
       setServiceFrequencies({});
+      setEditingClient(null);
       setShowCreateForm(false);
       fetchClients();
-      
-      console.log('✅ Successfully created client:', result.name);
+
+      console.log('✅ Successfully saved client:', result.name);
     } catch (error) {
-      console.error('Error creating client:', error);
-      alert('Failed to create client. Please try again.');
+      console.error('Error saving client:', error);
+      alert('Failed to save client. Please try again.');
     }
   };
 
@@ -207,7 +245,7 @@ export function ClientManagementView() {
           </div>
           
           <button
-            onClick={() => setShowCreateForm(true)}
+            onClick={openCreateForm}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -332,9 +370,14 @@ export function ClientManagementView() {
               {filteredClients.map((client) => (
                 <tr key={client.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{client.name}</div>
-                      <div className="text-sm text-gray-500">Created {new Date(client.created_at).toLocaleDateString()}</div>
+                    <div className="flex items-center gap-3">
+                      {client.logo_url && (
+                        <img src={client.logo_url} alt={`${client.name} logo`} className="w-8 h-8 rounded object-cover" />
+                      )}
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{client.name}</div>
+                        <div className="text-sm text-gray-500">Created {new Date(client.created_at).toLocaleDateString()}</div>
+                      </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -380,6 +423,12 @@ export function ClientManagementView() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleEditClient(client)}
+                        className="text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 px-3 py-1 rounded transition-colors"
+                      >
+                        Edit
+                      </button>
                       <button
                         onClick={() => handleEditServices(client)}
                         className="text-blue-600 hover:text-blue-900 hover:bg-blue-50 px-3 py-1 rounded transition-colors"
@@ -428,9 +477,9 @@ export function ClientManagementView() {
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">Add New Client</h3>
+                <h3 className="text-lg font-semibold text-gray-900">{editingClient ? 'Edit Client' : 'Add New Client'}</h3>
                 <button
-                  onClick={() => setShowCreateForm(false)}
+                  onClick={() => { setShowCreateForm(false); setEditingClient(null); }}
                   className="text-gray-400 hover:text-gray-500"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -440,7 +489,7 @@ export function ClientManagementView() {
               </div>
             </div>
 
-            <form onSubmit={handleCreateClient} className="px-6 py-4 space-y-6">
+            <form onSubmit={handleSaveClient} className="px-6 py-4 space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Client Name *</label>
                 <input
@@ -451,6 +500,19 @@ export function ClientManagementView() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Enter client name"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Logo</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="w-full text-sm"
+                />
+                {newClient.logo_url && (
+                  <img src={newClient.logo_url} alt="Logo preview" className="h-16 mt-2 object-contain" />
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -547,7 +609,7 @@ export function ClientManagementView() {
                   type="submit"
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  Create Client
+                  {editingClient ? 'Save Changes' : 'Create Client'}
                 </button>
               </div>
             </form>
