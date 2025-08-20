@@ -4,7 +4,7 @@ import { useModal } from "./AppShell";
 import { useFetchSubmissions } from "./useFetchSubmissions";
 import { ClientManagementView } from "./ClientManagementView";
 import { ClientDashboardView } from "./ClientDashboardView";
-import { LeaderboardView } from "./LeaderboardView";
+import { FixedLeaderboardView } from "./FixedLeaderboardView";
 
 export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport }) {
   const supabase = useSupabase();
@@ -712,7 +712,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       )}
 
       {activeView === 'leaderboard' && (
-        <LeaderboardView allSubmissions={processedData.allEmployees} />
+        <FixedLeaderboardView allSubmissions={allSubmissions} />
       )}
 
       {evaluationPanel.isOpen && (

@@ -177,12 +177,54 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     setHasUnsavedChanges(true);
   }, []);
 
+  // Create stable onChange handlers to prevent re-renders
+  const handleNameChange = useCallback((value) => updateCurrentSubmission('employee.name', value), [updateCurrentSubmission]);
+  const handlePhoneChange = useCallback((value) => updateCurrentSubmission('employee.phone', value), [updateCurrentSubmission]);
+  const handleWFOChange = useCallback((value) => updateCurrentSubmission('meta.attendance.wfo', value), [updateCurrentSubmission]);
+  const handleWFHChange = useCallback((value) => updateCurrentSubmission('meta.attendance.wfh', value), [updateCurrentSubmission]);
+  const handleTasksChange = useCallback((value) => updateCurrentSubmission('meta.tasks.count', value), [updateCurrentSubmission]);
+  const handleAITableLinkChange = useCallback((value) => updateCurrentSubmission('meta.tasks.aiTableLink', value), [updateCurrentSubmission]);
+  const handleAITableScreenshotChange = useCallback((value) => updateCurrentSubmission('meta.tasks.aiTableScreenshot', value), [updateCurrentSubmission]);
+  const handleCompanyFeedbackChange = useCallback((value) => updateCurrentSubmission('feedback.company', value), [updateCurrentSubmission]);
+  const handleHRFeedbackChange = useCallback((value) => updateCurrentSubmission('feedback.hr', value), [updateCurrentSubmission]);
+  const handleChallengesChange = useCallback((value) => updateCurrentSubmission('feedback.challenges', value), [updateCurrentSubmission]);
+  const handleAIUsageChange = useCallback((value) => updateCurrentSubmission('aiUsageNotes', value), [updateCurrentSubmission]);
+
+  // Use refs to avoid dependency issues in autosave
+  const currentSubmissionRef = useRef(currentSubmission);
+  const selectedEmployeeRef = useRef(selectedEmployee);
+  const currentStepRef = useRef(currentStep);
+  
+  useEffect(() => {
+    currentSubmissionRef.current = currentSubmission;
+    selectedEmployeeRef.current = selectedEmployee;
+    currentStepRef.current = currentStep;
+  });
+
   // Function to trigger autosave manually (for onBlur events)
   const triggerAutosave = useCallback(() => {
-    if (hasUnsavedChanges && selectedEmployee) {
-      autoSave();
+    const employee = selectedEmployeeRef.current;
+    const submission = currentSubmissionRef.current;
+    const step = currentStepRef.current;
+    
+    if (employee && submission) {
+      try {
+        const autoSaveData = {
+          ...submission,
+          lastSaved: new Date().toISOString(),
+          currentStep: step
+        };
+        
+        const employeeId = `${employee.name}-${employee.phone}`;
+        const autoSaveKey = `autosave-${employeeId}-${submission.monthKey}`;
+        localStorage.setItem(autoSaveKey, JSON.stringify(autoSaveData));
+        setLastAutoSave(new Date());
+        setHasUnsavedChanges(false);
+      } catch (error) {
+        console.error('Manual autosave failed:', error);
+      }
     }
-  }, [hasUnsavedChanges, selectedEmployee, autoSave]);
+  }, []); // Stable callback with no dependencies
 
   // Validation for step progression - only validate what's needed for each step
   const canProgressToStep = useCallback((stepNumber) => {
@@ -258,10 +300,21 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     }
   }, [selectedEmployee, loadDraft, clearDraft, openModal, closeModal, lastAutoSave, previousSubmission]);
 
-  const kpiScore = useMemo(() => scoreKPIs(currentSubmission.employee, currentSubmission.clients), [currentSubmission.employee, currentSubmission.clients]);
-  const learningScore = useMemo(() => scoreLearning(currentSubmission.learning), [currentSubmission.learning]);
-  const relationshipScore = useMemo(() => scoreRelationshipFromClients(currentSubmission.clients), [currentSubmission.employee, currentSubmission.clients]);
-  const overall = useMemo(() => overallOutOf10(kpiScore, learningScore, relationshipScore, currentSubmission.manager?.score), [kpiScore, learningScore, relationshipScore, currentSubmission.manager?.score]);
+  // Debounce score calculations to prevent constant re-renders
+  const [debouncedSubmission, setDebouncedSubmission] = useState(currentSubmission);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSubmission(currentSubmission);
+    }, 500); // Debounce score calculations by 500ms
+    
+    return () => clearTimeout(timer);
+  }, [currentSubmission]);
+
+  const kpiScore = useMemo(() => scoreKPIs(debouncedSubmission.employee, debouncedSubmission.clients), [debouncedSubmission.employee, debouncedSubmission.clients]);
+  const learningScore = useMemo(() => scoreLearning(debouncedSubmission.learning), [debouncedSubmission.learning]);
+  const relationshipScore = useMemo(() => scoreRelationshipFromClients(debouncedSubmission.clients), [debouncedSubmission.employee, debouncedSubmission.clients]);
+  const overall = useMemo(() => overallOutOf10(kpiScore, learningScore, relationshipScore, debouncedSubmission.manager?.score), [kpiScore, learningScore, relationshipScore, debouncedSubmission.manager?.score]);
 
   const [showCelebration, setShowCelebration] = useState(false);
 
@@ -274,12 +327,12 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   }, [overall]);
 
   const flags = useMemo(() => {
-    const learningMins = (currentSubmission.learning || []).reduce((s, e) => s + (e.durationMins || 0), 0);
+    const learningMins = (debouncedSubmission.learning || []).reduce((s, e) => s + (e.durationMins || 0), 0);
     const missingLearningHours = learningMins < 360;
-    const hasEscalations = (currentSubmission.clients || []).some(c => (c.relationship?.escalations || []).length > 0);
-    const missingReports = (currentSubmission.clients || []).some(c => (c.reports || []).length === 0);
+    const hasEscalations = (debouncedSubmission.clients || []).some(c => (c.relationship?.escalations || []).length > 0);
+    const missingReports = (debouncedSubmission.clients || []).some(c => (c.reports || []).length === 0);
     return { missingLearningHours, hasEscalations, missingReports };
-  }, [currentSubmission]);
+  }, [debouncedSubmission]);
 
   useEffect(() => {
     setCurrentSubmission(m => {
@@ -668,7 +721,7 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
                       label="Name" 
                       placeholder="Your full name" 
                       value={currentSubmission.employee.name || ""} 
-                      onChange={v => updateCurrentSubmission('employee.name', v)}
+                      onChange={handleNameChange}
                       onBlur={triggerAutosave}
                       disabled={isFormDisabled}
                     />
@@ -676,7 +729,7 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
                       label="Phone Number" 
                       placeholder="e.g., 9876543210" 
                       value={currentSubmission.employee.phone || ""} 
-                      onChange={v => updateCurrentSubmission('employee.phone', v)}
+                      onChange={handlePhoneChange}
                       onBlur={triggerAutosave}
                       disabled={isFormDisabled}
                     />
@@ -757,14 +810,14 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
                 label="WFO days" 
                 placeholder="0-31" 
                 value={currentSubmission.meta.attendance.wfo} 
-                onChange={v => updateCurrentSubmission('meta.attendance.wfo', v)} 
+                onChange={handleWFOChange} 
                 onBlur={triggerAutosave}
               />
               <NumField 
                 label="WFH days" 
                 placeholder="0-31"
                 value={currentSubmission.meta.attendance.wfh} 
-                onChange={v => updateCurrentSubmission('meta.attendance.wfh', v)} 
+                onChange={handleWFHChange} 
                 onBlur={triggerAutosave}
               />
             </div>
@@ -783,21 +836,21 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
               label="Tasks completed" 
               placeholder="Number of tasks" 
               value={currentSubmission.meta.tasks.count} 
-              onChange={v => updateCurrentSubmission('meta.tasks.count', v)} 
+              onChange={handleTasksChange} 
               onBlur={triggerAutosave}
             />
             <TextField 
               label="AI Table / PM link" 
               placeholder="Google Drive or project management URL" 
               value={currentSubmission.meta.tasks.aiTableLink} 
-              onChange={v => updateCurrentSubmission('meta.tasks.aiTableLink', v)} 
+              onChange={handleAITableLinkChange} 
               onBlur={triggerAutosave}
             />
             <TextField 
               label="Screenshot proof" 
               placeholder="Google Drive URL for screenshot" 
               value={currentSubmission.meta.tasks.aiTableScreenshot} 
-              onChange={v => updateCurrentSubmission('meta.tasks.aiTableScreenshot', v)} 
+              onChange={handleAITableScreenshotChange} 
               onBlur={triggerAutosave}
             />
           </div>
@@ -841,7 +894,7 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
             rows={4}
             placeholder="List ways you used AI to work faster/better this month. Include links or examples."
             value={currentSubmission.aiUsageNotes}
-            onChange={e => updateCurrentSubmission('aiUsageNotes', e.target.value)}
+            onChange={e => handleAIUsageChange(e.target.value)}
             onBlur={triggerAutosave}
           />
         </div>
@@ -865,7 +918,7 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
               placeholder="What's working well? What could be improved?"
               rows={3}
               value={currentSubmission.feedback.company}
-              onChange={v => updateCurrentSubmission('feedback.company', v)}
+              onChange={handleCompanyFeedbackChange}
               onBlur={triggerAutosave}
             />
             <TextArea 
@@ -873,7 +926,7 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
               placeholder="Any thoughts on HR processes, communication, or company policies?"
               rows={3}
               value={currentSubmission.feedback.hr}
-              onChange={v => updateCurrentSubmission('feedback.hr', v)}
+              onChange={handleHRFeedbackChange}
               onBlur={triggerAutosave}
             />
             <TextArea 
@@ -881,7 +934,7 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
               placeholder="Are there any obstacles or challenges hindering your work or growth?"
               rows={3}
               value={currentSubmission.feedback.challenges}
-              onChange={v => updateCurrentSubmission('feedback.challenges', v)}
+              onChange={handleChallengesChange}
               onBlur={triggerAutosave}
             />
           </div>
