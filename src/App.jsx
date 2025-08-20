@@ -911,22 +911,22 @@ function Modal({ isOpen, onClose, title, message, onConfirm, onCancel, inputLabe
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4 text-center">
+          <div className="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4 text-center">
             <Transition.Child
               as={Fragment}
               enter="ease-out duration-300"
-              enterFrom="opacity-0 scale-95"
-              enterTo="opacity-100 scale-100"
+              enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+              enterTo="opacity-100 translate-y-0 sm:scale-100"
               leave="ease-in duration-200"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-95"
+              leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+              leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
+              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-t-2xl sm:rounded-2xl bg-white p-4 sm:p-6 text-left align-middle shadow-xl transition-all">
+                <Dialog.Title as="h3" className="text-base sm:text-lg font-medium leading-6 text-gray-900">
                   {title}
                 </Dialog.Title>
-                <div className="mt-2">
-                  <p className="text-sm text-gray-500 whitespace-pre-wrap">
+                <div className="mt-2 sm:mt-3">
+                  <p className="text-sm text-gray-500 whitespace-pre-wrap leading-relaxed">
                     {message}
                   </p>
                   {inputLabel && (
@@ -937,7 +937,7 @@ function Modal({ isOpen, onClose, title, message, onConfirm, onCancel, inputLabe
                       <input
                         type="text"
                         id="modal-input"
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base p-3 sm:text-sm sm:p-2"
                         value={inputValue}
                         onChange={onInputChange}
                       />
@@ -945,11 +945,11 @@ function Modal({ isOpen, onClose, title, message, onConfirm, onCancel, inputLabe
                   )}
                 </div>
 
-                <div className="mt-4 flex gap-2 justify-end">
+                <div className="mt-4 sm:mt-6 flex flex-col-reverse sm:flex-row gap-3 sm:gap-2 sm:justify-end">
                   {onCancel && (
                     <button
                       type="button"
-                      className="inline-flex justify-center rounded-md border border-transparent bg-gray-100 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2"
+                      className="w-full sm:w-auto inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-3 sm:py-2 text-base sm:text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 touch-manipulation"
                       onClick={onCancel}
                     >
                       Cancel
@@ -958,7 +958,7 @@ function Modal({ isOpen, onClose, title, message, onConfirm, onCancel, inputLabe
                   {onConfirm && (
                     <button
                       type="button"
-                      className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                      className="w-full sm:w-auto inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-3 sm:py-2 text-base sm:text-sm font-medium text-white hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 touch-manipulation"
                       onClick={onConfirm}
                     >
                       OK
@@ -1011,10 +1011,19 @@ function useFetchSubmissions() {
 
 function AppContent() {
   const hash = useHash();
-  const [isManagerLoggedIn, setIsManagerLoggedIn] = useState(false);
-  const [password, setPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
-  const [view, setView] = useState('main'); // 'main' or 'employeeReport'
+  const { allSubmissions } = useFetchSubmissions();
+  const [authState, setAuthState] = useState({
+    isLoggedIn: false,
+    userType: null, // 'employee' or 'manager'
+    currentUser: null, // employee data or manager info
+    loginError: ''
+  });
+  const [loginForm, setLoginForm] = useState({
+    name: '',
+    phone: '',
+    userType: 'employee' // 'employee' or 'manager'
+  });
+  const [view, setView] = useState('main'); // 'main', 'employeeReport', 'employeeDashboard'
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: null, onCancel: null, inputLabel: '', inputValue: '', onClose: () => setModalState(s => ({ ...s, isOpen: false })) });
   const openModal = (title, message, onConfirm = null, onCancel = null, inputLabel = '', inputValue = '') => {
@@ -1027,25 +1036,76 @@ function AppContent() {
   // Auto-login if the URL hash is set
   useEffect(() => {
     if (hash === '#/manager') {
-      setIsManagerLoggedIn(true);
+      setLoginForm(prev => ({ ...prev, userType: 'manager' }));
+    } else if (hash === '#/employee') {
+      setLoginForm(prev => ({ ...prev, userType: 'employee' }));
     }
   }, [hash]);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (password === ADMIN_TOKEN) {
-      setIsManagerLoggedIn(true);
-      setLoginError('');
-      window.location.hash = '#/manager';
+    setAuthState(prev => ({ ...prev, loginError: '' }));
+
+    if (loginForm.userType === 'manager') {
+      // Manager login with admin token
+      if (loginForm.phone === ADMIN_TOKEN) {
+        setAuthState({
+          isLoggedIn: true,
+          userType: 'manager',
+          currentUser: { name: 'Manager', role: 'Administrator' },
+          loginError: ''
+        });
+        window.location.hash = '#/manager';
+      } else {
+        setAuthState(prev => ({ ...prev, loginError: 'Invalid manager credentials. Please check your admin token.' }));
+      }
     } else {
-      setLoginError('Incorrect password. Please try again.');
+      // Employee login with phone number as password
+      if (!loginForm.name.trim() || !loginForm.phone.trim()) {
+        setAuthState(prev => ({ ...prev, loginError: 'Please enter both name and phone number.' }));
+        return;
+      }
+
+      try {
+        // Verify employee exists in submissions
+        const employeeExists = allSubmissions.find(s => 
+          s.employee?.name?.toLowerCase().trim() === loginForm.name.toLowerCase().trim() &&
+          s.employee?.phone === loginForm.phone
+        );
+
+        if (employeeExists) {
+          setAuthState({
+            isLoggedIn: true,
+            userType: 'employee',
+            currentUser: {
+              name: employeeExists.employee.name,
+              phone: employeeExists.employee.phone,
+              department: employeeExists.employee.department
+            },
+            loginError: ''
+          });
+          window.location.hash = '#/employee';
+        } else {
+          setAuthState(prev => ({ ...prev, loginError: 'Employee not found. Please check your name and phone number, or contact your manager.' }));
+        }
+      } catch (error) {
+        setAuthState(prev => ({ ...prev, loginError: 'Login failed. Please try again.' }));
+      }
     }
   };
 
   const handleLogout = () => {
-    setIsManagerLoggedIn(false);
-    setPassword('');
-    setLoginError('');
+    setAuthState({
+      isLoggedIn: false,
+      userType: null,
+      currentUser: null,
+      loginError: ''
+    });
+    setLoginForm({
+      name: '',
+      phone: '',
+      userType: 'employee'
+    });
     setView('main');
     setSelectedEmployee(null);
     window.location.hash = '';
@@ -1076,67 +1136,99 @@ function AppContent() {
     return <ManagerDashboard onViewReport={handleViewEmployeeReport} />;
   };
 
+  const EmployeeSection = () => {
+    if (view === 'employeeDashboard') {
+      return (
+        <div className="min-h-screen bg-white">
+          <EmployeePersonalDashboard 
+            employee={authState.currentUser}
+            onBack={() => setView('main')}
+          />
+        </div>
+      );
+    }
+    return <EmployeeForm currentUser={authState.currentUser} />;
+  };
+
+  const LoginSection = () => {
+    return <LoginForm 
+      loginForm={loginForm}
+      setLoginForm={setLoginForm}
+      onLogin={handleLogin}
+      loginError={authState.loginError}
+    />;
+  };
+
   return (
     <ModalContext.Provider value={{ openModal, closeModal }}>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-gray-900 font-sans">
         <Modal {...modalState} />
         <header className="sticky top-0 bg-white/95 backdrop-blur-xl border-b border-gray-200/50 shadow-lg shadow-blue-100/20 z-20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-            <HeaderBrand />
-            <div className="flex items-center gap-3">
-              {isManagerLoggedIn && (
-                <div className="flex items-center gap-3">
-                  <div className="hidden sm:flex items-center gap-2 text-sm text-gray-600">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    Manager Dashboard
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="text-sm px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-md hover:shadow-lg"
-                  >
-                    Log Out
-                  </button>
-                </div>
-              )}
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
+            <div className="flex items-center justify-between">
+              <HeaderBrand />
+              <div className="flex items-center gap-2 sm:gap-3">
+                {authState.isLoggedIn && (
+                  <>
+                    <div className="hidden lg:flex items-center gap-2 text-sm text-gray-600">
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                      {authState.userType === 'manager' ? 'Manager Dashboard' : `Welcome, ${authState.currentUser?.name}`}
+                    </div>
+                    
+                    {/* Mobile user indicator */}
+                    <div className="lg:hidden flex items-center gap-1 text-xs text-gray-600">
+                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                      <span className="truncate max-w-20">
+                        {authState.userType === 'manager' ? 'Manager' : authState.currentUser?.name?.split(' ')[0]}
+                      </span>
+                    </div>
+                    
+                    {authState.userType === 'employee' && (
+                      <button
+                        onClick={() => setView(view === 'employeeDashboard' ? 'main' : 'employeeDashboard')}
+                        className="text-xs sm:text-sm px-2 sm:px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 active:from-blue-700 active:to-blue-800 transition-all duration-200 shadow-md hover:shadow-lg touch-manipulation"
+                      >
+                        <span className="hidden sm:inline">{view === 'employeeDashboard' ? 'Submit Report' : 'My Dashboard'}</span>
+                        <span className="sm:hidden">{view === 'employeeDashboard' ? 'Form' : 'Stats'}</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={handleLogout}
+                      className="text-xs sm:text-sm px-2 sm:px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 active:from-red-700 active:to-red-800 transition-all duration-200 shadow-md hover:shadow-lg touch-manipulation"
+                    >
+                      <span className="hidden sm:inline">Log Out</span>
+                      <span className="sm:hidden">Exit</span>
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </header>
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          {isManagerLoggedIn ? (
+        <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
+          {!authState.isLoggedIn ? (
+            <LoginSection />
+          ) : authState.userType === 'manager' ? (
             <ManagerSection />
           ) : (
-            <EmployeeForm />
+            <EmployeeSection />
           )}
         </main>
-        <footer className="bg-white/90 backdrop-blur-lg border-t border-gray-200 mt-auto py-8">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col lg:flex-row justify-between items-center gap-6">
-              <div className="text-center lg:text-left">
-                <div className="flex items-center justify-center lg:justify-start gap-2 text-sm text-gray-600">
-                  <span>Created for Branding Pioneers Agency</span>
-                  <span className="text-gray-400">•</span>
-                  <span>v10 (Supabase)</span>
-                </div>
+        <footer className="bg-white/90 backdrop-blur-lg border-t border-gray-200 mt-auto py-6 sm:py-8">
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+            <div className="text-center">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-xs sm:text-sm text-gray-600">
+                <span>Created for Branding Pioneers Agency</span>
+                <span className="hidden sm:inline text-gray-400">•</span>
+                <span>Employee Performance Management System</span>
+                <span className="hidden sm:inline text-gray-400">•</span>
+                <span>v11 (Auth + Mobile)</span>
               </div>
-              {!isManagerLoggedIn && (
-                <div className="w-full lg:w-auto lg:max-w-md">
-                  <h2 className="text-lg font-bold mb-4 text-gray-800 text-center lg:text-right">Manager Login</h2>
-                  <form onSubmit={handleLogin} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                    <input
-                      type="password"
-                      className="flex-1 border border-gray-300 rounded-xl p-3 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter manager password"
-                    />
-                    <button
-                      type="submit"
-                      className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6 py-3 text-sm font-semibold transition-colors duration-200 shadow-sm"
-                    >
-                      Log In
-                    </button>
-                  </form>
-                  {loginError && <p className="text-red-500 text-sm mt-3 text-center lg:text-right">{loginError}</p>}
+              {!authState.isLoggedIn && (
+                <div className="mt-4">
+                  <p className="text-xs text-gray-500">
+                    Employee or Manager? Use the login form above to access your dashboard.
+                  </p>
                 </div>
               )}
             </div>
@@ -1158,14 +1250,14 @@ export default function App() {
 /**********************
  * Employee Form View *
  **********************/
-function EmployeeForm() {
+function EmployeeForm({ currentUser = null }) {
   const supabase = useSupabase();
   const { openModal, closeModal } = useModal();
   const { allSubmissions } = useFetchSubmissions();
 
   const [currentSubmission, setCurrentSubmission] = useState({ ...EMPTY_SUBMISSION, isDraft: true });
   const [previousSubmission, setPreviousSubmission] = useState(null);
-  const [selectedEmployee, setSelectedEmployee] = useState(null); // {name, phone}
+  const [selectedEmployee, setSelectedEmployee] = useState(currentUser); // {name, phone}
   
   // Wizard state
   const [currentStep, setCurrentStep] = useState(1);
@@ -1197,6 +1289,27 @@ function EmployeeForm() {
     });
     return Object.values(employees).sort((a, b) => a.name.localeCompare(b.name));
   }, [allSubmissions]);
+
+  // Check if submission is already finalized and restrict editing
+  const isSubmissionFinalized = useMemo(() => {
+    if (!selectedEmployee || !currentSubmission.monthKey) return false;
+    
+    // Find existing submission for this employee and month
+    const existingSubmission = allSubmissions.find(s => 
+      s.employee?.name === selectedEmployee.name && 
+      s.employee?.phone === selectedEmployee.phone && 
+      s.monthKey === currentSubmission.monthKey &&
+      s.isDraft === false
+    );
+    
+    return !!existingSubmission;
+  }, [selectedEmployee, currentSubmission.monthKey, allSubmissions]);
+
+  // Check if trying to edit previous month (only current month allowed)
+  const isPreviousMonth = useMemo(() => {
+    const currentMonth = thisMonthKey();
+    return currentSubmission.monthKey !== currentMonth;
+  }, [currentSubmission.monthKey]);
 
   // Effect to load previous submission data when an employee is selected
   useEffect(() => {
@@ -1364,9 +1477,122 @@ function EmployeeForm() {
     });
   }, [kpiScore, learningScore, relationshipScore, overall, flags]);
 
+  // Performance feedback generation function
+  const generatePerformanceFeedback = (submission) => {
+    const scores = submission.scores || {};
+    const feedback = {
+      overall: scores.overall || 0,
+      strengths: [],
+      improvements: [],
+      nextMonthGoals: [],
+      summary: ''
+    };
+
+    // Analyze KPI performance
+    if (scores.kpiScore >= 8) {
+      feedback.strengths.push('Excellent KPI performance - exceeding departmental targets');
+    } else if (scores.kpiScore >= 6) {
+      feedback.strengths.push('Good KPI performance - meeting most targets');
+      feedback.improvements.push('Focus on key metrics that are slightly below target');
+    } else {
+      feedback.improvements.push('KPI performance needs improvement - review departmental goals and strategies');
+      feedback.nextMonthGoals.push('Develop action plan to improve key performance indicators');
+    }
+
+    // Analyze learning performance
+    const learningHours = (submission.learning || []).reduce((s, e) => s + (e.durationMins || 0), 0) / 60;
+    if (scores.learningScore >= 8) {
+      feedback.strengths.push(`Outstanding commitment to learning with ${learningHours.toFixed(1)} hours completed`);
+    } else if (scores.learningScore >= 6) {
+      feedback.strengths.push('Good learning progress this month');
+    } else {
+      feedback.improvements.push('Increase learning activities to meet minimum 6-hour requirement');
+      feedback.nextMonthGoals.push('Schedule dedicated learning time throughout the month');
+    }
+
+    // Analyze client relationship performance
+    if (scores.relationshipScore >= 8) {
+      feedback.strengths.push('Excellent client relationship management and communication');
+    } else if (scores.relationshipScore >= 6) {
+      feedback.improvements.push('Continue strengthening client relationships and communication');
+    } else {
+      feedback.improvements.push('Client relationship management needs significant improvement');
+      feedback.nextMonthGoals.push('Develop better client communication strategies and follow-up systems');
+    }
+
+    // Check for flags and add specific feedback
+    if (submission.flags?.missingLearningHours) {
+      feedback.improvements.push('Complete the required 6 hours of learning activities');
+      feedback.nextMonthGoals.push('Plan learning schedule at the beginning of each month');
+    }
+
+    if (submission.flags?.hasEscalations) {
+      feedback.improvements.push('Address client escalations and improve proactive communication');
+      feedback.nextMonthGoals.push('Implement client satisfaction monitoring and regular check-ins');
+    }
+
+    if (submission.flags?.missingReports) {
+      feedback.improvements.push('Ensure all client reports are completed and delivered on time');
+      feedback.nextMonthGoals.push('Set up report delivery tracking and deadline reminders');
+    }
+
+    // Generate overall summary
+    if (feedback.overall >= 8) {
+      feedback.summary = 'Exceptional performance this month! You\'re exceeding expectations and making significant contributions to the team.';
+    } else if (feedback.overall >= 6) {
+      feedback.summary = 'Good solid performance with room for growth. Focus on the improvement areas to reach the next level.';
+    } else {
+      feedback.summary = 'Performance needs improvement. Please work closely with your manager to address the identified areas.';
+    }
+
+    return feedback;
+  };
+
+  // Show performance feedback modal
+  const showPerformanceFeedbackModal = (feedback, submission) => {
+    const modalContent = `
+📊 PERFORMANCE REPORT - ${submission.monthKey.replace('-', ' ').toUpperCase()}
+
+🎯 Overall Score: ${feedback.overall.toFixed(1)}/10
+
+${feedback.summary}
+
+✅ STRENGTHS:
+${feedback.strengths.map(s => `• ${s}`).join('\n') || '• None identified this month'}
+
+🔧 AREAS FOR IMPROVEMENT:
+${feedback.improvements.map(i => `• ${i}`).join('\n') || '• Keep up the excellent work!'}
+
+🎯 NEXT MONTH'S GOALS:
+${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue current performance level'}
+
+💡 Remember: Consistent improvement leads to long-term success!
+    `;
+
+    openModal(
+      'Performance Feedback Report',
+      modalContent,
+      closeModal,
+      null,
+      '',
+      ''
+    );
+  };
+
   async function submitFinal() {
     if (!supabase) {
       openModal("Error", "Database connection not ready. Please wait a moment and try again.");
+      return;
+    }
+
+    // Check submission restrictions
+    if (isSubmissionFinalized) {
+      openModal("Submission Already Completed", "This month's submission has already been finalized and cannot be edited.", closeModal);
+      return;
+    }
+
+    if (isPreviousMonth) {
+      openModal("Previous Month Editing Restricted", "You can only edit the current month's submission. Previous months cannot be modified.", closeModal);
       return;
     }
 
@@ -1379,7 +1605,7 @@ function EmployeeForm() {
       );
       return;
     }
-    const final = { ...currentSubmission, isDraft: false, employee: { ...currentSubmission.employee, name: (currentSubmission.employee?.name || "").trim(), phone: currentSubmission.employee.phone } };
+    const final = { ...currentSubmission, isDraft: false, submittedAt: new Date().toISOString(), employee: { ...currentSubmission.employee, name: (currentSubmission.employee?.name || "").trim(), phone: currentSubmission.employee.phone } };
 
     // Remove the temporary ID if it exists before upserting
     delete final.id;
@@ -1392,7 +1618,10 @@ function EmployeeForm() {
       console.error("Supabase submission error:", error);
       openModal("Submission Error", `There was a problem saving your report to the database: ${error.message}`, closeModal);
     } else {
-      openModal("Submission Successful", "Your report has been saved to the database.", closeModal);
+      // Generate and show performance feedback report
+      const performanceFeedback = generatePerformanceFeedback(final);
+      showPerformanceFeedbackModal(performanceFeedback, final);
+      
       setCurrentSubmission({ ...EMPTY_SUBMISSION, monthKey: currentSubmission.monthKey });
       setSelectedEmployee(null);
     }
@@ -1477,16 +1706,26 @@ function EmployeeForm() {
   // Step Content Component
   const StepContent = () => {
     const stepData = getCurrentStepData();
+    const isFormDisabled = isSubmissionFinalized || isPreviousMonth;
     
     return (
-      <div className="bg-white rounded-xl shadow-sm border p-6">
+      <div className={`bg-white rounded-xl shadow-sm border p-6 ${
+        isFormDisabled ? 'opacity-75' : ''
+      }`}>
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-xl">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl ${
+            isFormDisabled ? 'bg-gray-200 text-gray-500' : 'bg-blue-100'
+          }`}>
             {stepData.icon}
           </div>
           <div>
             <h3 className="text-xl font-semibold">{stepData.title}</h3>
             <p className="text-gray-600 text-sm">{stepData.description}</p>
+            {isFormDisabled && (
+              <p className="text-sm text-red-600 mt-1">
+                {isSubmissionFinalized ? '✓ Submission completed - form locked' : '🔒 Previous month - editing restricted'}
+              </p>
+            )}
           </div>
         </div>
 
@@ -1519,6 +1758,35 @@ function EmployeeForm() {
     <div className="max-w-4xl mx-auto">
       <CelebrationEffect show={showCelebration} />
       
+      {/* Submission Status Banner */}
+      {isSubmissionFinalized && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4 flex items-center gap-3">
+          <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+            ✓
+          </div>
+          <div>
+            <h4 className="font-semibold text-green-800">Submission Complete</h4>
+            <p className="text-sm text-green-700">
+              This month's report has been successfully submitted and locked. No further edits are allowed.
+            </p>
+          </div>
+        </div>
+      )}
+      
+      {isPreviousMonth && !isSubmissionFinalized && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4 flex items-center gap-3">
+          <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+            📅
+          </div>
+          <div>
+            <h4 className="font-semibold text-orange-800">Previous Month Selected</h4>
+            <p className="text-sm text-orange-700">
+              You can only edit the current month's submission. Please select the current month to make changes.
+            </p>
+          </div>
+        </div>
+      )}
+      
       {hasUnsavedChanges && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4 flex items-center gap-2">
           <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
@@ -1530,35 +1798,47 @@ function EmployeeForm() {
       <StepContent />
 
       {/* Navigation */}
-      <div className="flex justify-between items-center mt-6">
+      <div className="flex justify-between items-center mt-4 sm:mt-6 gap-3">
         <button
           onClick={prevStep}
           disabled={currentStep === 1}
-          className="px-6 py-3 text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-50 active:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation"
         >
-          ← Previous
+          <span className="hidden sm:inline">← Previous</span>
+          <span className="sm:hidden">← Back</span>
         </button>
         
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500">
-            Step {currentStep} of {FORM_STEPS.length}
+          <span className="text-xs sm:text-sm text-gray-500">
+            <span className="hidden sm:inline">Step </span>{currentStep} of {FORM_STEPS.length}
           </span>
         </div>
 
         {currentStep === FORM_STEPS.length ? (
           <button
             onClick={submitFinal}
-            disabled={!supabase}
-            className="bg-green-600 hover:bg-green-700 text-white rounded-xl px-8 py-3 font-semibold disabled:opacity-50 transition-colors"
+            disabled={!supabase || isSubmissionFinalized || isPreviousMonth}
+            className={`rounded-xl px-4 sm:px-8 py-2 sm:py-3 text-sm sm:text-base font-semibold transition-colors touch-manipulation ${
+              isSubmissionFinalized || isPreviousMonth
+                ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                : 'bg-green-600 hover:bg-green-700 active:bg-green-800 text-white disabled:opacity-50'
+            }`}
+            title={isSubmissionFinalized ? 'Submission already completed' : isPreviousMonth ? 'Can only edit current month' : ''}
           >
-            Submit Report
+            <span className="hidden sm:inline">
+              {isSubmissionFinalized ? 'Already Submitted' : isPreviousMonth ? 'Previous Month' : 'Submit Report'}
+            </span>
+            <span className="sm:hidden">
+              {isSubmissionFinalized ? 'Submitted' : isPreviousMonth ? 'Locked' : 'Submit'}
+            </span>
           </button>
         ) : (
           <button
             onClick={nextStep}
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6 py-3 transition-colors"
+            className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base transition-colors touch-manipulation"
           >
-            Next →
+            <span className="hidden sm:inline">Next →</span>
+            <span className="sm:hidden">Next</span>
           </button>
         )}
       </div>
@@ -1567,61 +1847,111 @@ function EmployeeForm() {
 
   // Step 1: Profile & Month
   function renderProfileStep() {
+    const isFormDisabled = isSubmissionFinalized || isPreviousMonth;
+    
     return (
       <div className="space-y-6">
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Select Employee</label>
-              <select
-                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                value={selectedEmployee ? `${selectedEmployee.name}-${selectedEmployee.phone}` : ""}
-                onChange={(e) => {
-                  if (e.target.value === "") {
-                    setSelectedEmployee(null);
-                    setCurrentSubmission({ ...EMPTY_SUBMISSION, monthKey: thisMonthKey() });
-                  } else {
-                    const [name, phone] = e.target.value.split('-');
-                    setSelectedEmployee({ name, phone });
-                  }
-                }}
-              >
-                <option value="">-- New Employee --</option>
-                {uniqueEmployees.map((emp) => (
-                  <option key={`${emp.name}-${emp.phone}`} value={`${emp.name}-${emp.phone}`}>
-                    {emp.name} ({emp.phone})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {isNewEmployee && (
-              <div className="space-y-4">
-                <TextField label="Name" placeholder="Your full name" value={currentSubmission.employee.name || ""} onChange={v => updateCurrentSubmission('employee.name', v)} />
-                <TextField label="Phone Number" placeholder="e.g., 9876543210" value={currentSubmission.employee.phone || ""} onChange={v => updateCurrentSubmission('employee.phone', v)} />
+            {currentUser ? (
+              // Logged in user - show their info (read-only)
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <h4 className="font-medium text-blue-800 mb-3">Logged in as:</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Name:</span>
+                    <span className="font-medium">{currentUser.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Phone:</span>
+                    <span className="font-medium">{currentUser.phone}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Department:</span>
+                    <span className="font-medium">{currentUser.department}</span>
+                  </div>
+                </div>
               </div>
+            ) : (
+              // Not logged in - show employee selector
+              <>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Select Employee</label>
+                  <select
+                    className={`w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                      isFormDisabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''
+                    }`}
+                    value={selectedEmployee ? `${selectedEmployee.name}-${selectedEmployee.phone}` : ""}
+                    onChange={(e) => {
+                      if (isFormDisabled) return;
+                      if (e.target.value === "") {
+                        setSelectedEmployee(null);
+                        setCurrentSubmission({ ...EMPTY_SUBMISSION, monthKey: thisMonthKey() });
+                      } else {
+                        const [name, phone] = e.target.value.split('-');
+                        setSelectedEmployee({ name, phone });
+                      }
+                    }}
+                    disabled={isFormDisabled}
+                  >
+                    <option value="">-- New Employee --</option>
+                    {uniqueEmployees.map((emp) => (
+                      <option key={`${emp.name}-${emp.phone}`} value={`${emp.name}-${emp.phone}`}>
+                        {emp.name} ({emp.phone})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {isNewEmployee && (
+                  <div className="space-y-4">
+                    <TextField 
+                      label="Name" 
+                      placeholder="Your full name" 
+                      value={currentSubmission.employee.name || ""} 
+                      onChange={v => updateCurrentSubmission('employee.name', v)}
+                      disabled={isFormDisabled}
+                    />
+                    <TextField 
+                      label="Phone Number" 
+                      placeholder="e.g., 9876543210" 
+                      value={currentSubmission.employee.phone || ""} 
+                      onChange={v => updateCurrentSubmission('employee.phone', v)}
+                      disabled={isFormDisabled}
+                    />
+                  </div>
+                )}
+              </>
             )}
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Department</label>
-              <select 
-                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                value={currentSubmission.employee.department} 
-                onChange={e => updateCurrentSubmission('employee.department', e.target.value)}
-              >
-                {DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
-              </select>
-            </div>
+            {!currentUser && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Department</label>
+                  <select 
+                    className={`w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                      isFormDisabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''
+                    }`}
+                    value={currentSubmission.employee.department} 
+                    onChange={e => isFormDisabled ? null : updateCurrentSubmission('employee.department', e.target.value)}
+                    disabled={isFormDisabled}
+                  >
+                    {DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
+                  </select>
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Role(s)</label>
-              <MultiSelect
-                options={rolesForDept}
-                selected={currentSubmission.employee.role}
-                onChange={(newRoles) => updateCurrentSubmission('employee.role', newRoles)}
-                placeholder="Select your roles"
-              />
-            </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Role(s)</label>
+                  <MultiSelect
+                    options={rolesForDept}
+                    selected={currentSubmission.employee.role}
+                    onChange={(newRoles) => isFormDisabled ? null : updateCurrentSubmission('employee.role', newRoles)}
+                    placeholder="Select your roles"
+                    disabled={isFormDisabled}
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           <div className="space-y-4">
@@ -1629,8 +1959,11 @@ function EmployeeForm() {
               <label className="block text-sm font-medium mb-2">Report Month</label>
               <input 
                 type="month" 
-                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                value={currentSubmission.monthKey} 
+                className={`w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                  isFormDisabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''
+                }`}
+                value={currentSubmission.monthKey}
+                disabled={isFormDisabled} 
                 onChange={e => updateCurrentSubmission('monthKey', e.target.value)} 
               />
               <div className="text-xs text-gray-500 mt-2">
@@ -2877,7 +3210,7 @@ function Section({ title, children, number, info }) {
     </section>
   );
 }
-function TextField({ label, value, onChange, placeholder, className, info }) {
+function TextField({ label, value, onChange, placeholder, className, info, disabled = false }) {
   return (
     <div className={className || ''}>
       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
@@ -2885,30 +3218,52 @@ function TextField({ label, value, onChange, placeholder, className, info }) {
         {info && <InfoTooltip content={info} />}
       </label>
       <input
-        className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+        className={`w-full border border-gray-300 rounded-xl p-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 touch-manipulation ${
+          disabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''
+        }`}
         placeholder={placeholder || ""}
         value={value || ""}
-        onChange={e => onChange(e.target.value)}
+        onChange={e => disabled ? null : onChange(e.target.value)}
+        disabled={disabled}
       />
     </div>
   );
 }
-function NumField({ label, value, onChange, className, info }) {
+function NumField({ label, value, onChange, className, info, disabled = false }) {
   return (
     <div className={className || ''}>
-      <label className="text-sm flex items-center">
+      <label className="text-sm flex items-center mb-1">
         {label}
         {info && <InfoTooltip content={info} />}
       </label>
-      <input type="number" className="w-full border rounded-xl p-2" value={Number(value || 0)} onChange={e => onChange(Number(e.target.value || 0))} />
+      <input 
+        type="number" 
+        inputMode="numeric"
+        pattern="[0-9]*"
+        className={`w-full border rounded-xl p-3 text-base touch-manipulation ${
+          disabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''
+        }`}
+        value={Number(value || 0)} 
+        onChange={e => disabled ? null : onChange(Number(e.target.value || 0))}
+        disabled={disabled}
+      />
     </div>
   );
 }
-function TextArea({ label, value, onChange, rows = 4, className, placeholder }) {
+function TextArea({ label, value, onChange, rows = 4, className, placeholder, disabled = false }) {
   return (
     <div className={className || ''}>
-      <label className="text-sm">{label}</label>
-      <textarea className="w-full border rounded-xl p-2" rows={rows} placeholder={placeholder || ""} value={value || ""} onChange={e => onChange(e.target.value)} />
+      <label className="text-sm block mb-2">{label}</label>
+      <textarea 
+        className={`w-full border rounded-xl p-3 text-base resize-y touch-manipulation ${
+          disabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''
+        }`}
+        rows={rows} 
+        placeholder={placeholder || ""} 
+        value={value || ""} 
+        onChange={e => disabled ? null : onChange(e.target.value)}
+        disabled={disabled}
+      />
     </div>
   );
 }
@@ -2944,814 +3299,337 @@ function TinyLinks({ items, onAdd, onRemove }) {
   );
 }
 
+/*******************
+ * Login Component *
+ *******************/
+function LoginForm({ loginForm, setLoginForm, onLogin, loginError }) {
+  const switchUserType = (userType) => {
+    setLoginForm(prev => ({ ...prev, userType, name: '', phone: '' }));
+    window.location.hash = userType === 'manager' ? '#/manager' : '#/employee';
+  };
+
+  return (
+    <div className="min-h-[80vh] flex items-center justify-center">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🔑</div>
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h2>
+          <p className="text-gray-600">Sign in to access your dashboard</p>
+        </div>
+
+        {/* User Type Selector */}
+        <div className="flex rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+          <button
+            onClick={() => switchUserType('employee')}
+            className={`flex-1 py-3 px-4 text-center font-medium transition-all duration-200 ${
+              loginForm.userType === 'employee'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            👥 Employee
+          </button>
+          <button
+            onClick={() => switchUserType('manager')}
+            className={`flex-1 py-3 px-4 text-center font-medium transition-all duration-200 ${
+              loginForm.userType === 'manager'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            📋 Manager
+          </button>
+        </div>
+
+        {/* Login Form */}
+        <form onSubmit={onLogin} className="mt-8 space-y-6">
+          <div className="space-y-4">
+            {loginForm.userType === 'employee' ? (
+              <>
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                    Full Name
+                  </label>
+                  <input
+                    id="name"
+                    type="text"
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="Enter your full name"
+                    value={loginForm.name}
+                    onChange={(e) => setLoginForm(prev => ({ ...prev, name: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone Number (Password)
+                  </label>
+                  <input
+                    id="phone"
+                    type="tel"
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="Enter your phone number"
+                    value={loginForm.phone}
+                    onChange={(e) => setLoginForm(prev => ({ ...prev, phone: e.target.value }))}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Use the phone number you registered with
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div>
+                <label htmlFor="adminToken" className="block text-sm font-medium text-gray-700 mb-2">
+                  Admin Access Token
+                </label>
+                <input
+                  id="adminToken"
+                  type="password"
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="Enter admin access token"
+                  value={loginForm.phone}
+                  onChange={(e) => setLoginForm(prev => ({ ...prev, phone: e.target.value }))}
+                />
+              </div>
+            )}
+          </div>
+
+          {loginError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 sm:p-4 flex items-start gap-3">
+              <div className="text-red-600 flex-shrink-0 mt-0.5">⚠️</div>
+              <div className="text-sm text-red-700 leading-relaxed">{loginError}</div>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="w-full flex justify-center py-3 sm:py-3 px-4 border border-transparent rounded-xl shadow-sm text-base font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 active:from-blue-800 active:to-blue-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 touch-manipulation"
+          >
+            Sign In
+          </button>
+        </form>
+
+        {loginForm.userType === 'employee' && (
+          <div className="text-center px-4">
+            <p className="text-sm text-gray-500 leading-relaxed">
+              New employee? Contact your manager to get registered.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /**********************
  * Manager Dashboard  *
  **********************/
-function ManagerDashboard({ onViewReport }) {
-  const supabase = useSupabase();
-  const [monthKey, setMonthKey] = useState(thisMonthKey());
-  const [startMonth, setStartMonth] = useState(thisMonthKey());
-  const [endMonth, setEndMonth] = useState(thisMonthKey());
-  const [timeRangeMode, setTimeRangeMode] = useState('single'); // 'single' or 'range'
-  const { allSubmissions, loading, error, refreshSubmissions } = useFetchSubmissions();
-  const [filterDept, setFilterDept] = useState("All");
-  const [filterEmployee, setFilterEmployee] = useState("All");
-  const [sortBy, setSortBy] = useState("name"); // 'name', 'score', 'department', 'date'
-  const [sortOrder, setSortOrder] = useState("asc"); // 'asc' or 'desc'
-  const [openId, setOpenId] = useState(null);
-  const [notes, setNotes] = useState("");
-  const [payload, setPayload] = useState(null);
-  const [managerScore, setManagerScore] = useState(0);
+
+/********************************
+ * Employee Personal Dashboard *
+ ********************************/
+function EmployeePersonalDashboard({ employee, onBack }) {
+  const { allSubmissions, loading } = useFetchSubmissions();
   const { openModal, closeModal } = useModal();
 
-  // Direct PDF download function
-  const downloadEmployeePDF = (employeeData, employeeName) => {
-    // Calculate stats for the employee
-    const totalLearningHours = employeeData.reduce((sum, d) => {
-      return sum + ((d.learning || []).reduce((learningSum, l) => learningSum + (l.durationMins || 0), 0) / 60);
-    }, 0);
-    const avgOverallScore = employeeData.reduce((sum, d) => sum + (d.scores?.overall || 0), 0) / employeeData.length;
+  // Filter submissions for this employee
+  const employeeSubmissions = useMemo(() => {
+    return allSubmissions.filter(s => 
+      s.employee?.name === employee.name && 
+      s.employee?.phone === employee.phone
+    ).sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+  }, [allSubmissions, employee]);
+
+  const currentMonthSubmission = useMemo(() => {
+    const currentMonth = thisMonthKey();
+    return employeeSubmissions.find(s => s.monthKey === currentMonth);
+  }, [employeeSubmissions]);
+
+  const overallStats = useMemo(() => {
+    if (employeeSubmissions.length === 0) return null;
     
-    // Create comprehensive HTML report
-    const generateReport = () => {
-      if (!employeeData || employeeData.length === 0) {
-        return '<div class="section"><h3>No Data Available</h3><p>No submissions found for ' + employeeName + '.</p></div>';
-      }
-
-      return `
-        <!-- Executive Summary -->
-        <div class="section">
-          <h3>📊 Executive Summary</h3>
-          <div class="summary-grid">
-            <div class="summary-card">
-              <div class="metric-value">${Math.round(avgOverallScore * 10) / 10}/10</div>
-              <div class="metric-label">Average Overall Score</div>
-            </div>
-            <div class="summary-card">
-              <div class="metric-value">${employeeData.length}</div>
-              <div class="metric-label">Months Reported</div>
-            </div>
-            <div class="summary-card">
-              <div class="metric-value">${Math.round(totalLearningHours * 10) / 10}h</div>
-              <div class="metric-label">Total Learning Hours</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Performance Table -->
-        <div class="section">
-          <h3>📈 Performance Overview</h3>
-          <table class="performance-table">
-            <tr>
-              <th>Month</th>
-              <th>Overall</th>
-              <th>KPI</th>
-              <th>Learning</th>
-              <th>Learning Hours</th>
-              <th>Manager Comments</th>
-            </tr>
-            ${employeeData.map(d => {
-              const learningHours = ((d.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60).toFixed(1);
-              return `
-                <tr>
-                  <td><strong>${monthLabel(d.monthKey)}</strong></td>
-                  <td class="score-cell ${(d.scores?.overall || 0) >= 7 ? 'score-good' : 'score-poor'}">${d.scores?.overall || 'N/A'}/10</td>
-                  <td class="score-cell">${d.scores?.kpiScore || 'N/A'}/10</td>
-                  <td class="score-cell">${d.scores?.learningScore || 'N/A'}/10</td>
-                  <td>${learningHours}h</td>
-                  <td class="comments-cell">${d.manager?.comments || 'No comments'}</td>
-                </tr>
-              `;
-            }).join('')}
-          </table>
-        </div>
-      `;
+    const avgOverallScore = employeeSubmissions.reduce((sum, s) => sum + (s.scores?.overall || 0), 0) / employeeSubmissions.length;
+    const avgKpiScore = employeeSubmissions.reduce((sum, s) => sum + (s.scores?.kpiScore || 0), 0) / employeeSubmissions.length;
+    const avgLearningScore = employeeSubmissions.reduce((sum, s) => sum + (s.scores?.learningScore || 0), 0) / employeeSubmissions.length;
+    const avgRelationshipScore = employeeSubmissions.reduce((sum, s) => sum + (s.scores?.relationshipScore || 0), 0) / employeeSubmissions.length;
+    
+    const totalLearningHours = employeeSubmissions.reduce((sum, s) => {
+      return sum + (s.learning || []).reduce((learningSum, l) => learningSum + (l.durationMins || 0), 0);
+    }, 0) / 60;
+    
+    return {
+      avgOverallScore: avgOverallScore.toFixed(1),
+      avgKpiScore: avgKpiScore.toFixed(1),
+      avgLearningScore: avgLearningScore.toFixed(1),
+      avgRelationshipScore: avgRelationshipScore.toFixed(1),
+      totalSubmissions: employeeSubmissions.length,
+      totalLearningHours: totalLearningHours.toFixed(1),
+      improvementTrend: employeeSubmissions.length >= 2 ? 
+        ((employeeSubmissions[0].scores?.overall || 0) - (employeeSubmissions[1].scores?.overall || 0)).toFixed(1) : '0'
     };
+  }, [employeeSubmissions]);
 
-    // Create and download the HTML file
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Performance Report - ${employeeName}</title>
-          <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 20px; line-height: 1.6; color: #333; }
-            .header { text-align: center; margin-bottom: 40px; border-bottom: 3px solid #2563eb; padding-bottom: 20px; }
-            .header h1 { color: #2563eb; margin-bottom: 5px; font-size: 28px; }
-            .header h2 { color: #1f2937; margin: 10px 0; font-size: 24px; }
-            .section { margin-bottom: 30px; break-inside: avoid; }
-            .section h3 { color: #1f2937; border-left: 4px solid #2563eb; padding-left: 12px; margin-bottom: 15px; font-size: 20px; }
-            .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
-            .summary-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; text-align: center; }
-            .metric-value { font-size: 32px; font-weight: bold; color: #2563eb; margin-bottom: 5px; }
-            .metric-label { font-size: 14px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
-            .performance-table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 12px; }
-            .performance-table th, .performance-table td { border: 1px solid #d1d5db; padding: 8px; text-align: left; }
-            .performance-table th { background-color: #2563eb; color: white; font-weight: 600; }
-            .score-cell { text-align: center; font-weight: 600; }
-            .score-good { color: #059669; }
-            .score-poor { color: #dc2626; }
-            .comments-cell { max-width: 200px; font-size: 11px; word-wrap: break-word; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>🏢 Branding Pioneers</h1>
-            <h2>Employee Performance Report</h2>
-            <h2>${employeeName}</h2>
-            <p>Generated on ${new Date().toLocaleString()}</p>
-          </div>
-          
-          ${generateReport()}
-          
-          <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 12px; color: #6b7280;">
-            <p>This report was generated by the Branding Pioneers Monthly Tactical System</p>
-          </div>
-        </body>
-      </html>
-    `;
-
-    // Create blob and download
-    const blob = new Blob([htmlContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${employeeName.replace(/\s+/g, '_')}_Performance_Report_${new Date().toISOString().split('T')[0]}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const filteredSubmissions = useMemo(() => {
-    let filtered = allSubmissions;
-
-    // Filter by time range
-    if (timeRangeMode === 'single') {
-      filtered = filtered.filter(s => s.monthKey === monthKey);
-    } else {
-      filtered = filtered.filter(s => s.monthKey >= startMonth && s.monthKey <= endMonth);
-    }
-
-    // Filter by department
-    if (filterDept !== "All") {
-      filtered = filtered.filter(s => s.employee?.department === filterDept);
-    }
-
-    // Filter by employee
-    if (filterEmployee !== "All") {
-      filtered = filtered.filter(s => s.employee?.name === filterEmployee);
-    }
-
-    // Sort submissions
-    filtered.sort((a, b) => {
-      let comparison = 0;
-
-      switch (sortBy) {
-        case 'name':
-          comparison = (a.employee?.name || '').localeCompare(b.employee?.name || '');
-          break;
-        case 'score':
-          comparison = (b.scores?.overall || 0) - (a.scores?.overall || 0);
-          break;
-        case 'department':
-          comparison = (a.employee?.department || '').localeCompare(b.employee?.department || '');
-          break;
-        case 'date':
-          comparison = b.monthKey.localeCompare(a.monthKey);
-          break;
-        default:
-          comparison = (a.employee?.name || '').localeCompare(b.employee?.name || '');
-      }
-
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
-
-    return filtered;
-  }, [allSubmissions, monthKey, startMonth, endMonth, timeRangeMode, filterDept, filterEmployee, sortBy, sortOrder]);
-
-  function openRow(r) {
-    setOpenId(r.id);
-    setNotes(r.manager?.comments || "");
-    setPayload(r);
-    setManagerScore(r.manager?.score || 0);
-  }
-
-  async function saveNotes() {
-    if (!supabase) {
-      openModal("Error", "Database connection not ready. Please wait a moment and try again.");
-      return;
-    }
-    const r = allSubmissions.find(x => x.id === openId);
-    if (!r) return;
-
-    const { data, error } = await supabase
-      .from('submissions')
-      .update({ manager: { ...(r.manager || {}), comments: notes, score: managerScore } })
-      .eq('id', openId);
-
-    if (error) {
-      console.error("Supabase update error:", error);
-      openModal("Save Error", `Could not save notes: ${error.message}`, closeModal);
-    } else {
-      openModal('Saved', 'Notes and score have been saved to the database.', closeModal);
-      refreshSubmissions(); // Re-fetch data to show the update
-    }
-  }
-
-  async function deleteSubmission(submissionId, employeeName) {
-    if (!supabase) {
-      openModal("Error", "Database connection not ready. Please wait a moment and try again.");
-      return;
-    }
-
-    openModal(
-      "Confirm Delete",
-      `Are you sure you want to delete the submission for ${employeeName}? This action cannot be undone.`,
-      async () => {
-        const { error } = await supabase
-          .from('submissions')
-          .delete()
-          .eq('id', submissionId);
-
-        if (error) {
-          console.error("Supabase delete error:", error);
-          openModal("Delete Error", `Could not delete submission: ${error.message}`, closeModal);
-        } else {
-          openModal('Deleted', 'Submission has been deleted successfully.', closeModal);
-          refreshSubmissions(); // Re-fetch data to show the update
-        }
-        closeModal();
-      },
-      closeModal
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4">🔄</div>
+          <p className="text-gray-600">Loading your dashboard...</p>
+        </div>
+      </div>
     );
   }
 
-  function exportCSV() {
-    const header = ['id', 'month_key', 'employee_name', 'employee_phone', 'department', 'role', 'kpi', 'learning', 'client', 'overall', 'manager_score', 'missingLearning', 'hasEscalations', 'missingReports', 'feedback_company', 'feedback_hr', 'feedback_challenges'];
-    const rowsCsv = filteredSubmissions.map(r => [
-      r.id,
-      r.monthKey,
-      clean(r.employee?.name),
-      clean(r.employee?.phone),
-      r.employee?.department,
-      (r.employee?.role || []).join('; '),
-      r.scores?.kpiScore ?? '',
-      r.scores?.learningScore ?? '',
-      r.scores?.relationshipScore ?? '',
-      r.scores?.overall ?? '',
-      r.manager?.score ?? '',
-      r.flags?.missingLearningHours ?? '',
-      r.flags?.hasEscalations ?? '',
-      r.flags?.missingReports ?? '',
-      clean(r.feedback?.company),
-      clean(r.feedback?.hr),
-      clean(r.feedback?.challenges),
-    ].map(String).map(s => `"${s.replaceAll('"', '""')}"`).join(','));
-    const blob = new Blob([[header.join(',')].concat(rowsCsv).join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `bp-submissions-${monthKey}.csv`; a.click(); URL.revokeObjectURL(url);
-  }
-  function exportJSON() {
-    const blob = new Blob([JSON.stringify(filteredSubmissions, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `bp-submissions-${monthKey}.json`; a.click(); URL.revokeObjectURL(url);
-  }
-
-  const uniqueEmployees = useMemo(() => {
-    const names = new Set();
-    allSubmissions.forEach(r => names.add(r.employee?.name));
-    return Array.from(names).filter(Boolean).sort();
-  }, [allSubmissions]);
-
-  // Group submissions by employee (by name, since phone numbers might be inconsistent)
-  const groupedSubmissions = useMemo(() => {
-    const groups = {};
-    filteredSubmissions.forEach(submission => {
-      const employeeName = submission.employee?.name;
-      if (!employeeName) return;
-
-      if (!groups[employeeName]) {
-        groups[employeeName] = [];
-      }
-      groups[employeeName].push(submission);
-    });
-
-    // Convert to array and calculate metrics
-    let groupedArray = Object.entries(groups)
-      .map(([name, submissions]) => {
-        const sortedSubmissions = submissions.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
-        const latestSubmission = sortedSubmissions[0];
-
-        // Calculate average score across all submissions
-        const avgScore = submissions.length > 0
-          ? submissions.reduce((sum, s) => sum + (s.scores?.overall || 0), 0) / submissions.length
-          : 0;
-
-        return {
-          employeeName: name,
-          submissions: sortedSubmissions,
-          latestSubmission,
-          avgScore: Math.round(avgScore * 10) / 10,
-          submissionCount: submissions.length
-        };
-      });
-
-    // Sort grouped submissions
-    groupedArray.sort((a, b) => {
-      let comparison = 0;
-
-      switch (sortBy) {
-        case 'name':
-          comparison = a.employeeName.localeCompare(b.employeeName);
-          break;
-        case 'score':
-          comparison = b.avgScore - a.avgScore;
-          break;
-        case 'department':
-          comparison = (a.latestSubmission.employee?.department || '').localeCompare(b.latestSubmission.employee?.department || '');
-          break;
-        case 'entries':
-          comparison = b.submissionCount - a.submissionCount;
-          break;
-        default:
-          comparison = a.employeeName.localeCompare(b.employeeName);
-      }
-
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
-
-    return groupedArray;
-  }, [filteredSubmissions, sortBy, sortOrder]);
-
-  const uniqueDepartments = useMemo(() => {
-    const departments = new Set();
-    allSubmissions.forEach(r => departments.add(r.employee?.department));
-    return Array.from(departments).filter(Boolean).sort();
-  }, [allSubmissions]);
-
-
-  // Calculate dashboard statistics
-  const dashboardStats = useMemo(() => {
-    const stats = {
-      totalEmployees: groupedSubmissions.length,
-      totalSubmissions: filteredSubmissions.length,
-      avgOverallScore: 0,
-      departmentBreakdown: {},
-      topPerformers: [],
-      needsAttention: []
-    };
-
-    // Calculate averages and department breakdown
-    let totalScore = 0;
-    let scoreCount = 0;
-
-    groupedSubmissions.forEach(group => {
-      const r = group.latestSubmission;
-      const dept = r.employee?.department || 'Unknown';
-
-      if (!stats.departmentBreakdown[dept]) {
-        stats.departmentBreakdown[dept] = { count: 0, avgScore: 0, totalScore: 0 };
-      }
-
-      stats.departmentBreakdown[dept].count++;
-
-      if (r.scores?.overall) {
-        totalScore += r.scores.overall;
-        scoreCount++;
-        stats.departmentBreakdown[dept].totalScore += r.scores.overall;
-      }
-
-      // Top performers (score >= 8)
-      if (r.scores?.overall >= 8) {
-        stats.topPerformers.push({
-          name: group.employeeName,
-          score: r.scores.overall,
-          department: dept
-        });
-      }
-
-      // Needs attention (score < 6 or flags)
-      if (r.scores?.overall < 6 || r.flags?.missingLearningHours || r.flags?.hasEscalations) {
-        stats.needsAttention.push({
-          name: group.employeeName,
-          score: r.scores?.overall || 0,
-          department: dept,
-          issues: [
-            r.scores?.overall < 6 ? 'Low Score' : null,
-            r.flags?.missingLearningHours ? 'Learning <6h' : null,
-            r.flags?.hasEscalations ? 'Escalations' : null
-          ].filter(Boolean)
-        });
-      }
-    });
-
-    stats.avgOverallScore = scoreCount > 0 ? (totalScore / scoreCount).toFixed(1) : 0;
-
-    // Calculate department averages
-    Object.keys(stats.departmentBreakdown).forEach(dept => {
-      const deptData = stats.departmentBreakdown[dept];
-      deptData.avgScore = deptData.count > 0 ? (deptData.totalScore / deptData.count).toFixed(1) : 0;
-    });
-
-    return stats;
-  }, [groupedSubmissions, filteredSubmissions]);
-
   return (
-    <div className="space-y-8">
-      {/* Dashboard Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-blue-100 text-sm font-medium">Total Employees</p>
-              <p className="text-3xl font-bold">{dashboardStats.totalEmployees}</p>
+    <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
+      {/* Header */}
+      <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-lg sm:text-2xl font-bold flex-shrink-0">
+              {employee.name.charAt(0).toUpperCase()}
             </div>
-            <div className="bg-white/20 rounded-full p-3">
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-green-100 text-sm font-medium">Avg Score</p>
-              <p className="text-3xl font-bold">{dashboardStats.avgOverallScore}/10</p>
-            </div>
-            <div className="bg-white/20 rounded-full p-3">
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-              </svg>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{employee.name}</h1>
+              <p className="text-sm sm:text-base text-gray-600">{employee.department} Department</p>
+              <p className="text-xs sm:text-sm text-gray-500">Phone: {employee.phone}</p>
             </div>
           </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white shadow-xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-purple-100 text-sm font-medium">Top Performers</p>
-              <p className="text-3xl font-bold">{dashboardStats.topPerformers.length}</p>
-            </div>
-            <div className="bg-white/20 rounded-full p-3">
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-6 text-white shadow-xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-red-100 text-sm font-medium">Needs Attention</p>
-              <p className="text-3xl font-bold">{dashboardStats.needsAttention.length}</p>
-            </div>
-            <div className="bg-white/20 rounded-full p-3">
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-            </div>
-          </div>
+          <button
+            onClick={onBack}
+            className="px-3 sm:px-4 py-2 text-sm sm:text-base text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation self-start sm:self-auto"
+          >
+            <span className="sm:hidden">← Form</span>
+            <span className="hidden sm:inline">← Back to Form</span>
+          </button>
         </div>
       </div>
 
-      {/* Department Performance */}
-      <Section title="📊 Department Performance Overview">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Object.entries(dashboardStats.departmentBreakdown).map(([dept, data]) => (
-            <div key={dept} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-semibold text-gray-800">{dept}</h3>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${data.avgScore >= 8 ? 'bg-green-100 text-green-800' :
-                    data.avgScore >= 6 ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                  }`}>
-                  {data.avgScore}/10
-                </span>
-              </div>
-              <div className="text-sm text-gray-600">
-                {data.count} employee{data.count !== 1 ? 's' : ''}
-              </div>
+      {/* Current Month Status */}
+      {currentMonthSubmission && (
+        <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-xl p-4 sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm sm:text-base flex-shrink-0">
+              ✓
             </div>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="🎯 Filters, Sorting & Export">
-        <div className="space-y-6">
-          {/* Time Range Selection */}
-          <div className="bg-blue-50 rounded-xl p-4">
-            <h4 className="font-medium text-blue-800 mb-3">📅 Time Range Selection</h4>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Mode</label>
-                <select
-                  className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-                  value={timeRangeMode}
-                  onChange={e => setTimeRangeMode(e.target.value)}
-                >
-                  <option value="single">Single Month</option>
-                  <option value="range">Date Range</option>
-                </select>
-              </div>
-
-              {timeRangeMode === 'single' ? (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Report Month</label>
-                  <input
-                    type="month"
-                    className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-                    value={monthKey}
-                    onChange={e => setMonthKey(e.target.value)}
-                  />
-                </div>
-              ) : (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Start Month</label>
-                    <input
-                      type="month"
-                      className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-                      value={startMonth}
-                      onChange={e => setStartMonth(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">End Month</label>
-                    <input
-                      type="month"
-                      className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-                      value={endMonth}
-                      onChange={e => setEndMonth(e.target.value)}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Filters and Sorting */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
-              <select
-                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-                value={filterDept}
-                onChange={e => setFilterDept(e.target.value)}
-              >
-                <option value="All">All Departments</option>
-                {uniqueDepartments.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Employee</label>
-              <select
-                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-                value={filterEmployee}
-                onChange={e => setFilterEmployee(e.target.value)}
-              >
-                <option value="All">All Employees</option>
-                {uniqueEmployees.map(e => <option key={e} value={e}>{e}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
-              <select
-                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-                value={sortBy}
-                onChange={e => setSortBy(e.target.value)}
-              >
-                <option value="name">Name</option>
-                <option value="score">Average Score</option>
-                <option value="department">Department</option>
-                <option value="entries">Number of Entries</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Order</label>
-              <select
-                className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-                value={sortOrder}
-                onChange={e => setSortOrder(e.target.value)}
-              >
-                <option value="asc">Ascending</option>
-                <option value="desc">Descending</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Export</label>
-              <div className="flex gap-2">
-                <button
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-3 py-3 text-sm font-medium transition-colors duration-200 shadow-sm"
-                  onClick={exportCSV}
-                >
-                  CSV
-                </button>
-                <button
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-xl px-3 py-3 text-sm font-medium transition-colors duration-200 shadow-sm"
-                  onClick={exportJSON}
-                >
-                  JSON
-                </button>
-              </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-green-800 text-sm sm:text-base">Current Month Submitted</h3>
+              <p className="text-xs sm:text-sm text-green-700 leading-relaxed">
+                {monthLabel(currentMonthSubmission.monthKey)} report submitted with {currentMonthSubmission.scores?.overall?.toFixed(1) || 'N/A'}/10 overall score
+              </p>
             </div>
           </div>
         </div>
-      </Section>
-
-      <Section title={loading ? 'Loading…' : `Employees for ${monthLabel(monthKey)} (${groupedSubmissions.length} employees, ${filteredSubmissions.length} total submissions)`}>
-        {error && <div className="text-red-600 text-sm mb-2">{error}</div>}
-        {/* Desktop Table */}
-        <div className="hidden lg:block overflow-auto">
-          <table className="w-full text-sm border-separate" style={{ borderSpacing: 0 }}>
-            <thead>
-              <tr className="bg-gradient-to-r from-blue-50 to-indigo-50">
-                <th className="p-3 border border-gray-200 text-left font-semibold text-gray-700">Employee</th>
-                <th className="p-3 border border-gray-200 text-left font-semibold text-gray-700">Dept</th>
-                <th className="p-3 border border-gray-200 font-semibold text-gray-700">Entries</th>
-                <th className="p-3 border border-gray-200 font-semibold text-gray-700">Avg Score</th>
-                <th className="p-3 border border-gray-200 font-semibold text-gray-700">Latest Score</th>
-                <th className="p-3 border border-gray-200 font-semibold text-gray-700">Manager Score</th>
-                <th className="p-3 border border-gray-200 font-semibold text-gray-700">Flags</th>
-                <th className="p-3 border border-gray-200 font-semibold text-gray-700">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {groupedSubmissions.map(group => {
-                const r = group.latestSubmission; // Show latest submission data
-                return (
-                  <tr key={`${group.employeeName}-${r.id}`} className="odd:bg-white even:bg-blue-50/40 hover:bg-blue-50/60 transition-colors duration-200">
-                    <td className="p-3 border border-gray-200 text-left font-medium">
-                      {clean(group.employeeName)}
-                      <div className="text-xs text-gray-500 mt-1">
-                        {timeRangeMode === 'range' ? `${group.submissions.length} submissions` : 'Latest submission'}
-                      </div>
-                    </td>
-                    <td className="p-3 border border-gray-200 text-left">{r.employee?.department}</td>
-                    <td className="p-3 border border-gray-200 text-center font-semibold">{group.submissionCount}</td>
-                    <td className="p-3 border border-gray-200 text-center font-bold text-lg">
-                      <span className={`${group.avgScore >= 8 ? 'text-green-600' : group.avgScore >= 6 ? 'text-yellow-600' : 'text-red-600'}`}>
-                        {group.avgScore}/10
-                      </span>
-                    </td>
-                    <td className="p-3 border border-gray-200 text-center font-semibold">{r.scores?.overall ?? 'N/A'}/10</td>
-                    <td className="p-3 border border-gray-200 text-center">{r.manager?.score || 'N/A'}</td>
-                    <td className="p-3 border border-gray-200 text-xs text-left">
-                      {r.flags?.missingLearningHours ? '⏱️<6h ' : ''}
-                      {r.flags?.hasEscalations ? '⚠️Esc ' : ''}
-                      {r.flags?.missingReports ? '📄Miss ' : ''}
-                    </td>
-                    <td className="p-3 border border-gray-200 text-center">
-                      <div className="flex gap-1 justify-center flex-wrap">
-                        <button className="text-blue-600 hover:text-blue-800 underline text-xs transition-colors duration-200" onClick={() => openRow(r)}>Notes</button>
-                        <button className="text-blue-600 hover:text-blue-800 underline text-xs transition-colors duration-200" onClick={() => {
-                          // Find the most frequent phone number from submissions
-                          const phoneNumbers = group.submissions.map(s => s.employee?.phone).filter(Boolean);
-                          const phoneCounts = phoneNumbers.reduce((acc, phone) => {
-                            acc[phone] = (acc[phone] || 0) + 1;
-                            return acc;
-                          }, {});
-                          const mostCommonPhone = Object.keys(phoneCounts).length > 0 
-                            ? Object.keys(phoneCounts).reduce((a, b) => phoneCounts[a] > phoneCounts[b] ? a : b)
-                            : 'no-phone';
-                          onViewReport(group.employeeName, mostCommonPhone);
-                        }}>Full Report</button>
-                        <button className="text-green-600 hover:text-green-800 underline text-xs transition-colors duration-200" onClick={() => {
-                          // Direct PDF download for this employee
-                          downloadEmployeePDF(group.submissions, group.employeeName);
-                        }}>Download PDF</button>
-                        <button className="text-red-600 hover:text-red-800 underline text-xs transition-colors duration-200" onClick={() => deleteSubmission(r.id, group.employeeName)}>Delete Latest</button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile Cards */}
-        <div className="lg:hidden space-y-4">
-          {groupedSubmissions.map(group => {
-            const r = group.latestSubmission;
-            return (
-              <div key={`mobile-${group.employeeName}-${r.id}`} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="font-semibold text-lg text-gray-800">{clean(group.employeeName)}</h3>
-                    <p className="text-sm text-gray-600">{r.employee?.department}</p>
-                    {group.submissions.length > 1 && (
-                      <span className="inline-block mt-1 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                        {group.submissions.length} reports
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-blue-600">{r.scores?.overall ?? 'N/A'}</div>
-                    <div className="text-xs text-gray-500">Overall Score</div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4 mb-4 text-center">
-                  <div>
-                    <div className="font-semibold text-gray-800">{r.scores?.kpiScore ?? 'N/A'}</div>
-                    <div className="text-xs text-gray-500">KPI</div>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-800">{r.scores?.learningScore ?? 'N/A'}</div>
-                    <div className="text-xs text-gray-500">Learning</div>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-800">{r.scores?.relationshipScore ?? 'N/A'}</div>
-                    <div className="text-xs text-gray-500">Client</div>
-                  </div>
-                </div>
-
-                {(r.flags?.missingLearningHours || r.flags?.hasEscalations || r.flags?.missingReports) && (
-                  <div className="mb-3 text-xs">
-                    {r.flags?.missingLearningHours && <span className="inline-block bg-yellow-100 text-yellow-800 px-2 py-1 rounded mr-1">⏱️ &lt;6h</span>}
-                    {r.flags?.hasEscalations && <span className="inline-block bg-red-100 text-red-800 px-2 py-1 rounded mr-1">⚠️ Escalations</span>}
-                    {r.flags?.missingReports && <span className="inline-block bg-orange-100 text-orange-800 px-2 py-1 rounded mr-1">📄 Missing Reports</span>}
-                  </div>
-                )}
-
-                <div className="flex gap-2 flex-wrap">
-                  <button
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 px-3 rounded-lg transition-colors duration-200"
-                    onClick={() => openRow(r)}
-                  >
-                    Notes
-                  </button>
-                  <button
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2 px-3 rounded-lg transition-colors duration-200"
-                    onClick={() => {
-                      const phoneNumbers = group.submissions.map(s => s.employee?.phone).filter(Boolean);
-                      const phoneCounts = phoneNumbers.reduce((acc, phone) => {
-                        acc[phone] = (acc[phone] || 0) + 1;
-                        return acc;
-                      }, {});
-                      const mostCommonPhone = Object.keys(phoneCounts).length > 0 
-                        ? Object.keys(phoneCounts).reduce((a, b) => phoneCounts[a] > phoneCounts[b] ? a : b)
-                        : 'no-phone';
-                      onViewReport(group.employeeName, mostCommonPhone);
-                    }}
-                  >
-                    Full Report
-                  </button>
-                  <button
-                    className="bg-green-600 hover:bg-green-700 text-white text-sm py-2 px-3 rounded-lg transition-colors duration-200"
-                    onClick={() => downloadEmployeePDF(group.submissions, group.employeeName)}
-                  >
-                    Download PDF
-                  </button>
-                  <button
-                    className="bg-red-600 hover:bg-red-700 text-white text-sm py-2 px-3 rounded-lg transition-colors duration-200"
-                    onClick={() => deleteSubmission(r.id, group.employeeName)}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </Section>
-
-      {openId && (
-        <Section title={`Details for ${payload?.employee?.name}`}>
-          <div className="grid md:grid-cols-2 gap-6">
-            <div>
-              <div className="text-sm font-medium mb-1">Manager Notes</div>
-              <textarea className="w-full border rounded-xl p-2" rows={8} value={notes} onChange={e => setNotes(e.target.value)} />
-              <div className="mt-4">
-                <label className="text-sm font-medium">Manager Score (1-10)</label>
-                <input type="number" min={1} max={10} className="w-full border rounded-xl p-2 mt-1" value={managerScore} onChange={e => setManagerScore(Number(e.target.value || 0))} />
-              </div>
-              <button className="mt-4 bg-blue-600 text-white rounded-xl px-3 py-2" onClick={saveNotes}>Save Notes & Score</button>
-            </div>
-            <div>
-              <div className="text-sm font-medium mb-2">Employee Feedback</div>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <h4 className="font-semibold text-gray-700">Company Feedback</h4>
-                  <p className="bg-gray-50 p-2 rounded-lg border">{payload.feedback?.company || 'No feedback provided.'}</p>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-700">HR Feedback</h4>
-                  <p className="bg-gray-50 p-2 rounded-lg border">{payload.feedback?.hr || 'No feedback provided.'}</p>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-700">Challenges</h4>
-                  <p className="bg-gray-50 p-2 rounded-lg border">{payload.feedback?.challenges || 'No challenges mentioned.'}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Section>
       )}
+
+      {/* Overall Statistics */}
+      {overallStats && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6 text-center">
+            <div className="text-2xl sm:text-3xl font-bold text-blue-600">{overallStats.avgOverallScore}</div>
+            <div className="text-xs sm:text-sm text-gray-600 mt-1">Average Score</div>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6 text-center">
+            <div className="text-2xl sm:text-3xl font-bold text-green-600">{overallStats.totalSubmissions}</div>
+            <div className="text-xs sm:text-sm text-gray-600 mt-1">Total Reports</div>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6 text-center">
+            <div className="text-2xl sm:text-3xl font-bold text-purple-600">{overallStats.totalLearningHours}</div>
+            <div className="text-xs sm:text-sm text-gray-600 mt-1">Learning Hours</div>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6 text-center">
+            <div className={`text-2xl sm:text-3xl font-bold ${
+              parseFloat(overallStats.improvementTrend) > 0 ? 'text-green-600' : 
+              parseFloat(overallStats.improvementTrend) < 0 ? 'text-red-600' : 'text-gray-600'
+            }`}>
+              {parseFloat(overallStats.improvementTrend) > 0 ? '+' : ''}{overallStats.improvementTrend}
+            </div>
+            <div className="text-xs sm:text-sm text-gray-600 mt-1">Trend</div>
+          </div>
+        </div>
+      )}
+
+      {/* Performance Breakdown */}
+      {overallStats && (
+        <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold mb-4">Performance Breakdown</h3>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">KPI Performance</span>
+                <span className="font-medium text-sm">{overallStats.avgKpiScore}/10</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${(parseFloat(overallStats.avgKpiScore) / 10) * 100}%` }}
+                ></div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Learning Score</span>
+                <span className="font-medium text-sm">{overallStats.avgLearningScore}/10</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-green-600 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${(parseFloat(overallStats.avgLearningScore) / 10) * 100}%` }}
+                ></div>
+              </div>
+            </div>
+            <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Client Relations</span>
+                <span className="font-medium text-sm">{overallStats.avgRelationshipScore}/10</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-purple-600 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${(parseFloat(overallStats.avgRelationshipScore) / 10) * 100}%` }}
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Submission History */}
+      <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
+        <h3 className="text-base sm:text-lg font-semibold mb-4">Submission History</h3>
+        {employeeSubmissions.length === 0 ? (
+          <div className="text-center py-6 sm:py-8">
+            <div className="text-3xl sm:text-4xl mb-3 sm:mb-4">📊</div>
+            <p className="text-sm sm:text-base text-gray-600 px-4">No submissions yet. Submit your first monthly report to see your progress here.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {employeeSubmissions.map((submission, index) => (
+              <div key={submission.id || index} className="flex items-center justify-between p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                  <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 text-sm sm:text-base ${
+                    submission.isDraft ? 'bg-orange-500' : 'bg-green-500'
+                  }`}>
+                    {submission.isDraft ? '📋' : '✓'}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-sm sm:text-base truncate">{monthLabel(submission.monthKey)}</div>
+                    <div className="text-xs sm:text-sm text-gray-600">
+                      {submission.isDraft ? 'Draft' : 'Submitted'} • Score: {submission.scores?.overall?.toFixed(1) || 'N/A'}/10
+                    </div>
+                  </div>
+                </div>
+                <div className="text-xs sm:text-sm text-gray-500 flex-shrink-0">
+                  <span className="hidden sm:inline">{new Date(submission.created_at || submission.updated_at).toLocaleDateString()}</span>
+                  <span className="sm:hidden">{new Date(submission.created_at || submission.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -4113,3 +3991,728 @@ function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
 
 
 function clean(s) { return (s || '').toString(); }
+function ManagerDashboard({ onViewReport }) {
+  const supabase = useSupabase();
+  const { allSubmissions, loading, error, refreshSubmissions } = useFetchSubmissions();
+  const { openModal, closeModal } = useModal();
+  
+  // Modern state management
+  const [activeView, setActiveView] = useState('dashboard');
+  const [selectedMonth, setSelectedMonth] = useState(thisMonthKey());
+  const [dateRange, setDateRange] = useState({ start: thisMonthKey(), end: thisMonthKey() });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filters, setFilters] = useState({
+    department: 'All',
+    performance: 'All',
+    status: 'All'
+  });
+  const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
+  const [selectedEmployees, setSelectedEmployees] = useState(new Set());
+  
+  // Manager evaluation
+  const [evaluationPanel, setEvaluationPanel] = useState({
+    isOpen: false,
+    submission: null,
+    score: 8,
+    comments: '',
+    recommendations: ''
+  });
+
+  // Process and filter submissions
+  const processedData = useMemo(() => {
+    if (!allSubmissions.length) return { employees: [], stats: {}, departments: [] };
+
+    // Filter by date range
+    const filteredByDate = allSubmissions.filter(sub => 
+      sub.monthKey >= dateRange.start && sub.monthKey <= dateRange.end
+    );
+
+    // Group by employee
+    const employeeGroups = {};
+    filteredByDate.forEach(submission => {
+      const key = `${submission.employee?.name}-${submission.employee?.phone}`;
+      if (!employeeGroups[key]) {
+        employeeGroups[key] = {
+          name: submission.employee?.name || 'Unknown',
+          phone: submission.employee?.phone || 'N/A',
+          department: submission.employee?.department || 'Unknown',
+          submissions: [],
+          latestSubmission: null,
+          averageScore: 0,
+          totalHours: 0,
+          performance: 'Medium'
+        };
+      }
+      employeeGroups[key].submissions.push(submission);
+    });
+
+    // Calculate metrics for each employee
+    const employees = Object.values(employeeGroups).map(emp => {
+      emp.submissions.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+      emp.latestSubmission = emp.submissions[0];
+      
+      // Calculate averages
+      const totalScore = emp.submissions.reduce((sum, sub) => sum + (sub.scores?.overall || 0), 0);
+      emp.averageScore = emp.submissions.length ? (totalScore / emp.submissions.length).toFixed(1) : 0;
+      
+      // Calculate total learning hours
+      emp.totalHours = emp.submissions.reduce((total, sub) => {
+        return total + ((sub.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60);
+      }, 0);
+      
+      // Determine performance level
+      emp.performance = emp.averageScore >= 8 ? 'High' : emp.averageScore >= 6 ? 'Medium' : 'Low';
+      
+      return emp;
+    });
+
+    // Apply filters
+    let filteredEmployees = employees.filter(emp => {
+      const matchesSearch = !searchQuery || 
+        emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        emp.department.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesDepartment = filters.department === 'All' || emp.department === filters.department;
+      const matchesPerformance = filters.performance === 'All' || emp.performance === filters.performance;
+      
+      return matchesSearch && matchesDepartment && matchesPerformance;
+    });
+
+    // Apply sorting
+    filteredEmployees.sort((a, b) => {
+      let aVal, bVal;
+      switch (sortConfig.key) {
+        case 'name':
+          aVal = a.name;
+          bVal = b.name;
+          break;
+        case 'score':
+          aVal = parseFloat(a.averageScore);
+          bVal = parseFloat(b.averageScore);
+          break;
+        case 'department':
+          aVal = a.department;
+          bVal = b.department;
+          break;
+        case 'hours':
+          aVal = a.totalHours;
+          bVal = b.totalHours;
+          break;
+        default:
+          aVal = a.name;
+          bVal = b.name;
+      }
+      
+      if (sortConfig.direction === 'desc') {
+        return typeof aVal === 'string' ? bVal.localeCompare(aVal) : bVal - aVal;
+      }
+      return typeof aVal === 'string' ? aVal.localeCompare(bVal) : aVal - bVal;
+    });
+
+    // Calculate overall stats
+    const stats = {
+      totalEmployees: employees.length,
+      totalSubmissions: filteredByDate.length,
+      averageScore: employees.length ? 
+        (employees.reduce((sum, emp) => sum + parseFloat(emp.averageScore), 0) / employees.length).toFixed(1) : 0,
+      highPerformers: employees.filter(emp => emp.performance === 'High').length,
+      needsAttention: employees.filter(emp => emp.performance === 'Low').length
+    };
+
+    // Get unique departments
+    const departments = [...new Set(employees.map(emp => emp.department))].sort();
+
+    return { employees: filteredEmployees, stats, departments, allEmployees: employees };
+  }, [allSubmissions, dateRange, searchQuery, filters, sortConfig]);
+
+  // Handle employee evaluation
+  const openEvaluation = (submission) => {
+    setEvaluationPanel({
+      isOpen: true,
+      submission,
+      score: submission.manager?.score || 8,
+      comments: submission.manager?.comments || '',
+      recommendations: submission.manager?.recommendations || ''
+    });
+  };
+
+  const saveEvaluation = async () => {
+    if (!evaluationPanel.submission || !supabase) return;
+
+    try {
+      const updatedSubmission = {
+        ...evaluationPanel.submission,
+        manager: {
+          score: evaluationPanel.score,
+          comments: evaluationPanel.comments,
+          recommendations: evaluationPanel.recommendations,
+          evaluatedAt: new Date().toISOString(),
+          evaluatedBy: 'Manager'
+        }
+      };
+
+      const { error } = await supabase
+        .from('submissions')
+        .update(updatedSubmission)
+        .eq('id', evaluationPanel.submission.id);
+
+      if (error) throw error;
+
+      await refreshSubmissions();
+      setEvaluationPanel({ isOpen: false, submission: null, score: 8, comments: '', recommendations: '' });
+      openModal('Success', 'Employee evaluation saved successfully!', closeModal);
+    } catch (error) {
+      console.error('Failed to save evaluation:', error);
+      openModal('Error', 'Failed to save evaluation. Please try again.', closeModal);
+    }
+  };
+
+  // Download functions
+  const downloadEmployeePDF = (employee) => {
+    const employeeData = employee.submissions;
+    const employeeName = employee.name;
+
+    if (!employeeData || employeeData.length === 0) {
+      openModal('No Data', `No submissions found for ${employeeName}`, closeModal);
+      return;
+    }
+
+    // Generate comprehensive HTML report
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Performance Report - ${employeeName}</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 20px; line-height: 1.6; color: #1f2937; }
+        .header { text-align: center; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 3px solid #3b82f6; }
+        .header h1 { color: #3b82f6; margin: 0; font-size: 28px; }
+        .header h2 { color: #374151; margin: 10px 0; font-size: 24px; }
+        .header .meta { color: #6b7280; font-size: 14px; }
+        .section { margin: 30px 0; page-break-inside: avoid; }
+        .section h3 { color: #374151; border-left: 4px solid #3b82f6; padding-left: 12px; margin-bottom: 15px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+        .stat-card { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; text-align: center; }
+        .stat-value { font-size: 32px; font-weight: bold; color: #3b82f6; margin-bottom: 5px; }
+        .stat-label { font-size: 14px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; }
+        .performance-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        .performance-table th, .performance-table td { border: 1px solid #d1d5db; padding: 12px; text-align: left; }
+        .performance-table th { background: #3b82f6; color: white; font-weight: 600; }
+        .score-good { color: #059669; font-weight: bold; }
+        .score-medium { color: #d97706; font-weight: bold; }
+        .score-poor { color: #dc2626; font-weight: bold; }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 12px; }
+        @media print { .no-print { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏢 Branding Pioneers</h1>
+        <h2>Employee Performance Report</h2>
+        <h2>${employeeName}</h2>
+        <div class="meta">
+            Department: ${employee.department} | Generated: ${new Date().toLocaleDateString()}
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>📊 Performance Summary</h3>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">${employee.averageScore}/10</div>
+                <div class="stat-label">Average Score</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${employeeData.length}</div>
+                <div class="stat-label">Reports Submitted</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${employee.totalHours.toFixed(1)}h</div>
+                <div class="stat-label">Total Learning</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${employee.performance}</div>
+                <div class="stat-label">Performance Level</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>📈 Monthly Performance</h3>
+        <table class="performance-table">
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th>Overall Score</th>
+                    <th>KPI Score</th>
+                    <th>Learning Score</th>
+                    <th>Learning Hours</th>
+                    <th>Manager Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${employeeData.map(sub => {
+                    const learningHours = ((sub.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60).toFixed(1);
+                    const scoreClass = sub.scores?.overall >= 8 ? 'score-good' : sub.scores?.overall >= 6 ? 'score-medium' : 'score-poor';
+                    return `
+                        <tr>
+                            <td><strong>${monthLabel(sub.monthKey)}</strong></td>
+                            <td class="${scoreClass}">${sub.scores?.overall || 'N/A'}/10</td>
+                            <td>${sub.scores?.kpiScore || 'N/A'}/10</td>
+                            <td>${sub.scores?.learningScore || 'N/A'}/10</td>
+                            <td>${learningHours}h</td>
+                            <td>${sub.manager?.comments || 'No comments'}</td>
+                        </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="footer">
+        <p>This report was generated by the Branding Pioneers Monthly Tactical System</p>
+        <p>For questions about this report, contact your HR department</p>
+    </div>
+</body>
+</html>
+    `;
+
+    // Create and download
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${employeeName.replace(/\\s+/g, '_')}_Performance_Report_${new Date().toISOString().split('T')[0]}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Bulk export function
+  const exportBulkData = () => {
+    const csvContent = [
+      ['Employee Name', 'Department', 'Phone', 'Average Score', 'Total Hours', 'Performance', 'Latest Month', 'Reports Count'],
+      ...processedData.employees.map(emp => [
+        emp.name,
+        emp.department,
+        emp.phone,
+        emp.averageScore,
+        emp.totalHours.toFixed(1),
+        emp.performance,
+        emp.latestSubmission?.monthKey || 'N/A',
+        emp.submissions.length
+      ])
+    ].map(row => row.join(',')).join('\\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `team_performance_report_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Handle Full Report - FIXED VERSION
+  const handleFullReport = (employee) => {
+    console.log('🚀 Opening Full Report for:', employee.name);
+    
+    if (!employee.submissions || employee.submissions.length === 0) {
+      openModal('No Data', `No submissions found for ${employee.name}`, closeModal);
+      return;
+    }
+
+    // Use the most recent submission's phone number for consistency
+    const phoneNumber = employee.phone && employee.phone !== 'N/A' ? employee.phone : 'no-phone';
+    
+    console.log('📞 Using phone number:', phoneNumber);
+    console.log('📊 Submissions count:', employee.submissions.length);
+    
+    // Call the parent component's onViewReport function
+    onViewReport(employee.name, phoneNumber);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="text-gray-600">Loading team data...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+        <div className="text-red-600 text-lg mb-2">⚠️ Error Loading Data</div>
+        <div className="text-red-700 mb-4">{error}</div>
+        <button 
+          onClick={refreshSubmissions}
+          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header with Navigation */}
+      <div className="bg-white rounded-xl shadow-sm border p-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Manager Dashboard</h1>
+            <p className="text-gray-600">Monitor team performance and manage evaluations</p>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={refreshSubmissions}
+              className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh
+            </button>
+            
+            <button
+              onClick={exportBulkData}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export CSV
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-white rounded-xl shadow-sm border p-6">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-blue-100">
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-500">Total Employees</h3>
+              <p className="text-2xl font-semibold text-gray-900">{processedData.stats.totalEmployees}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border p-6">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-green-100">
+              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-500">High Performers</h3>
+              <p className="text-2xl font-semibold text-gray-900">{processedData.stats.highPerformers}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border p-6">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-yellow-100">
+              <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-500">Needs Attention</h3>
+              <p className="text-2xl font-semibold text-gray-900">{processedData.stats.needsAttention}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border p-6">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-purple-100">
+              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-500">Avg Team Score</h3>
+              <p className="text-2xl font-semibold text-gray-900">{processedData.stats.averageScore}/10</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters and Search */}
+      <div className="bg-white rounded-xl shadow-sm border p-6">
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search employees, departments..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+          
+          <div className="flex flex-wrap gap-3">
+            <select
+              value={filters.department}
+              onChange={(e) => setFilters(prev => ({ ...prev, department: e.target.value }))}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="All">All Departments</option>
+              {processedData.departments.map(dept => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
+            </select>
+
+            <select
+              value={filters.performance}
+              onChange={(e) => setFilters(prev => ({ ...prev, performance: e.target.value }))}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="All">All Performance</option>
+              <option value="High">High Performers</option>
+              <option value="Medium">Medium Performers</option>
+              <option value="Low">Needs Attention</option>
+            </select>
+
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Employee Table */}
+      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Team Overview ({processedData.employees.length} employees)
+            </h3>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Sort by:</span>
+              <select
+                value={sortConfig.key}
+                onChange={(e) => setSortConfig(prev => ({ ...prev, key: e.target.value }))}
+                className="text-sm border border-gray-300 rounded px-2 py-1"
+              >
+                <option value="name">Name</option>
+                <option value="score">Score</option>
+                <option value="department">Department</option>
+                <option value="hours">Learning Hours</option>
+              </select>
+              <button
+                onClick={() => setSortConfig(prev => ({ 
+                  ...prev, 
+                  direction: prev.direction === 'asc' ? 'desc' : 'asc' 
+                }))}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <svg className={`w-4 h-4 transform ${sortConfig.direction === 'desc' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {processedData.employees.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-gray-400 text-6xl mb-4">👥</div>
+            <div className="text-lg font-medium text-gray-900 mb-2">No employees found</div>
+            <div className="text-gray-500">Try adjusting your filters or search query</div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Performance</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Score</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Learning Hours</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reports</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {processedData.employees.map((employee, index) => (
+                  <tr key={`${employee.name}-${employee.phone}`} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                        <div className="text-sm text-gray-500">{employee.phone}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {employee.department}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        employee.performance === 'High' ? 'bg-green-100 text-green-800' :
+                        employee.performance === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {employee.performance}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className={`text-lg font-semibold ${
+                        employee.averageScore >= 8 ? 'text-green-600' :
+                        employee.averageScore >= 6 ? 'text-yellow-600' : 'text-red-600'
+                      }`}>
+                        {employee.averageScore}/10
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {employee.totalHours.toFixed(1)}h
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {employee.submissions.length}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleFullReport(employee)}
+                          className="text-blue-600 hover:text-blue-900 hover:bg-blue-50 px-3 py-1 rounded transition-colors"
+                        >
+                          Full Report
+                        </button>
+                        <button
+                          onClick={() => downloadEmployeePDF(employee)}
+                          className="text-green-600 hover:text-green-900 hover:bg-green-50 px-3 py-1 rounded transition-colors"
+                        >
+                          Download PDF
+                        </button>
+                        {employee.latestSubmission && (
+                          <button
+                            onClick={() => openEvaluation(employee.latestSubmission)}
+                            className="text-purple-600 hover:text-purple-900 hover:bg-purple-50 px-3 py-1 rounded transition-colors"
+                          >
+                            Evaluate
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Evaluation Panel */}
+      {evaluationPanel.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Evaluate: {evaluationPanel.submission?.employee?.name}
+                </h3>
+                <button
+                  onClick={() => setEvaluationPanel(prev => ({ ...prev, isOpen: false }))}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            
+            <div className="px-6 py-4 space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Manager Score (1-10)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={evaluationPanel.score}
+                  onChange={(e) => setEvaluationPanel(prev => ({ 
+                    ...prev, 
+                    score: parseInt(e.target.value) 
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Comments
+                </label>
+                <textarea
+                  rows={4}
+                  value={evaluationPanel.comments}
+                  onChange={(e) => setEvaluationPanel(prev => ({ 
+                    ...prev, 
+                    comments: e.target.value 
+                  }))}
+                  placeholder="Add your feedback about the employee's performance..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Recommendations
+                </label>
+                <textarea
+                  rows={3}
+                  value={evaluationPanel.recommendations}
+                  onChange={(e) => setEvaluationPanel(prev => ({ 
+                    ...prev, 
+                    recommendations: e.target.value 
+                  }))}
+                  placeholder="Provide recommendations for improvement..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => setEvaluationPanel(prev => ({ ...prev, isOpen: false }))}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveEvaluation}
+                disabled={!supabase}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              >
+                Save Evaluation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

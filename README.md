@@ -85,24 +85,62 @@ Manager Dashboard: `https://<your-site>.netlify.app/#admin` → will prompt for 
 
 ---
 
-## 6) Quick QA checklist
+## 6) Authentication System
+**NEW:** Secure login system for employees and managers:
+
+- 👥 **Employee Login**: Name + Phone number (phone acts as password)
+- 🔐 **Manager Login**: Admin access token authentication
+- 📊 **Personal Dashboard**: Employees can view their performance history and progress
+- 🎯 **Role-Based Access**: Different interfaces for employees vs managers
+- 📱 **Mobile Optimized**: Fully responsive design for mobile devices
+
+## 6.1) Mobile Responsiveness Features
+**NEW:** Enhanced mobile experience across all devices:
+
+- 📱 **Touch-First Design**: Optimized buttons and interactions for mobile
+- 🔄 **Responsive Layout**: Adaptive grids and layouts for all screen sizes
+- 📊 **Mobile Dashboard**: Mobile-optimized employee performance dashboard
+- 🎯 **Form Wizard**: Mobile-friendly step-by-step form with touch navigation
+- 💬 **Modal Dialogs**: Bottom-sheet style modals on mobile devices
+- 🔧 **Input Optimization**: Proper keyboard types for numeric inputs
+
+## 7) Submission Rules & Restrictions
+**NEW:** The system now enforces submission restrictions for data integrity:
+
+- ✅ **Current Month Only**: Employees can only edit current month submissions
+- 🔒 **Post-Submission Lock**: Once submitted, forms are locked and cannot be edited
+- 📊 **Performance Feedback**: Detailed performance report generated after submission
+- 🎯 **Improvement Insights**: Automatic analysis with suggestions for next month
+
+## 8) Quick QA checklist
+**Authentication Testing:**
+- [ ] Test employee login with name + phone number
+- [ ] Test manager login with admin token
+- [ ] Verify employee personal dashboard shows correct data
+- [ ] Test logout functionality for both user types
+
+**Form & Submission Testing:**
 - [ ] Add at least one Client in the KPIs section.
 - [ ] Attach Report URLs (dashboard/drive/figma/etc.).
 - [ ] Add Learning entries until you reach 6 hours.
 - [ ] Add at least one Meeting note link in Relationship.
 - [ ] Submit → If Supabase is configured, data is stored server-side; else saved locally.
+- [ ] Verify submission restrictions: try editing a submitted form (should be locked)
+- [ ] Check performance feedback appears after submission
 - [ ] Check Admin dashboard (`/#admin`), change the month dropdown, and Export JSON.
 
 ---
 
-## 7) Common gotchas
-• **Token gate**: If `VITE_ADMIN_ACCESS_TOKEN` is empty, dashboard opens without prompt.  
-• **Supabase insert error**: Usually missing `pgcrypto` or wrong env vars. See SQL above.  
-• **SPA routing**: `netlify.toml` contains a fallback so deep links work.
+## 9) Common gotchas
+• **Employee login**: Phone number must match exactly what was used during registration  
+• **Manager access**: Use `VITE_ADMIN_ACCESS_TOKEN` value as password for manager login  
+• **Token gate**: If `VITE_ADMIN_ACCESS_TOKEN` is empty, dashboard opens without prompt  
+• **Supabase insert error**: Usually missing `pgcrypto` or wrong env vars. See SQL above  
+• **SPA routing**: `netlify.toml` contains a fallback so deep links work
 
 ---
 
-## 8) Customize branding
+## 10) Customize branding
 • Replace the inline favicon in `index.html`.  
 • Replace the header image source with your BP logo.  
 • Add colors via Tailwind in `tailwind.config.js` if desired.
