@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { NumField, ProofField, TextArea, MultiSelect, PrevValue, TinyLinks, Section, ComparativeField } from "./ui";
+import { NumField, ProofField, TextArea, MultiSelect, PrevValue, TinyLinks, Section, ComparativeField, ThreeWayComparativeField } from "./ui";
 import { monthLabel, isDriveUrl, isGensparkUrl, uid, round1 } from "./constants";
 import { useModal } from "./AppShell";
 import { useSupabase } from "./SupabaseProvider";
 import { ClientReportStatus } from "./ClientReportStatus";
 
 // Internal KPIs component for HR, Accounts, Sales, Blended departments
-function InternalKPIs({ model, prevModel, setModel, monthPrev, monthThis }) {
+function InternalKPIs({ model, prevModel, comparisonModel, setModel, monthPrev, monthThis, monthComparison }) {
   const department = model.employee?.department || "";
   const prevSubmission = prevModel || {};
   
@@ -675,7 +675,7 @@ function KPIsOperationsHead({ client, onChange }) {
   );
 }
 
-export function DeptClientsBlock({ currentSubmission, previousSubmission, setModel, monthPrev, monthThis, openModal, closeModal }) {
+export function DeptClientsBlock({ currentSubmission, previousSubmission, comparisonSubmission, setModel, monthPrev, monthThis, monthComparison, openModal, closeModal }) {
   const isInternal = ["HR", "Accounts", "Sales", "Blended (HR + Sales)"].includes(currentSubmission.employee.department);
   const isWebHead = currentSubmission.employee.department === "Web Head";
   const isOpsHead = currentSubmission.employee.department === "Operations Head";
@@ -687,15 +687,15 @@ export function DeptClientsBlock({ currentSubmission, previousSubmission, setMod
       info="Enter your key performance indicators based on your department. Include client work, deliverables, and performance metrics. Upload proof links (Google Drive URLs) to validate your achievements. This section is crucial for performance evaluation."
     >
       {(isInternal && !isOpsHead && !isWebHead) ? (
-        <InternalKPIs model={currentSubmission} prevModel={previousSubmission} setModel={setModel} monthPrev={monthPrev} monthThis={monthThis} />
+        <InternalKPIs model={currentSubmission} prevModel={previousSubmission} comparisonModel={comparisonSubmission} setModel={setModel} monthPrev={monthPrev} monthThis={monthThis} monthComparison={monthComparison} />
       ) : (
-        <ClientTable currentSubmission={currentSubmission} previousSubmission={previousSubmission} setModel={setModel} monthPrev={monthPrev} monthThis={monthThis} openModal={openModal} closeModal={closeModal} />
+        <ClientTable currentSubmission={currentSubmission} previousSubmission={previousSubmission} comparisonSubmission={comparisonSubmission} setModel={setModel} monthPrev={monthPrev} monthThis={monthThis} monthComparison={monthComparison} openModal={openModal} closeModal={closeModal} />
       )}
     </Section>
   );
 }
 
-function ClientTable({ currentSubmission, previousSubmission, setModel, monthPrev, monthThis, openModal, closeModal }) {
+function ClientTable({ currentSubmission, previousSubmission, comparisonSubmission, setModel, monthPrev, monthThis, monthComparison, openModal, closeModal }) {
   const supabase = useSupabase();
   const [draftRow, setDraftRow] = useState({ name: "", scopeOfWork: "", url: "" });
   const [masterClients, setMasterClients] = useState([]);
