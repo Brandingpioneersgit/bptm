@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://igwgryykglsetfvomhdj.supabase.co";
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_SDqrksN-DTMdHP01p3z6wQ_OlX5bJ3o";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const SupabaseContext = React.createContext(null);
 
@@ -11,29 +12,14 @@ export const SupabaseProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (!window.supabase) {
-        console.warn("Supabase CDN failed to load");
-        clearInterval(intervalId);
-        setError("Supabase failed to load");
-        setLoading(false);
-      }
-    }, 2000);
-
-    const intervalId = setInterval(() => {
-      if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
-        clearInterval(intervalId);
-        clearTimeout(timeoutId);
-        const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        setSupabaseClient(client);
-        setLoading(false);
-      }
-    }, 100);
-
-    return () => {
-      clearInterval(intervalId);
-      clearTimeout(timeoutId);
-    };
+    if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+      const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      setSupabaseClient(client);
+      setLoading(false);
+    } else {
+      setError("Supabase URL and Anon Key are required.");
+      setLoading(false);
+    }
   }, []);
 
   if (error) {
