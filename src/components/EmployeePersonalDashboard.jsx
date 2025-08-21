@@ -1,11 +1,13 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useFetchSubmissions } from "./useFetchSubmissions.js";
 import { useModal } from "./AppShell";
-import { thisMonthKey, monthLabel } from "./constants";
-import { ClientReportsView } from "./ClientReportsView";
+import { thisMonthKey, monthLabel } from "@/shared/lib/constants";
+import { calculateScopeCompletion, getServiceWeight } from "@/shared/lib/scoring";
+import { ClientReportsView } from "@/features/clients/components/ClientReportsView";
 import { ProfileEditModal } from "./ProfileEditModal";
 import { useSupabase } from "./SupabaseProvider";
 import { DataCard, MetricRow, SmartDataDisplay } from "./DataDisplay";
+import { useToast } from "@/shared/components/Toast";
 
 export function EmployeePersonalDashboard({ employee: initialEmployee, onBack }) {
   const [employee, setEmployee] = useState(initialEmployee);
@@ -13,6 +15,7 @@ export function EmployeePersonalDashboard({ employee: initialEmployee, onBack })
   const { openModal, closeModal } = useModal();
   const supabase = useSupabase();
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const { notify } = useToast();
 
   const profileCompleteness = useMemo(() => {
     const requiredFields = [
@@ -70,8 +73,10 @@ export function EmployeePersonalDashboard({ employee: initialEmployee, onBack })
       if (error) throw error;
       setEmployee(updated);
       setShowProfileModal(false);
+      notify({ type: 'success', title: 'Profile updated', message: 'Your profile has been saved.' });
       openModal('Success', 'Profile updated successfully!', closeModal);
     } catch (err) {
+      notify({ type: 'error', title: 'Profile update failed', message: err.message });
       openModal('Error', `Failed to update profile: ${err.message}`, closeModal);
     }
   };
@@ -144,9 +149,20 @@ export function EmployeePersonalDashboard({ employee: initialEmployee, onBack })
   };
 
   const getSubmissionSummary = (submission) => {
+    const svcLines = [];
+    (submission.clients||[]).forEach(c => {
+      (c.services||[]).forEach(s => {
+        const name = typeof s === 'string' ? s : s.service;
+        const pct = calculateScopeCompletion(c, name, { monthKey: submission.monthKey }) || 0;
+        const w = getServiceWeight(name);
+        svcLines.push(`• ${c.name} — ${name} (w ${w}): ${pct}%`);
+      });
+    });
     return `📈 PERFORMANCE SUMMARY - ${monthLabel(submission.monthKey)}\n\n★ Overall Score: ${submission.scores?.overall?.toFixed(1) || 'N/A'}/10\n\n🎯 KPI Performance: ${submission.scores?.kpiScore?.toFixed(1) || 'N/A'}/10\n🎓 Learning Activities: ${submission.scores?.learningScore?.toFixed(1) || 'N/A'}/10\n🤝 Client Relations: ${submission.scores?.relationshipScore?.toFixed(1) || 'N/A'}/10\n\n${submission.flags?.missingLearningHours ? '⚠️ Action needed: Complete learning hours requirement\n' : ''}
 ${submission.flags?.hasEscalations ? '⚠️ Action needed: Address client escalations\n' : ''}
+${submission.discipline?.penalty > 0 ? `⚠️ Late submission penalty: -${submission.discipline.penalty} (late by ${submission.discipline.lateDays} day(s))\n` : ''}
 ${submission.flags?.missingReports ? '⚠️ Action needed: Submit missing client reports\n' : ''}
+${svcLines.length ? '\n🔧 Service Progress:\n' + svcLines.slice(0,10).join('\n') : ''}
 ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_remarks}` : '\n📝 No manager feedback yet'}`;
   };
 
@@ -164,6 +180,21 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
   return (
     <>
       <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
+        {currentMonthSubmission?.manager?.testimonialUrl && (
+          <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 flex items-center justify-between">
+            <div className="text-sm text-purple-800">
+              🎥 A testimonial was added to your latest submission.
+            </div>
+            <a
+              className="text-purple-700 underline text-sm"
+              href={currentMonthSubmission.manager.testimonialUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              View Testimonial
+            </a>
+          </div>
+        )}
         {/* Enhanced Profile Completeness Prompt */}
         {!profileCompleteness.isComplete && (
           <div className={`rounded-xl p-4 flex items-start gap-4 ${

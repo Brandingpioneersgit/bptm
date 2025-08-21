@@ -1,4 +1,5 @@
-import { daysInMonth, monthLabel, isDriveUrl, isGensparkUrl } from "./constants";
+import { daysInMonth, monthLabel, isDriveUrl, isGensparkUrl } from "@/shared/lib/constants";
+import { calculateScopeCompletion } from "@/shared/lib/scoring";
 
 export function validateSubmission(model) {
   const errors = [];
@@ -100,6 +101,19 @@ export function validateSubmission(model) {
       if ((rel.appreciations || []).some(a => a.url && !isDriveUrl(a.url))) errors.push(`${c.name || 'Client'}: Appreciation proof links must be valid Google Drive/Docs URLs.`);
       if ((rel.escalations || []).some(a => a.url && !isDriveUrl(a.url))) errors.push(`${c.name || 'Client'}: Escalation proof links must be valid Google Drive/Docs URLs.`);
     }
+
+    // Soft check: If scope progress exists but no reports attached, add a warning (not error)
+    try {
+      const services = Array.isArray(c.services) ? c.services : [];
+      const hasProgressNoReports = services.some(s => {
+        const name = typeof s === 'string' ? s : s.service;
+        const comp = calculateScopeCompletion(c, name, { monthKey });
+        return comp != null && comp > 0 && (!c.reports || c.reports.length === 0);
+      });
+      if (hasProgressNoReports) {
+        errors.push(`${c.name || 'Client'}: add at least one report/proof link for tracked scope progress.`);
+      }
+    } catch (_) { /* ignore */ }
 
   });
 

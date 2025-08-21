@@ -25,3 +25,4 @@ export const InfoTooltip = ({ content }) => {
     </div>
   );
 };
+

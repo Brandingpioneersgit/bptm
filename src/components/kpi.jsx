@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { NumField, ProofField, TextArea, MultiSelect, PrevValue, TinyLinks, Section, ComparativeField, ThreeWayComparativeField } from "./ui";
-import { monthLabel, isDriveUrl, isGensparkUrl, uid, round1 } from "./constants";
+import { NumField, ProofField, TextArea, MultiSelect, PrevValue, TinyLinks, Section, ComparativeField, ThreeWayComparativeField } from "@/shared/components/ui";
+import { calculateScopeCompletion } from "@/shared/lib/scoring";
+import { monthLabel, isDriveUrl, isGensparkUrl, uid, round1 } from "@/shared/lib/constants";
 import { useModal } from "./AppShell";
 import { useSupabase } from "./SupabaseProvider";
-import { ClientReportStatus } from "./ClientReportStatus";
-import { useClientSync } from "./ClientSyncContext";
+import { ClientReportStatus } from "@/features/clients/components/ClientReportStatus";
+import { useClientSync } from "@/features/clients/context/ClientSyncContext";
 
 // Internal KPIs component for HR, Accounts, Sales, Blended departments
 function InternalKPIs({ model, prevModel, comparisonModel, setModel, monthPrev, monthThis, monthComparison }) {
@@ -376,37 +377,7 @@ function KPIsWebHead({ client, prevClient, onChange }) {
   );
 }
 
-function calculateScopeCompletion(client, service) {
-  if (!client.service_scopes || !client.service_scopes[service]) return null;
-  
-  const scope = client.service_scopes[service];
-  const deliverables = scope.deliverables || 0;
-  
-  switch (service) {
-    case 'Social Media':
-      const totalPosts = (client.sm_graphicsPhotoshop || 0) + (client.sm_graphicsCanva || 0) + 
-                        (client.sm_graphicsAi || 0) + (client.sm_shortVideos || 0) + (client.sm_longVideos || 0);
-      return deliverables > 0 ? Math.min(100, Math.round((totalPosts / deliverables) * 100)) : 0;
-    case 'SEO':
-    case 'GBP SEO':
-      const keywordsWorked = client.seo_keywordsWorked ? client.seo_keywordsWorked.length : 0;
-      const top3Keywords = client.seo_top3 ? client.seo_top3.length : 0;
-      const totalSeoWork = keywordsWorked + top3Keywords + (client.seo_technicalIssues || 0);
-      return deliverables > 0 ? Math.min(100, Math.round((totalSeoWork / deliverables) * 100)) : 0;
-    case 'Google Ads':
-    case 'Meta Ads':
-      const adsCreated = client.ads_newAds || 0;
-      return deliverables > 0 ? Math.min(100, Math.round((adsCreated / deliverables) * 100)) : 0;
-    case 'Website Maintenance':
-      const webPages = (client.web_pagesThis || 0);
-      const webTasks = webPages + (client.web_saasUpsells || 0);
-      return deliverables > 0 ? Math.min(100, Math.round((webTasks / deliverables) * 100)) : 0;
-    case 'AI':
-      return 0;
-    default:
-      return 0;
-  }
-}
+// centralized calculateScopeCompletion imported from shared/lib/scoring
 
 function ClientScopePreview({ client, department }) {
   const deptServices = {

@@ -2,12 +2,14 @@ import React, { useMemo, useState } from "react";
 import { useSupabase } from "./SupabaseProvider";
 import { useFetchSubmissions } from "./useFetchSubmissions.js";
 import { useModal } from "./AppShell";
-import { monthLabel } from "./constants";
+import { monthLabel } from "@/shared/lib/constants";
+import { useToast } from "@/shared/components/Toast";
 
 export function ManagerEditEmployee({ employee, onBack }) {
   const supabase = useSupabase();
   const { allSubmissions, refreshSubmissions } = useFetchSubmissions();
   const { openModal, closeModal } = useModal();
+  const { notify } = useToast();
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [managerRemarks, setManagerRemarks] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -41,6 +43,7 @@ export function ManagerEditEmployee({ employee, onBack }) {
 
       if (error) throw error;
 
+      notify({ type: 'success', title: 'Saved', message: 'Manager remarks updated.' });
       openModal('Success', 'Manager remarks saved successfully!', () => {
         closeModal();
         setIsEditing(false);
@@ -48,6 +51,7 @@ export function ManagerEditEmployee({ employee, onBack }) {
         refreshSubmissions();
       });
     } catch (error) {
+      notify({ type: 'error', title: 'Save failed', message: error.message });
       openModal('Error', `Failed to save remarks: ${error.message}`, closeModal);
     }
   };
@@ -67,11 +71,13 @@ export function ManagerEditEmployee({ employee, onBack }) {
 
           if (error) throw error;
 
+          notify({ type: 'success', title: 'Deleted', message: 'Submission removed.' });
           openModal('Success', 'Submission deleted successfully!', () => {
             closeModal();
             refreshSubmissions();
           });
         } catch (error) {
+          notify({ type: 'error', title: 'Delete failed', message: error.message });
           openModal('Error', `Failed to delete submission: ${error.message}`, closeModal);
         }
       },

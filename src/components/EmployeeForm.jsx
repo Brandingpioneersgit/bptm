@@ -3,15 +3,15 @@ import { useSupabase } from "./SupabaseProvider";
 import { useModal } from "./AppShell";
 import { useFetchSubmissions } from "./useFetchSubmissions";
 import { useDataSync } from "./DataSyncContext";
-import { EMPTY_SUBMISSION, thisMonthKey, prevMonthKey, monthLabel, DEPARTMENTS, ROLES_BY_DEPT } from "./constants";
-import { scoreKPIs, scoreLearning, scoreRelationshipFromClients, overallOutOf10, generateSummary } from "./scoring";
+import { EMPTY_SUBMISSION, thisMonthKey, prevMonthKey, monthLabel, DEPARTMENTS, ROLES_BY_DEPT } from "@/shared/lib/constants";
+import { scoreKPIs, scoreLearning, scoreRelationshipFromClients, overallOutOf10, generateSummary, computeDisciplinePenalty } from "@/shared/lib/scoring";
 import { CelebrationEffect } from "./CelebrationEffect";
-import { Section, TextField, NumField, TextArea, MultiSelect, ProgressIndicator, StepValidationIndicator, ThreeWayComparativeField } from "./ui";
+import { Section, TextField, NumField, TextArea, MultiSelect, ProgressIndicator, StepValidationIndicator, ThreeWayComparativeField } from "@/shared/components/ui";
 import { DeptClientsBlock } from "./kpi";
 import { LearningBlock } from "./LearningBlock";
-import { getClientRepository } from "./ClientRepository";
-import { validateSubmission } from "./validation";
-import { dataPersistence, useDraftPersistence } from "./DataPersistence";
+import { getClientRepository } from "@/shared/services/ClientRepository";
+import { validateSubmission } from "@/shared/lib/validation";
+import { dataPersistence, useDraftPersistence } from "@/shared/services/DataPersistence";
 import { DraftResumePrompt, CrashRecoveryPrompt } from "./DraftResumePrompt";
 
 export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack = null }) {
@@ -19,6 +19,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   const dlog = (...args) => { if (DEBUG) console.log(...args); };
   const supabase = useSupabase();
   const { openModal, closeModal } = useModal();
+  const { notify } = useToast();
   const { allSubmissions } = useFetchSubmissions();
   const { addSubmission, updateSubmission, addClient, refreshAllData } = useDataSync();
 
@@ -742,7 +743,11 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     return () => clearTimeout(timer);
   }, [currentSubmission]);
 
-  const kpiScore = useMemo(() => scoreKPIs(debouncedSubmission.employee, debouncedSubmission.clients), [debouncedSubmission.employee, debouncedSubmission.clients]);
+  const kpiScore = useMemo(() => scoreKPIs(
+    debouncedSubmission.employee,
+    debouncedSubmission.clients,
+    { monthKey: debouncedSubmission.monthKey }
+  ), [debouncedSubmission.employee, debouncedSubmission.clients, debouncedSubmission.monthKey]);
   const learningScore = useMemo(() => scoreLearning(debouncedSubmission.learning), [debouncedSubmission.learning]);
   const relationshipScore = useMemo(() => scoreRelationshipFromClients(debouncedSubmission.clients), [debouncedSubmission.employee, debouncedSubmission.clients]);
   const overall = useMemo(() => overallOutOf10(kpiScore, learningScore, relationshipScore, debouncedSubmission.manager?.score), [kpiScore, learningScore, relationshipScore, debouncedSubmission.manager?.score]);
@@ -912,6 +917,17 @@ Your progress has been automatically saved, so you won't lose any other informat
       }
     };
 
+    // Apply discipline penalty to overall before saving
+    try {
+      const penaltyInfo = computeDisciplinePenalty(final.monthKey, final.submittedAt);
+      const baseOverall = final.scores?.overall ?? overall;
+      const adjustedOverall = Math.max(0, baseOverall - (penaltyInfo.penalty || 0));
+      final.scores = { ...final.scores, overall: adjustedOverall };
+      final.discipline = penaltyInfo;
+    } catch (e) {
+      console.warn('Discipline penalty calculation failed:', e);
+    }
+
     delete final.id;
 
     try {
@@ -974,6 +990,7 @@ Your progress has been automatically saved, so you won't lose any other informat
       }
       
       const summary = generateSummary(final);
+      notify({ type: 'success', title: 'Report submitted', message: `${monthLabel(final.monthKey)} report saved.` });
       showSubmissionSummaryModal(summary, final);
       
       clearDraft(); // Clear draft only on success
@@ -984,6 +1001,7 @@ Your progress has been automatically saved, so you won't lose any other informat
       console.error("Submission failed:", error);
       
       // Keep backup for recovery
+      notify({ type: 'error', title: 'Submission failed', message: error.message });
       openModal(
         "Submission Failed", 
         `Failed to save your report: ${error.message}\n\nYour data has been backed up locally. Please try again or contact support if the problem persists.`,
@@ -999,7 +1017,7 @@ Your progress has been automatically saved, so you won't lose any other informat
   const isNewEmployee = !selectedEmployee;
 
   // Enhanced navigation with auto-save and validation feedback
-  const goToStep = useCallback((stepId) => {
+  const goToStep = useCallback(async (stepId) => {
     console.log(`🎯 goToStep called: ${currentStep} -> ${stepId}`);
     
     // If already on the target step, just return
@@ -1016,7 +1034,28 @@ Your progress has been automatically saved, so you won't lose any other informat
     
     console.log(`🔄 Starting navigation from step ${currentStep} to step ${stepId}...`);
     
-    // Immediate navigation to prevent blank screen - save happens in background
+    // If there are unsaved changes, confirm and force-save before navigation
+    if (hasUnsavedChanges) {
+      const proceed = await new Promise(resolve => {
+        openModal(
+          'Unsaved changes',
+          'We will auto-save your progress before switching steps. Continue?',
+          () => resolve(false), // Cancel
+          () => resolve(true),  // Continue
+          'Stay',
+          'Continue'
+        );
+      });
+      if (!proceed) return;
+      try {
+        await autoSave();
+        notify({ type: 'success', title: 'Saved', message: 'Progress saved.' });
+      } catch (e) {
+        console.warn('Auto-save before navigation failed:', e);
+      }
+    }
+
+    // Navigate after optional save
     setCurrentStep(stepId);
     
     // Update validation state for new step
@@ -1024,17 +1063,10 @@ Your progress has been automatically saved, so you won't lose any other informat
     setFieldErrors(validation.errors);
     setValidationWarnings(validation.warnings);
     
-    // Auto-save in background if needed (non-blocking)
-    if (hasUnsavedChanges) {
-      console.log('🔄 Background saving after navigation...');
-      autoSave().catch(error => {
-        console.error('❌ Background auto-save failed:', error);
-        // Don't interrupt user flow for save failures
-      });
-    }
+    // No-op: already saved above if needed
     
     console.log(`✅ Navigation completed: ${currentStep} -> ${stepId}`);
-  }, [currentStep, hasUnsavedChanges, autoSave, getStepValidation]);
+  }, [currentStep, hasUnsavedChanges, autoSave, getStepValidation, openModal, notify]);
 
   const nextStep = () => {
     const nextStepNumber = currentStep + 1;
@@ -1925,7 +1957,23 @@ Your progress has been automatically saved, so you won't lose any other informat
             </div>
           </div>
           <button
-            onClick={onBack}
+            onClick={async () => {
+              if (hasUnsavedChanges) {
+                const proceed = await new Promise(resolve => {
+                  openModal(
+                    'Unsaved changes',
+                    'We will auto-save your progress before leaving. Continue?',
+                    () => resolve(false),
+                    () => resolve(true),
+                    'Stay',
+                    'Continue'
+                  );
+                });
+                if (!proceed) return;
+                try { await autoSave(); } catch {}
+              }
+              onBack();
+            }}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
           >
             Back to Dashboard

@@ -1,11 +1,11 @@
 import React, { useMemo, useEffect, useState } from "react";
 import { useFetchSubmissions } from "./useFetchSubmissions";
 import { useModal } from "./AppShell";
-import { Section } from "./ui";
+import { Section } from "@/shared/components/ui";
 import { PerformanceChart } from "./PerformanceChart";
 import { PDFDownloadButton } from "./PDFDownloadButton";
-import { generateSummary } from "./scoring";
-import { monthLabel, round1 } from "./constants";
+import { generateSummary } from "@/shared/lib/scoring";
+import { monthLabel, round1 } from "@/shared/lib/constants";
 
 function SummarySection({ title, items }) {
   return (

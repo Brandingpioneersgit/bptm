@@ -1,6 +1,7 @@
 import React, { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { DEPARTMENTS, ROLES_BY_DEPT } from './constants';
+import { DEPARTMENTS, ROLES_BY_DEPT } from '@/shared/lib/constants';
+import { ProfileImageUpload } from './ImageUpload';
 
 export function ProfileEditModal({ isOpen, onClose, employee, onSave, isFirstTime = false }) {
   const [form, setForm] = useState({
@@ -203,21 +204,24 @@ export function ProfileEditModal({ isOpen, onClose, employee, onSave, isFirstTim
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
                         
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Profile Photo URL *
+                          <label className="block text-sm font-medium text-gray-700 mb-3">
+                            Profile Photo *
                             {fieldErrors.photoUrl && <span className="text-red-500 text-xs ml-2">{fieldErrors.photoUrl}</span>}
                           </label>
-                          <input
-                            name="photoUrl"
-                            type="url"
-                            value={form.photoUrl}
-                            onChange={handleChange}
-                            className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 ${
-                              fieldErrors.photoUrl ? 'border-red-300' : 'border-gray-300'
-                            }`}
-                            placeholder="https://drive.google.com/your-photo.jpg"
+                          <ProfileImageUpload
+                            currentImageUrl={form.photoUrl}
+                            onImageChange={(imageData) => {
+                              setForm(prev => ({
+                                ...prev,
+                                photoUrl: imageData ? imageData.url : ''
+                              }));
+                            }}
+                            userId={employee?.phone || 'anonymous'}
+                            className="mb-2"
                           />
-                          <p className="text-xs text-gray-500 mt-1">Use Google Drive, LinkedIn, or company directory photo</p>
+                          <p className="text-xs text-gray-500 mt-2">
+                            Upload a professional profile photo. JPG, PNG, or GIF up to 5MB.
+                          </p>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

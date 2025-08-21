@@ -1,5 +1,3 @@
-// Client Services and Scope Management
-
 export const CLIENT_SERVICES = [
   "Website Development",
   "Website Maintenance", 
@@ -47,22 +45,22 @@ export const SERVICE_FREQUENCY_DEFAULTS = {
   "Consulting": "As needed"
 };
 
-// Default client structure for repository
 export const EMPTY_CLIENT = {
   name: "",
   team: "Web",
   status: "Active",
   client_type: "Standard",
-  services: [], // Array of service objects: {service: string, frequency: string, notes: string}
+  services: [],
   contact_email: "",
   contact_phone: "",
   start_date: "",
   scope_notes: "",
+  logo_url: "",
+  brand_colors: "",
   created_at: "",
   updated_at: ""
 };
 
-// Utility function to create service object
 export const createServiceObject = (service, frequency = null, notes = "") => ({
   service,
   frequency: frequency || SERVICE_FREQUENCY_DEFAULTS[service] || "Monthly",
@@ -70,21 +68,18 @@ export const createServiceObject = (service, frequency = null, notes = "") => ({
   added_date: new Date().toISOString()
 });
 
-// Function to check if client exists in repository
 export const findClientInRepository = (clients, clientName) => {
   return clients.find(c => 
     c.name.toLowerCase().trim() === clientName.toLowerCase().trim()
   );
 };
 
-// Function to merge form client with repository client
 export const mergeClientData = (repositoryClient, formClient) => ({
   ...repositoryClient,
   ...formClient,
-  // Preserve repository data that shouldn't be overwritten
   id: repositoryClient.id,
   created_at: repositoryClient.created_at,
   services: repositoryClient.services || [],
-  // Update timestamp
   updated_at: new Date().toISOString()
 });
+

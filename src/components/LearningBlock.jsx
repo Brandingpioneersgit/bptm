@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { Section, TextField, NumField, TextArea } from "./ui";
-import { uid } from "./constants";
+import { Section, TextField, NumField, TextArea } from "@/shared/components/ui";
+import { uid } from "@/shared/lib/constants";
 import { useModal } from "./AppShell";
 
 export function LearningBlock({ model, setModel, openModal }) {

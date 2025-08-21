@@ -67,7 +67,6 @@ export function daysInMonth(monthKey) {
 export const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_ACCESS_TOKEN || "admin";
 
 export const EMPTY_SUBMISSION = {
-  // Default to previous month for comparative reporting (e.g., in August, report July data)
   monthKey: prevMonthKey(thisMonthKey()),
   isDraft: true,
   employee: {
@@ -91,3 +90,4 @@ export const EMPTY_SUBMISSION = {
   manager: { verified: false, comments: "", score: 0, hiddenDataFlag: false },
   scores: { kpiScore: 0, learningScore: 0, relationshipScore: 0, overall: 0 },
 };
+

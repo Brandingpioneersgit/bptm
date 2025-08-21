@@ -1,5 +1,6 @@
 import React from 'react';
-import { monthLabel } from './constants';
+import { monthLabel } from '@/shared/lib/constants';
+import { calculateScopeCompletion, getServiceWeight } from '@/shared/lib/scoring';
 
 export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
   const generateComprehensiveReport = () => {
@@ -20,6 +21,9 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
     const avgOverallScore = data.reduce((sum, d) => sum + (d.scores?.overall || 0), 0) / data.length;
     const avgKpiScore = data.reduce((sum, d) => sum + (d.scores?.kpiScore || 0), 0) / data.length;
     const avgLearningScore = data.reduce((sum, d) => sum + (d.scores?.learningScore || 0), 0) / data.length;
+
+    const latest = [...data].sort((a, b) => b.monthKey.localeCompare(a.monthKey))[0];
+    const employeePhoto = latest?.employee?.photoUrl || '';
 
     return `
       <!-- Executive Summary -->
@@ -56,11 +60,43 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
             <th>Learning</th>
             <th>Client Relations</th>
             <th>Learning Hours</th>
+            <th>Penalty</th>
             <th>Manager Score</th>
             <th>Manager Comments</th>
           </tr>
           ${data.map(d => {
             const learningHours = ((d.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60).toFixed(1);
+            const clientScopeHtml = (d.clients || []).map(c => {
+              const services = c.services || [];
+              if (!services.length) return '';
+              const total = services.reduce((acc, sv) => {
+                const nm = typeof sv === 'string' ? sv : sv.service;
+                let pp = 0; try { pp = calculateScopeCompletion(c, nm, { monthKey: d.monthKey }) || 0; } catch {}
+                const ww = getServiceWeight(nm);
+                return acc + (ww * pp);
+              }, 0) || 1;
+              const serviceBars = services.map(s => {
+                const name = typeof s === 'string' ? s : s.service;
+                let pct = 0;
+                try { pct = calculateScopeCompletion(c, name, { monthKey: d.monthKey }) || 0; } catch {}
+                const w = getServiceWeight(name);
+                const share = Math.round(((w * pct) / total) * 100);
+                const color = pct>=100? '#10b981' : pct>=60 ? '#f59e0b' : '#ef4444';
+                return `
+                  <div style="font-size:12px;margin:2px 0;">
+                    <div style="display:flex;justify-content:space-between;"><span>${name} <span style=\"color:#6b7280\">(w ${w}, ${share}% of scope)</span></span><span>${pct}%</span></div>
+                    <div style="background:#e5e7eb;height:6px;border-radius:9999px;">
+                      <div style="height:6px;background:${color};width:${pct}%;border-radius:9999px;"></div>
+                    </div>
+                  </div>`;
+              }).join('');
+              return `
+                <div style="margin:8px 0;">
+                  <div><strong>${c.name || c.op_clientName || 'Client'}</strong> ${c.op_clientStatus ? `- ${c.op_clientStatus}` : ''}</div>
+                  <div style="margin-top:4px;">${serviceBars}</div>
+                </div>`;
+            }).join('');
+
             return `
               <tr>
                 <td><strong>${monthLabel(d.monthKey)}</strong></td>
@@ -69,9 +105,11 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
                 <td class="score-cell">${d.scores?.learningScore || 'N/A'}/10</td>
                 <td class="score-cell">${d.scores?.relationshipScore || 'N/A'}/10</td>
                 <td>${learningHours}h</td>
+                <td>${d.discipline?.penalty ? `-${d.discipline.penalty}` : '0'}</td>
                 <td>${d.manager?.score || 'N/A'}/10</td>
                 <td class="comments-cell">${d.manager?.comments || 'No comments'}</td>
               </tr>
+              ${clientScopeHtml ? `<tr><td colspan="9"><div class="detail-section"><strong>Service Progress</strong>${clientScopeHtml}</div></td></tr>` : ''}
             `;
           }).join('')}
         </table>
@@ -101,11 +139,27 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
               ${(d.clients && d.clients.length > 0) ? `
                 <div class="detail-section">
                   <strong>Client Work:</strong>
-                  <ul>
-                    ${d.clients.map(c => `
-                      <li>${c.op_clientName || 'Unnamed Client'} - ${c.op_clientStatus || 'Unknown Status'}</li>
-                    `).join('')}
-                  </ul>
+                  ${d.clients.map(c => `
+                    <div style="margin:8px 0;">
+                      <div><strong>${c.name || c.op_clientName || 'Client'}</strong> ${c.op_clientStatus ? `- ${c.op_clientStatus}` : ''}</div>
+                      ${(c.services && c.services.length) ? `
+                        <div style="margin-top:4px;">
+                          ${(c.services||[]).map(s => {
+                            const name = typeof s === 'string' ? s : s.service;
+                            try {
+                              return `
+                                <div style=\"font-size:12px;margin:2px 0;\">
+                                  <div style=\"display:flex;justify-content:space-between;\"><span>${name}</span><span>${0}%</span></div>
+                                  <div style=\"background:#e5e7eb;height:6px;border-radius:9999px;\">
+                                    <div style=\"height:6px;background:#10b981;width:${0}%;border-radius:9999px;\"></div>
+                                  </div>
+                                </div>`
+                            } catch (e) { return '' }
+                          }).join('')}
+                        </div>
+                      ` : ''}
+                    </div>
+                  `).join('')}
                 </div>
               ` : ''}
               
@@ -138,6 +192,24 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
                   ${d.feedback.challenges ? `<p><em>Challenges:</em> ${d.feedback.challenges}</p>` : ''}
                 </div>
               ` : ''}
+
+              ${(d.manager && (d.manager.score || d.manager.comments || d.manager.recommendations || (d.manager.rubrics && (d.manager.rubrics.collaboration || d.manager.rubrics.ownership || d.manager.rubrics.quality || d.manager.rubrics.communication)))) ? `
+                <div class="detail-section">
+                  <strong>Manager Evaluation:</strong>
+                  ${d.manager.score ? `<p><em>Score:</em> ${d.manager.score}/10</p>` : ''}
+                  ${d.manager.rubrics ? `
+                    <p><em>Rubrics:</em>
+                      <span>Collab: ${d.manager.rubrics.collaboration || '—'}</span>,
+                      <span>Ownership: ${d.manager.rubrics.ownership || '—'}</span>,
+                      <span>Quality: ${d.manager.rubrics.quality || '—'}</span>,
+                      <span>Comm: ${d.manager.rubrics.communication || '—'}</span>
+                    </p>
+                  ` : ''}
+                  ${d.manager.comments ? `<p><em>Comments:</em> ${d.manager.comments}</p>` : ''}
+                  ${d.manager.recommendations ? `<p><em>Recommendations:</em> ${d.manager.recommendations}</p>` : ''}
+                  ${d.manager.testimonialUrl ? `<p><em>Testimonial:</em> <a href="${d.manager.testimonialUrl}">${d.manager.testimonialUrl}</a></p>` : ''}
+                </div>
+              ` : ''}
             </div>
           </div>
         `).join('')}
@@ -146,6 +218,9 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
   };
 
   const downloadPDF = () => {
+    const latest = data && data.length ? [...data].sort((a, b) => b.monthKey.localeCompare(a.monthKey))[0] : null;
+    const employeePhoto = latest?.employee?.photoUrl || '';
+    const brandLogo = 'https://brandingpioneers.com/assets/logo.png';
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -171,6 +246,10 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
               border-bottom: 3px solid #2563eb;
               padding-bottom: 20px;
             }
+            .brand-row { display: flex; align-items: center; justify-content: center; gap: 12px; }
+            .brand-row img.logo { height: 36px; }
+            .profile { margin-top: 8px; }
+            .profile img { width: 72px; height: 72px; border-radius: 9999px; object-fit: cover; border: 3px solid #e5e7eb; }
             
             .header h1 { 
               color: #2563eb; 
@@ -303,9 +382,13 @@ export const PDFDownloadButton = ({ data, employeeName, yearlySummary }) => {
         </head>
         <body>
           <div class="header">
-            <h1>🏢 Branding Pioneers</h1>
+            <div class="brand-row">
+              <img class="logo" src="${brandLogo}" alt="Branding Pioneers" onerror="this.style.display='none'" />
+              <h1>Branding Pioneers</h1>
+            </div>
             <h2>Employee Performance Report</h2>
             <h2>${employeeName}</h2>
+            ${employeePhoto ? `<div class="profile"><img src="${employeePhoto}" alt="${employeeName}" /></div>` : ''}
             <p>Generated on ${new Date().toLocaleString()}</p>
           </div>
           

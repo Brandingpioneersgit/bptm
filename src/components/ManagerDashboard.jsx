@@ -1,14 +1,17 @@
 import React, { useMemo, useState } from "react";
 import { useSupabase } from "./SupabaseProvider";
+import { useToast } from "@/shared/components/Toast";
 import { useModal } from "./AppShell";
 import { useFetchSubmissions } from "./useFetchSubmissions";
 import { useDataSync } from "./DataSyncContext";
-import { ClientManagementView } from "./ClientManagementView";
-import { ClientDashboardView } from "./ClientDashboardView";
+import { ClientManagementView } from "@/features/clients/components/ClientManagementView";
+import { ClientDashboardView } from "@/features/clients/components/ClientDashboardView";
 import { FixedLeaderboardView } from "./FixedLeaderboardView";
+import { calculateScopeCompletion } from "@/shared/lib/scoring";
 
 export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport }) {
   const supabase = useSupabase();
+  const { notify } = useToast();
   const { allSubmissions, loading, error, refreshSubmissions } = useFetchSubmissions();
   const { submissions: syncedSubmissions, refreshAllData, updateSubmission } = useDataSync();
   const { openModal, closeModal } = useModal();
@@ -26,6 +29,10 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
   });
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
   const [selectedEmployees, setSelectedEmployees] = useState(new Set());
+  const [expandedRows, setExpandedRows] = useState({});
+  const [underService, setUnderService] = useState('All');
+  const [underDept, setUnderDept] = useState('All');
+  const [learningThreshold, setLearningThreshold] = useState(10);
   
   // Loading states for different operations
   const [operationStates, setOperationStates] = useState({
@@ -40,7 +47,8 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
     submission: null,
     score: 8,
     comments: '',
-    recommendations: ''
+    recommendations: '',
+    testimonialUrl: ''
   });
 
   const processedData = useMemo(() => {
@@ -80,6 +88,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       }, 0);
       
       emp.performance = emp.averageScore >= 8 ? 'High' : emp.averageScore >= 6 ? 'Medium' : 'Low';
+      emp.hasTestimonial = emp.submissions.some(s => s.manager?.testimonialUrl);
       
       return emp;
     });
@@ -125,19 +134,41 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       return typeof aVal === 'string' ? aVal.localeCompare(bVal) : aVal - bVal;
     });
 
+    // Stats
     const stats = {
       totalEmployees: employees.length,
       totalSubmissions: filteredByDate.length,
       averageScore: employees.length ? 
         (employees.reduce((sum, emp) => sum + parseFloat(emp.averageScore), 0) / employees.length).toFixed(1) : 0,
       highPerformers: employees.filter(emp => emp.performance === 'High').length,
-      needsAttention: employees.filter(emp => emp.performance === 'Low').length
+      needsAttention: employees.filter(emp => emp.performance === 'Low').length,
+      withPenalties: employees.filter(emp => emp.latestSubmission?.discipline?.penalty > 0).length,
+      missingLearning: employees.filter(emp => {
+        const latest = emp.latestSubmission;
+        if (!latest) return false;
+        const hours = (latest.learning || []).reduce((h, l) => h + (l.durationMins || 0), 0) / 60;
+        return hours < learningThreshold; // threshold for learning compliance
+      }).length
     };
 
     const departments = [...new Set(employees.map(emp => emp.department))].sort();
 
     return { employees: filteredEmployees, stats, departments, allEmployees: employees };
-  }, [workingSubmissions, selectedMonth, searchQuery, filters, sortConfig]);
+  }, [workingSubmissions, selectedMonth, searchQuery, filters, sortConfig, learningThreshold]);
+
+  const underServiceOptions = useMemo(() => {
+    try {
+      const set = new Set();
+      (processedData.employees || []).forEach(emp => {
+        const sub = emp.latestSubmission;
+        (sub?.clients || []).forEach(c => (c.services || []).forEach(s => {
+          const name = typeof s === 'string' ? s : s.service;
+          if (name) set.add(name);
+        }));
+      });
+      return ['All', ...Array.from(set).sort()];
+    } catch { return ['All']; }
+  }, [processedData]);
 
   const openEvaluation = (submission) => {
     setEvaluationPanel({
@@ -145,7 +176,14 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       submission,
       score: submission.manager?.score || 8,
       comments: submission.manager?.comments || '',
-      recommendations: submission.manager?.recommendations || ''
+      recommendations: submission.manager?.recommendations || '',
+      testimonialUrl: submission.manager?.testimonialUrl || '',
+      rubrics: {
+        collaboration: submission.manager?.rubrics?.collaboration || 7,
+        ownership: submission.manager?.rubrics?.ownership || 7,
+        quality: submission.manager?.rubrics?.quality || 7,
+        communication: submission.manager?.rubrics?.communication || 7,
+      }
     });
   };
 
@@ -163,6 +201,13 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
           score: evaluationPanel.score,
           comments: evaluationPanel.comments,
           recommendations: evaluationPanel.recommendations,
+          testimonialUrl: evaluationPanel.testimonialUrl,
+          rubrics: {
+            collaboration: Number(evaluationPanel.rubrics?.collaboration || 0),
+            ownership: Number(evaluationPanel.rubrics?.ownership || 0),
+            quality: Number(evaluationPanel.rubrics?.quality || 0),
+            communication: Number(evaluationPanel.rubrics?.communication || 0),
+          },
           evaluatedAt: new Date().toISOString(),
           evaluatedBy: 'Manager'
         }
@@ -185,9 +230,11 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       
       setEvaluationPanel({ isOpen: false, submission: null, score: 8, comments: '', recommendations: '' });
       console.log('✅ Evaluation saved successfully');
+      notify({ type: 'success', title: 'Evaluation saved', message: 'Manager evaluation updated.' });
       openModal('Success', 'Employee evaluation saved successfully!', closeModal);
     } catch (error) {
       console.error('❌ Failed to save evaluation:', error);
+      notify({ type: 'error', title: 'Save failed', message: error.message });
       openModal('Error', 'Failed to save evaluation. Please try again.', closeModal);
     } finally {
       setOperationStates(prev => ({ ...prev, savingEvaluation: false }));
@@ -716,14 +763,14 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Team Overview ({processedData.employees.length} employees)
-                </h3>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">Sort by:</span>
+      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Team Overview ({processedData.employees.length} employees)
+            </h3>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Sort by:</span>
                   <select
                     value={sortConfig.key}
                     onChange={(e) => setSortConfig(prev => ({ ...prev, key: e.target.value }))}
@@ -746,8 +793,33 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                     </svg>
                   </button>
                 </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const map = {}; (processedData.employees||[]).forEach(emp => { map[`${emp.name}-${emp.phone}`] = true; }); setExpandedRows(map);
+                    }}
+                    className="text-xs px-2 py-1 border rounded hover:bg-gray-50"
+                  >
+                    Expand All
+                  </button>
+                  <button
+                    onClick={() => setExpandedRows({})}
+                    className="text-xs px-2 py-1 border rounded hover:bg-gray-50"
+                  >
+                    Collapse All
+                  </button>
+                </div>
               </div>
             </div>
+
+          {/* Quick analytics chips */}
+          <div className="px-6 py-3 border-b border-gray-100 bg-gray-50 flex flex-wrap gap-2 text-xs">
+            <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-800">Avg Score: {processedData.stats.averageScore}</span>
+            <span className="px-2 py-1 rounded-full bg-green-100 text-green-800">High Perf: {processedData.stats.highPerformers}</span>
+            <span className="px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">Needs Attention: {processedData.stats.needsAttention}</span>
+            <span className="px-2 py-1 rounded-full bg-red-100 text-red-800">Penalties: {processedData.stats.withPenalties}</span>
+            <span className="px-2 py-1 rounded-full bg-purple-100 text-purple-800"><span className="hidden sm:inline">Missing Learning (&lt;{learningThreshold}h): </span>{processedData.stats.missingLearning}</span>
+          </div>
 
             {processedData.employees.length === 0 ? (
               <div className="text-center py-12">
@@ -771,7 +843,8 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {processedData.employees.map((employee, index) => (
-                      <tr key={`${employee.name}-${employee.phone}`} className="hover:bg-gray-50">
+                      <React.Fragment key={`${employee.name}-${employee.phone}`}>
+                      <tr className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
                             <div className="text-sm font-medium text-gray-900">{employee.name}</div>
@@ -792,6 +865,11 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                           <div className={`text-lg font-semibold ${employee.averageScore >= 8 ? 'text-green-600' : employee.averageScore >= 6 ? 'text-yellow-600' : 'text-red-600'}`}>
                             {employee.averageScore}/10
                           </div>
+                          {employee.latestSubmission?.discipline?.penalty > 0 && (
+                            <div className="text-xs text-red-600 mt-1">
+                              Penalty: -{employee.latestSubmission.discipline.penalty} • {employee.latestSubmission.discipline.lateDays} day(s) late
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {employee.totalHours.toFixed(1)}h
@@ -801,6 +879,12 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setExpandedRows(prev => ({ ...prev, [`${employee.name}-${employee.phone}`]: !prev[`${employee.name}-${employee.phone}`] }))}
+                              className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 px-3 py-1 rounded"
+                            >
+                              {expandedRows[`${employee.name}-${employee.phone}`] ? 'Hide' : 'Progress'}
+                            </button>
                             <button
                               onClick={() => handleViewReport(employee)}
                               disabled={operationStates.bulkOperations}
@@ -858,15 +942,132 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                                 Evaluate
                               </button>
                             )}
+                            {employee.latestSubmission?.manager?.testimonialUrl && (
+                              <a
+                                href={employee.latestSubmission.manager.testimonialUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs text-purple-700 underline"
+                              >
+                                🎥 Testimonial
+                              </a>
+                            )}
                           </div>
                         </td>
                       </tr>
+                      {expandedRows[`${employee.name}-${employee.phone}`] && (
+                        <tr className="bg-gray-50/50">
+                          <td colSpan={7} className="px-6 py-4">
+                            {employee.latestSubmission?.clients && employee.latestSubmission.clients.length > 0 ? (
+                              <div className="grid md:grid-cols-2 gap-4">
+                                {employee.latestSubmission.clients.map((c, ci) => (
+                                  <div key={ci} className="border rounded-lg p-3 bg-white">
+                                    <div className="text-sm font-semibold mb-2">{c.name}</div>
+                                    {Array.isArray(c.services) && c.services.length > 0 ? (
+                                      <div className="space-y-2">
+                                        {c.services.map((s, si) => {
+                                          const name = typeof s === 'string' ? s : s.service;
+                              const pct = calculateScopeCompletion(c, name, { monthKey: employee.latestSubmission.monthKey }) || 0;
+                              const w = require('@/shared/lib/scoring').getServiceWeight(name);
+                              return (
+                                <div key={si} className="text-xs">
+                                  <div className="flex justify-between mb-0.5"><span className="font-medium">{name} <span className="text-gray-500">(w {w})</span></span><span>{pct}%</span></div>
+                                  <div className="w-full bg-gray-200 h-1.5 rounded-full">
+                                    <div className={`${pct>=100?'bg-green-500':pct>=60?'bg-yellow-500':'bg-red-500'} h-1.5 rounded-full`} style={{ width: `${pct}%` }}></div>
+                                  </div>
+                                </div>
+                              );
+                                        })}
+                                      </div>
+                                    ) : (
+                                      <div className="text-xs text-gray-500">No services scoped</div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-gray-600">No client data in latest submission.</div>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
               </div>
             )}
           </div>
+
+          {/* Underperforming Scopes */}
+          <div className="bg-white rounded-xl shadow-sm border p-4 mt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-base font-semibold text-gray-900">🔍 Underperforming Scopes</h4>
+              <div className="flex items-center gap-3">
+                <div className="text-xs text-gray-500">Period: {selectedMonth==='all' ? 'All' : new Date(selectedMonth+'-01').toLocaleString(undefined,{month:'long',year:'numeric'})}</div>
+                <select className="text-xs border rounded px-2 py-1" value={underService} onChange={e=>setUnderService(e.target.value)}>
+                  {underServiceOptions.map(s => (<option key={s}>{s}</option>))}
+                </select>
+                <select className="text-xs border rounded px-2 py-1" value={underDept} onChange={e=>setUnderDept(e.target.value)}>
+                  {['All', ...(processedData.departments||[])].map(d => (<option key={d}>{d}</option>))}
+                </select>
+              </div>
+            </div>
+            {(() => {
+              try {
+                const entries = [];
+                (processedData.employees||[]).forEach(emp => {
+                  if (underDept !== 'All' && emp.department !== underDept) return;
+                  const sub = emp.latestSubmission;
+                  if (!sub || !sub.clients) return;
+                  sub.clients.forEach(c => {
+                    (c.services||[]).forEach(s => {
+                      const name = typeof s === 'string' ? s : s.service;
+                      const { calculateScopeCompletion } = require('@/shared/lib/scoring');
+                      const pct = calculateScopeCompletion(c, name, { monthKey: sub.monthKey }) || 0;
+                      if (pct < 60 && (underService==='All' || name===underService)) {
+                        entries.push({ employee: emp.name, client: c.name, service: name, pct });
+                      }
+                    });
+                  });
+                });
+                const top = entries.sort((a,b)=>a.pct-b.pct).slice(0,10);
+                if (top.length === 0) return (<div className="text-sm text-gray-600">No underperforming scopes found.</div>);
+                return (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-gray-500 border-b">
+                          <th className="py-2 pr-4">Employee</th>
+                          <th className="py-2 pr-4">Client</th>
+                          <th className="py-2 pr-4">Service</th>
+                          <th className="py-2 pr-4">Progress</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {top.map((e,i)=> (
+                          <tr key={`${e.employee}-${e.client}-${e.service}-${i}`} className="border-b last:border-0">
+                            <td className="py-2 pr-4">{e.employee}</td>
+                            <td className="py-2 pr-4">{e.client}</td>
+                            <td className="py-2 pr-4">{e.service}</td>
+                            <td className="py-2 pr-4">
+                              <div className="w-40 bg-gray-200 h-2 rounded-full">
+                                <div className={`${e.pct>=100?'bg-green-500':e.pct>=60?'bg-yellow-500':'bg-red-500'} h-2 rounded-full`} style={{ width: `${Math.max(0,Math.min(100,e.pct))}%` }}></div>
+                              </div>
+                              <div className="text-xs text-gray-600 mt-1">{e.pct}%</div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              } catch (e) {
+                return (<div className="text-sm text-gray-600">Unable to compute scope analytics.</div>);
+              }
+            })()}
+          </div>
+
         </>
       )}
 
@@ -882,6 +1083,123 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
         <FixedLeaderboardView allSubmissions={allSubmissions} />
       )}
 
+      {/* Top Improving Scopes */}
+      <div className="bg-white rounded-xl shadow-sm border p-4 mt-4">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-base font-semibold text-gray-900">📈 Top Improving Scopes</h4>
+          <div className="text-xs text-gray-500">Compared to previous month</div>
+        </div>
+        {(() => {
+          try {
+            const rows = [];
+            (processedData.employees||[]).forEach(emp => {
+              const subs = (emp.submissions||[]).sort((a,b)=>b.monthKey.localeCompare(a.monthKey));
+              if (subs.length < 2) return;
+              const latest = subs[0], prev = subs[1];
+              (latest.clients||[]).forEach(c => {
+                const prevClient = (prev.clients||[]).find(pc => pc.name === c.name);
+                if (!prevClient) return;
+                (c.services||[]).forEach(s => {
+                  const name = typeof s === 'string' ? s : s.service;
+                  const { calculateScopeCompletion } = require('@/shared/lib/scoring');
+                  const nowPct = calculateScopeCompletion(c, name, { monthKey: latest.monthKey }) || 0;
+                  const prevPct = calculateScopeCompletion(prevClient, name, { monthKey: prev.monthKey }) || 0;
+                  const delta = nowPct - prevPct;
+                  if (delta > 0) rows.push({ employee: emp.name, client: c.name, service: name, delta, nowPct, prevPct });
+                });
+              });
+            });
+            const top = rows.sort((a,b)=>b.delta - a.delta).slice(0,10);
+            if (top.length === 0) return (<div className="text-sm text-gray-600">No significant improvements detected.</div>);
+            return (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-500 border-b">
+                      <th className="py-2 pr-4">Employee</th>
+                      <th className="py-2 pr-4">Client</th>
+                      <th className="py-2 pr-4">Service</th>
+                      <th className="py-2 pr-4">Δ%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {top.map((e,i)=> (
+                      <tr key={`${e.employee}-${e.client}-${e.service}-${i}`} className="border-b last:border-0">
+                        <td className="py-2 pr-4">{e.employee}</td>
+                        <td className="py-2 pr-4">{e.client}</td>
+                        <td className="py-2 pr-4">{e.service}</td>
+                        <td className="py-2 pr-4 text-green-700 font-semibold">+{Math.round(e.delta)}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          } catch (e) {
+            return (<div className="text-sm text-gray-600">Unable to compute improvements.</div>);
+          }
+        })()}
+      </div>
+
+      {/* Top Improving Clients */}
+      <div className="bg-white rounded-xl shadow-sm border p-4 mt-4">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-base font-semibold text-gray-900">📈 Top Improving Clients</h4>
+          <div className="text-xs text-gray-500">Average service improvement</div>
+        </div>
+        {(() => {
+          try {
+            const rows = [];
+            (processedData.employees||[]).forEach(emp => {
+              const subs = (emp.submissions||[]).sort((a,b)=>b.monthKey.localeCompare(a.monthKey));
+              if (subs.length < 2) return;
+              const latest = subs[0], prev = subs[1];
+              (latest.clients||[]).forEach(c => {
+                const prevClient = (prev.clients||[]).find(pc => pc.name === c.name);
+                if (!prevClient) return;
+                let deltas = [];
+                (c.services||[]).forEach(s => {
+                  const name = typeof s === 'string' ? s : s.service;
+                  const { calculateScopeCompletion } = require('@/shared/lib/scoring');
+                  const nowPct = calculateScopeCompletion(c, name, { monthKey: latest.monthKey }) || 0;
+                  const prevPct = calculateScopeCompletion(prevClient, name, { monthKey: prev.monthKey }) || 0;
+                  deltas.push(nowPct - prevPct);
+                });
+                if (deltas.length) {
+                  const avgDelta = deltas.reduce((a,b)=>a+b,0)/deltas.length;
+                  if (avgDelta > 0) rows.push({ employee: emp.name, client: c.name, delta: avgDelta });
+                }
+              });
+            });
+            const top = rows.sort((a,b)=>b.delta - a.delta).slice(0,10);
+            if (top.length === 0) return (<div className="text-sm text-gray-600">No significant improvements detected.</div>);
+            return (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-500 border-b">
+                      <th className="py-2 pr-4">Employee</th>
+                      <th className="py-2 pr-4">Client</th>
+                      <th className="py-2 pr-4">Δ%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {top.map((e,i)=> (
+                      <tr key={`${e.employee}-${e.client}-${i}`} className="border-b last:border-0">
+                        <td className="py-2 pr-4">{e.employee}</td>
+                        <td className="py-2 pr-4">{e.client}</td>
+                        <td className="py-2 pr-4 text-green-700 font-semibold">+{Math.round(e.delta)}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          } catch (e) {
+            return (<div className="text-sm text-gray-600">Unable to compute improvements.</div>);
+          }
+        })()}
+      </div>
       {evaluationPanel.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -902,6 +1220,77 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
             </div>
             
             <div className="px-6 py-4 space-y-6">
+              {evaluationPanel.submission?.discipline?.penalty > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+                  Late submission penalty applied: -{evaluationPanel.submission.discipline.penalty} (late by {evaluationPanel.submission.discipline.lateDays} day(s)).
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Testimonial URL (optional)</label>
+                <input
+                  type="url"
+                  value={evaluationPanel.testimonialUrl}
+                  onChange={(e) => setEvaluationPanel(prev => ({ ...prev, testimonialUrl: e.target.value }))}
+                  placeholder="https://... (video/review link)"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">Add a link to a client testimonial or video to award recognition.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Rubric Ratings (1-10)</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-xs text-gray-600 mb-1">Collaboration</div>
+                    <input type="number" min="1" max="10" value={evaluationPanel.rubrics?.collaboration || 0} onChange={(e)=>setEvaluationPanel(prev=>({ ...prev, rubrics: { ...prev.rubrics, collaboration: parseInt(e.target.value)||0 } }))} className="w-full px-3 py-2 border rounded-lg" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-600 mb-1">Ownership</div>
+                    <input type="number" min="1" max="10" value={evaluationPanel.rubrics?.ownership || 0} onChange={(e)=>setEvaluationPanel(prev=>({ ...prev, rubrics: { ...prev.rubrics, ownership: parseInt(e.target.value)||0 } }))} className="w-full px-3 py-2 border rounded-lg" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-600 mb-1">Quality</div>
+                    <input type="number" min="1" max="10" value={evaluationPanel.rubrics?.quality || 0} onChange={(e)=>setEvaluationPanel(prev=>({ ...prev, rubrics: { ...prev.rubrics, quality: parseInt(e.target.value)||0 } }))} className="w-full px-3 py-2 border rounded-lg" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-600 mb-1">Communication</div>
+                    <input type="number" min="1" max="10" value={evaluationPanel.rubrics?.communication || 0} onChange={(e)=>setEvaluationPanel(prev=>({ ...prev, rubrics: { ...prev.rubrics, communication: parseInt(e.target.value)||0 } }))} className="w-full px-3 py-2 border rounded-lg" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Client scope summary for this submission */}
+              {evaluationPanel.submission?.clients && evaluationPanel.submission.clients.length > 0 && (
+                <div>
+                  <div className="text-sm font-medium mb-2">Client Scope Progress (Submission Month)</div>
+                  <div className="space-y-3">
+                    {evaluationPanel.submission.clients.map((c, ci) => (
+                      <div key={ci} className="border rounded-lg p-3">
+                        <div className="text-sm font-semibold mb-2">{c.name}</div>
+                        {Array.isArray(c.services) && c.services.length > 0 ? (
+                          <div className="space-y-2">
+                            {c.services.map((s, si) => {
+                              const name = typeof s === 'string' ? s : s.service;
+                              // defer require to avoid circular import at top-level
+                              const { calculateScopeCompletion } = require('@/shared/lib/scoring');
+                              const pct = calculateScopeCompletion(c, name, { monthKey: evaluationPanel.submission.monthKey }) || 0;
+                              return (
+                                <div key={si} className="text-xs">
+                                  <div className="flex justify-between mb-0.5"><span className="font-medium">{name}</span><span>{pct}%</span></div>
+                                  <div className="w-full bg-gray-200 h-1.5 rounded-full">
+                                    <div className={`${pct>=100?'bg-green-500':pct>=60?'bg-yellow-500':'bg-red-500'} h-1.5 rounded-full`} style={{ width: `${pct}%` }}></div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-gray-500">No services scoped</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Manager Score (1-10)

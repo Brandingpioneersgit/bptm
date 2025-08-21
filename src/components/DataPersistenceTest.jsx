@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { dataPersistence, useDraftPersistence } from './DataPersistence';
+import { dataPersistence, useDraftPersistence } from '@/shared/services/DataPersistence';
 
 /**
  * Simple test component to verify the data persistence system works

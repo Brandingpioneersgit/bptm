@@ -7,7 +7,6 @@ export const HeaderBrand = () => (
       alt="Branding Pioneers"
       className="w-10 h-10 object-contain"
       onError={(e) => {
-        // Fallback to initials if logo fails to load
         e.target.style.display = 'none';
         e.target.nextSibling.style.display = 'flex';
       }}
@@ -19,3 +18,4 @@ export const HeaderBrand = () => (
     </div>
   </div>
 );
+

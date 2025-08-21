@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useFetchSubmissions } from "./useFetchSubmissions";
 import { useModal } from "./AppShell";
-import { monthLabel, round1 } from "./constants";
+import { monthLabel, round1 } from "@/shared/lib/constants";
 
 export function NewReportDashboard({ employeeName, employeePhone, onBack }) {
   const { allSubmissions, loading, error } = useFetchSubmissions();

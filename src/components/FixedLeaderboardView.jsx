@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { monthLabel, round1 } from "./constants";
+import { monthLabel, round1 } from "@/shared/lib/constants";
 
 export function FixedLeaderboardView({ allSubmissions }) {
   const [selectedPeriod, setSelectedPeriod] = useState('all');
@@ -111,6 +111,8 @@ export function FixedLeaderboardView({ allSubmissions }) {
           score = avgOverall;
       }
 
+      const latest = [...completedSubmissions].sort((a,b)=>b.monthKey.localeCompare(a.monthKey))[0] || null;
+      const testimonialUrl = latest?.manager?.testimonialUrl || '';
       return {
         ...emp,
         score: round1(score * consistencyScore),
@@ -121,7 +123,9 @@ export function FixedLeaderboardView({ allSubmissions }) {
         avgOverall,
         totalLearningHours: round1(totalLearningHours),
         clientCount,
-        consistencyScore: round1(consistencyScore)
+        consistencyScore: round1(consistencyScore),
+        hasTestimonial: !!testimonialUrl,
+        testimonialUrl
       };
     });
 
@@ -266,7 +270,12 @@ export function FixedLeaderboardView({ allSubmissions }) {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                          <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                            <span>{employee.name}</span>
+                            {employee.hasTestimonial && (
+                              <a className="text-xs text-purple-700 underline" href={employee.testimonialUrl} target="_blank" rel="noreferrer">🎥</a>
+                            )}
+                          </div>
                           <div className="text-sm text-gray-500">{employee.phone}</div>
                         </div>
                       </td>

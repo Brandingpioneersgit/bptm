@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { monthLabel } from './constants';
-import { dataPersistence } from './DataPersistence';
+import { monthLabel } from '@/shared/lib/constants';
+import { dataPersistence } from '@/shared/services/DataPersistence';
 
 /**
  * Draft Resume Prompt Component

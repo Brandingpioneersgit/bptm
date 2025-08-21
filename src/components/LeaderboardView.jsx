@@ -177,6 +177,9 @@ export function LeaderboardView({ allSubmissions }) {
                 <div className="text-sm font-medium mt-2">{leaderboardData[1].name}</div>
                 <div className="text-xs text-gray-600">{leaderboardData[1].department}</div>
                 <div className="text-lg font-bold text-gray-600 mt-1">{leaderboardData[1].rankingScore.toFixed(1)}</div>
+                {leaderboardData[1].hasTestimonial && (
+                  <div className="text-xs text-purple-700 mt-1">🎥 Testimonial</div>
+                )}
               </div>
               <div className="bg-gray-400 h-16 rounded-t-lg flex items-center justify-center text-white font-bold">
                 2nd
@@ -189,6 +192,9 @@ export function LeaderboardView({ allSubmissions }) {
                 <div className="text-sm font-medium mt-2">{leaderboardData[0].name}</div>
                 <div className="text-xs text-gray-600">{leaderboardData[0].department}</div>
                 <div className="text-xl font-bold text-yellow-600 mt-1">{leaderboardData[0].rankingScore.toFixed(1)}</div>
+                {leaderboardData[0].hasTestimonial && (
+                  <div className="text-xs text-purple-700 mt-1">🎥 Testimonial</div>
+                )}
               </div>
               <div className="bg-yellow-500 h-20 rounded-t-lg flex items-center justify-center text-white font-bold">
                 1st
@@ -201,6 +207,9 @@ export function LeaderboardView({ allSubmissions }) {
                 <div className="text-sm font-medium mt-2">{leaderboardData[2].name}</div>
                 <div className="text-xs text-gray-600">{leaderboardData[2].department}</div>
                 <div className="text-lg font-bold text-orange-600 mt-1">{leaderboardData[2].rankingScore.toFixed(1)}</div>
+                {leaderboardData[2].hasTestimonial && (
+                  <div className="text-xs text-purple-700 mt-1">🎥 Testimonial</div>
+                )}
               </div>
               <div className="bg-orange-500 h-12 rounded-t-lg flex items-center justify-center text-white font-bold">
                 3rd

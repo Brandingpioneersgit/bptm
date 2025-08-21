@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useDataSync } from './DataSyncContext';
-import { useClientSync } from './ClientSyncContext';
+import { useClientSync } from '@/features/clients/context/ClientSyncContext';
 import { useFetchSubmissions } from './useFetchSubmissions';
 import { useSupabase } from './SupabaseProvider';
 
