@@ -1,6 +1,6 @@
 // Client Repository Service for automatic client management
 
-import { EMPTY_CLIENT, findClientInRepository, mergeClientData, createServiceObject } from '@/shared/services/clientServices';
+import { EMPTY_CLIENT } from '@/shared/services/clientServices';
 
 export class ClientRepository {
   constructor(supabase, dataSyncNotifier = null) {
