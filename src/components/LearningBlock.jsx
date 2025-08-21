@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Section, TextField, NumField, TextArea } from "@/shared/components/ui";
 import { uid } from "@/shared/lib/constants";
-import { useModal } from "./AppShell";
 
 export function LearningBlock({ model, setModel, openModal }) {
   const [draft, setDraft] = useState({ title: '', link: '', durationMins: 0, learned: '', applied: '' });
