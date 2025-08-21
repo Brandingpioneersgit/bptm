@@ -7,7 +7,7 @@ import { useDataSync } from "./DataSyncContext";
 import { ClientManagementView } from "@/features/clients/components/ClientManagementView";
 import { ClientDashboardView } from "@/features/clients/components/ClientDashboardView";
 import { FixedLeaderboardView } from "./FixedLeaderboardView";
-import { calculateScopeCompletion } from "@/shared/lib/scoring";
+import { calculateScopeCompletion, getServiceWeight } from "@/shared/lib/scoring";
 
 export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport }) {
   const supabase = useSupabase();
@@ -968,7 +968,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                                         {c.services.map((s, si) => {
                                           const name = typeof s === 'string' ? s : s.service;
                               const pct = calculateScopeCompletion(c, name, { monthKey: employee.latestSubmission.monthKey }) || 0;
-                              const w = require('@/shared/lib/scoring').getServiceWeight(name);
+                              const w = getServiceWeight(name);
                               return (
                                 <div key={si} className="text-xs">
                                   <div className="flex justify-between mb-0.5"><span className="font-medium">{name} <span className="text-gray-500">(w {w})</span></span><span>{pct}%</span></div>
@@ -1023,7 +1023,6 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                   sub.clients.forEach(c => {
                     (c.services||[]).forEach(s => {
                       const name = typeof s === 'string' ? s : s.service;
-                      const { calculateScopeCompletion } = require('@/shared/lib/scoring');
                       const pct = calculateScopeCompletion(c, name, { monthKey: sub.monthKey }) || 0;
                       if (pct < 60 && (underService==='All' || name===underService)) {
                         entries.push({ employee: emp.name, client: c.name, service: name, pct });
@@ -1101,7 +1100,6 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                 if (!prevClient) return;
                 (c.services||[]).forEach(s => {
                   const name = typeof s === 'string' ? s : s.service;
-                  const { calculateScopeCompletion } = require('@/shared/lib/scoring');
                   const nowPct = calculateScopeCompletion(c, name, { monthKey: latest.monthKey }) || 0;
                   const prevPct = calculateScopeCompletion(prevClient, name, { monthKey: prev.monthKey }) || 0;
                   const delta = nowPct - prevPct;
@@ -1160,7 +1158,6 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                 let deltas = [];
                 (c.services||[]).forEach(s => {
                   const name = typeof s === 'string' ? s : s.service;
-                  const { calculateScopeCompletion } = require('@/shared/lib/scoring');
                   const nowPct = calculateScopeCompletion(c, name, { monthKey: latest.monthKey }) || 0;
                   const prevPct = calculateScopeCompletion(prevClient, name, { monthKey: prev.monthKey }) || 0;
                   deltas.push(nowPct - prevPct);
@@ -1270,8 +1267,6 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                           <div className="space-y-2">
                             {c.services.map((s, si) => {
                               const name = typeof s === 'string' ? s : s.service;
-                              // defer require to avoid circular import at top-level
-                              const { calculateScopeCompletion } = require('@/shared/lib/scoring');
                               const pct = calculateScopeCompletion(c, name, { monthKey: evaluationPanel.submission.monthKey }) || 0;
                               return (
                                 <div key={si} className="text-xs">
