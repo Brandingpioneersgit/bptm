@@ -4,6 +4,7 @@ import { monthLabel, isDriveUrl, isGensparkUrl, uid, round1 } from "./constants"
 import { useModal } from "./AppShell";
 import { useSupabase } from "./SupabaseProvider";
 import { ClientReportStatus } from "./ClientReportStatus";
+import { useClientSync } from "./ClientSyncContext";
 
 // Internal KPIs component for HR, Accounts, Sales, Blended departments
 function InternalKPIs({ model, prevModel, comparisonModel, setModel, monthPrev, monthThis, monthComparison }) {
@@ -832,8 +833,8 @@ export function DeptClientsBlock({ currentSubmission, previousSubmission, compar
 
 function ClientTable({ currentSubmission, previousSubmission, comparisonSubmission, setModel, monthPrev, monthThis, monthComparison, openModal, closeModal }) {
   const supabase = useSupabase();
+  const { getActiveClientsByTeam, addClient } = useClientSync();
   const [draftRow, setDraftRow] = useState({ name: "", scopeOfWork: "", url: "" });
-  const [masterClients, setMasterClients] = useState([]);
   const [showNewClientForm, setShowNewClientForm] = useState(false);
   
   const serviceOptions = ['SEO', 'GBP SEO', 'Website Maintenance', 'Social Media', 'Google Ads', 'Meta Ads', 'AI'];
@@ -902,40 +903,21 @@ function ClientTable({ currentSubmission, previousSubmission, comparisonSubmissi
 
   const prevClients = previousSubmission?.clients || [];
   
-  useEffect(() => {
-    const fetchMasterClients = async () => {
-      if (!supabase) return;
-      
-      try {
-        const { data, error } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('status', 'Active')
-          .order('name');
-        
-        if (error) throw error;
-        setMasterClients(data || []);
-      } catch (error) {
-        console.error('Error fetching master clients:', error);
-      }
-    };
-    
-    fetchMasterClients();
-  }, [supabase]);
+  // No longer needed - using ClientSyncContext
 
   const currentTeam = currentSubmission.employee.department === "Social Media" ? "Marketing" : "Web";
   
   const clientNames = useMemo(() => {
     const names = new Set();
     
-    masterClients
-      .filter(client => client.team === currentTeam)
-      .forEach(client => names.add(client.name));
+    // Get active clients for current team from sync context
+    const masterClients = getActiveClientsByTeam(currentTeam);
+    masterClients.forEach(client => names.add(client.name));
     
     prevClients.forEach(client => names.add(client.name));
     
     return [...names].sort();
-  }, [masterClients, prevClients, currentTeam]);
+  }, [getActiveClientsByTeam, prevClients, currentTeam]);
 
   const addClientFromDropdown = (clientName) => {
     const prevClient = prevClients.find(c => c.name === clientName);
@@ -945,6 +927,8 @@ function ClientTable({ currentSubmission, previousSubmission, comparisonSubmissi
       return;
     }
     
+    // Get master client from sync context
+    const masterClients = getActiveClientsByTeam(currentTeam);
     const masterClient = masterClients.find(c => c.name === clientName);
     const newClient = masterClient 
       ? { 
@@ -1029,7 +1013,8 @@ function ClientTable({ currentSubmission, previousSubmission, comparisonSubmissi
 
       setModel(m => ({ ...m, clients: [...m.clients, formClient] }));
       
-      setMasterClients(prev => [...prev, newClient]);
+      // Add to synchronized client state
+      addClient(newClient);
       
       setNewClientForm({
         name: '',

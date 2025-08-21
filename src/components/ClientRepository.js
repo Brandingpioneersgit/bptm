@@ -3,9 +3,27 @@
 import { EMPTY_CLIENT, findClientInRepository, mergeClientData, createServiceObject } from './clientServices';
 
 export class ClientRepository {
-  constructor(supabase) {
+  constructor(supabase, dataSyncNotifier = null) {
     this.supabase = supabase;
     this.cache = new Map(); // Cache for client data
+    this.dataSyncNotifier = dataSyncNotifier; // Optional DataSync integration
+  }
+  
+  // Set DataSync notifier for automatic sync
+  setDataSyncNotifier(notifier) {
+    this.dataSyncNotifier = notifier;
+  }
+  
+  // Notify DataSync of changes
+  async notifyDataSync(action, clientData) {
+    if (this.dataSyncNotifier && typeof this.dataSyncNotifier[action] === 'function') {
+      try {
+        await this.dataSyncNotifier[action](clientData);
+        console.log(`🔄 DataSync notified of ${action}:`, clientData.name);
+      } catch (error) {
+        console.error(`❌ DataSync notification failed for ${action}:`, error);
+      }
+    }
   }
 
   // Get all clients from repository
@@ -61,6 +79,10 @@ export class ClientRepository {
         
         // Update cache
         this.cache.set(clientData.name.toLowerCase().trim(), data);
+        
+        // Notify DataSync
+        await this.notifyDataSync('updateClient', data);
+        
         return data;
       } else {
         // Create new client
@@ -83,6 +105,10 @@ export class ClientRepository {
         
         // Update cache
         this.cache.set(clientData.name.toLowerCase().trim(), data);
+        
+        // Notify DataSync
+        await this.notifyDataSync('addClient', data);
+        
         return data;
       }
     } catch (error) {
@@ -219,6 +245,10 @@ export class ClientRepository {
       
       // Update cache
       this.cache.set(data.name.toLowerCase().trim(), data);
+      
+      // Notify DataSync
+      await this.notifyDataSync('updateClient', data);
+      
       return data;
     } catch (error) {
       console.error('Error updating client services:', error);
@@ -230,9 +260,12 @@ export class ClientRepository {
 // Global instance
 let globalClientRepository = null;
 
-export const getClientRepository = (supabase) => {
+export const getClientRepository = (supabase, dataSyncNotifier = null) => {
   if (!globalClientRepository) {
-    globalClientRepository = new ClientRepository(supabase);
+    globalClientRepository = new ClientRepository(supabase, dataSyncNotifier);
+  } else if (dataSyncNotifier) {
+    // Update the notifier if provided
+    globalClientRepository.setDataSyncNotifier(dataSyncNotifier);
   }
   return globalClientRepository;
 };

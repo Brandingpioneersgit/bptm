@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback, useRef } from "react"
 import { useSupabase } from "./SupabaseProvider";
 import { useModal } from "./AppShell";
 import { useFetchSubmissions } from "./useFetchSubmissions";
+import { useDataSync } from "./DataSyncContext";
 import { EMPTY_SUBMISSION, thisMonthKey, prevMonthKey, monthLabel, DEPARTMENTS, ROLES_BY_DEPT } from "./constants";
 import { scoreKPIs, scoreLearning, scoreRelationshipFromClients, overallOutOf10, generateSummary } from "./scoring";
 import { CelebrationEffect } from "./CelebrationEffect";
@@ -19,6 +20,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   const supabase = useSupabase();
   const { openModal, closeModal } = useModal();
   const { allSubmissions } = useFetchSubmissions();
+  const { addSubmission, updateSubmission, addClient, refreshAllData } = useDataSync();
 
   const [currentSubmission, setCurrentSubmission] = useState({ ...EMPTY_SUBMISSION, isDraft: true });
   const [previousSubmission, setPreviousSubmission] = useState(null);
@@ -381,13 +383,27 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
 
     setHasUnsavedChanges(true);
     
-    // Force immediate auto-save only for non-text identity fields
-    const criticalFields = ['employee.department', 'employee.role', 'monthKey'];
-    if (criticalFields.includes(key)) {
-      dlog(`🚨 Critical field ${key} updated - forcing immediate auto-save`);
-      setTimeout(() => {
-        autoSave();
-      }, 100); // Small delay to ensure state update is processed
+    // Enhanced field-level auto-save with different priorities
+    const immediateFields = ['employee.name', 'employee.phone', 'monthKey']; // Identity fields
+    const criticalFields = ['employee.department', 'employee.role', 'currentStep']; // Important structural fields
+    const regularFields = ['meta.', 'learning.', 'clients.', 'feedback.']; // Content fields
+    
+    if (immediateFields.includes(key)) {
+      // Identity fields - save immediately to establish user identity
+      dlog(`🆔 Identity field ${key} updated - immediate save`);
+      setTimeout(() => autoSave(), 100);
+    } else if (criticalFields.includes(key) || criticalFields.some(cf => key.startsWith(cf))) {
+      // Critical fields - save quickly but allow small batching
+      dlog(`🚨 Critical field ${key} updated - priority save`);
+      setTimeout(() => autoSave(), 500);
+    } else if (regularFields.some(rf => key.startsWith(rf))) {
+      // Regular content fields - normal debounced save
+      dlog(`📝 Content field ${key} updated - debounced save`);
+      // Will be handled by the general auto-save timer
+    } else {
+      // Unknown fields - save with medium priority
+      dlog(`❓ Unknown field ${key} updated - medium priority save`);
+      setTimeout(() => autoSave(), 1000);
     }
   }, [autoSave]);
 
@@ -902,7 +918,7 @@ Your progress has been automatically saved, so you won't lose any other informat
       // Store clients in repository before submitting
       if (supabase && currentSubmission.clients && currentSubmission.clients.length > 0) {
         console.log('🏢 Auto-storing clients to repository...');
-        const clientRepository = getClientRepository(supabase);
+        const clientRepository = getClientRepository(supabase, { updateClient: addClient, addClient });
         await clientRepository.storeClientsFromSubmission(currentSubmission);
       }
 
@@ -928,6 +944,33 @@ Your progress has been automatically saved, so you won't lose any other informat
         localStorage.removeItem(backupKey);
       } catch (e) {
         console.error('Failed to remove backup:', e);
+      }
+      
+      // Notify DataSync of new submission to trigger global refresh
+      console.log('🔄 Notifying DataSync of new submission...');
+      try {
+        if (data && data.length > 0) {
+          // Determine if this is an update or new submission
+          const savedSubmission = data[0];
+          const existingSubmission = allSubmissions.find(sub => 
+            sub.employee?.phone === savedSubmission.employee?.phone && 
+            sub.monthKey === savedSubmission.monthKey
+          );
+          
+          if (existingSubmission) {
+            await updateSubmission(savedSubmission);
+          } else {
+            await addSubmission(savedSubmission);
+          }
+        }
+        
+        // Force refresh all data to ensure consistency
+        setTimeout(() => {
+          refreshAllData();
+        }, 500);
+      } catch (syncError) {
+        console.error('DataSync notification failed:', syncError);
+        // Don't fail the submission for sync errors
       }
       
       const summary = generateSummary(final);
@@ -1162,37 +1205,6 @@ Your progress has been automatically saved, so you won't lose any other informat
     </div>
   );
 
-  const StepContent = () => {
-    const stepData = getCurrentStepData();
-    const isFormDisabled = (isSubmissionFinalized) && !isManagerEdit;
-    
-    return (
-      <div className={`bg-white rounded-xl shadow-sm border p-6 ${ isFormDisabled ? 'opacity-75' : ''}`}>
-        <div className="flex items-center gap-3 mb-6">
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl ${ isFormDisabled ? 'bg-gray-200 text-gray-500' : 'bg-blue-100'}`}>
-            {stepData.icon}
-          </div>
-          <div>
-            <h3 className="text-xl font-semibold">{stepData.title}</h3>
-            <p className="text-gray-600 text-sm">{stepData.description}</p>
-            {isSubmissionFinalized && !isManagerEdit && (
-              <p className="text-sm text-red-600 mt-1">
-                ✓ Submission completed - form locked
-              </p>
-            )}
-            {isManagerEdit && isSubmissionFinalized && (
-              <p className="text-sm text-blue-600 mt-1">
-                ✏️ Manager editing mode - submission can be modified
-              </p>
-            )}
-          </div>
-        </div>
-
-        {renderStepContent()}
-      </div>
-    );
-  };
-
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
@@ -1210,7 +1222,66 @@ Your progress has been automatically saved, so you won't lose any other informat
     }
   };
 
-  function renderProfileStep() {
+  const StepContent = () => {
+    const stepData = getCurrentStepData();
+    const isFormDisabled = (isSubmissionFinalized) && !isManagerEdit;
+    
+    return (
+      <div className={`bg-white rounded-xl shadow-sm border p-6 ${ isFormDisabled ? 'opacity-75' : ''}`}>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl ${ isFormDisabled ? 'bg-gray-200 text-gray-500' : 'bg-blue-100'}`}>
+              {stepData.icon}
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold">{stepData.title}</h3>
+              <p className="text-gray-600 text-sm">{stepData.description}</p>
+              {isSubmissionFinalized && !isManagerEdit && (
+                <p className="text-sm text-red-600 mt-1">
+                  ✓ Submission completed - form locked
+                </p>
+              )}
+              {isManagerEdit && isSubmissionFinalized && (
+                <p className="text-sm text-blue-600 mt-1">
+                  ✏️ Manager editing mode - submission can be modified
+                </p>
+              )}
+            </div>
+          </div>
+          
+          {/* Auto-save Status Indicator */}
+          <div className="text-right">
+            {hasUnsavedChanges ? (
+              <div className="flex items-center gap-2 text-yellow-600 text-sm">
+                <div className="animate-spin w-3 h-3 border-2 border-yellow-600 border-t-transparent rounded-full"></div>
+                <span>Saving...</span>
+              </div>
+            ) : lastAutoSave ? (
+              <div className="flex items-center gap-2 text-green-600 text-sm">
+                <div className="w-3 h-3 bg-green-600 rounded-full"></div>
+                <span>Saved {new Date().getTime() - lastAutoSave.getTime() < 10000 ? 'just now' : 'automatically'}</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-gray-400 text-sm">
+                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                <span>Ready</span>
+              </div>
+            )}
+            
+            {autoSaveEnabled && selectedEmployee?.name && selectedEmployee?.phone && (
+              <div className="text-xs text-gray-500 mt-1">
+                Auto-save: ON
+              </div>
+            )}
+          </div>
+        </div>
+
+        {renderStepContent()}
+      </div>
+    );
+  };
+
+  const renderProfileStep = () => {
     const isFormDisabled = isSubmissionFinalized && !isManagerEdit;
     const validation = getStepValidation(1);
     
@@ -1553,7 +1624,7 @@ Your progress has been automatically saved, so you won't lose any other informat
     );
   }
 
-  function renderAttendanceStep() {
+  const renderAttendanceStep = () => {
     const validation = getStepValidation(2);
     const prevAttendance = previousSubmission?.meta?.attendance || { wfo: 0, wfh: 0 };
     const comparisonAttendance = comparisonSubmission?.meta?.attendance || { wfo: 0, wfh: 0 };
@@ -1688,7 +1759,7 @@ Your progress has been automatically saved, so you won't lose any other informat
     );
   }
 
-  function renderKPIStep() {
+  const renderKPIStep = () => {
     return (
       <div className="space-y-6">
         <DeptClientsBlock 
@@ -1707,7 +1778,7 @@ Your progress has been automatically saved, so you won't lose any other informat
   }
 
 
-  function renderLearningStep() {
+  const renderLearningStep = () => {
     const validation = getStepValidation(4);
     const learningHours = (currentSubmission.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60;
     
@@ -1748,7 +1819,7 @@ Your progress has been automatically saved, so you won't lose any other informat
     );
   }
 
-  function renderFeedbackStep() {
+  const renderFeedbackStep = () => {
     return (
       <div className="space-y-6">
         <div className="bg-white border rounded-xl p-6">
@@ -1820,6 +1891,25 @@ Your progress has been automatically saved, so you won't lose any other informat
   return (
     <div className="max-w-4xl mx-auto">
       <CelebrationEffect show={showCelebration} overall={overall} />
+      
+      {/* Enhanced Draft Resume Prompt */}
+      {showDraftPrompt && (
+        <DraftResumePrompt
+          currentUser={selectedEmployee}
+          onResumeDraft={handleResumeDraft}
+          onStartFresh={handleStartFresh}
+          onDismiss={handleDismissDraftPrompt}
+          isVisible={showDraftPrompt}
+        />
+      )}
+      
+      {/* Crash Recovery Prompt */}
+      {showCrashRecovery && (
+        <CrashRecoveryPrompt
+          onRecover={handleRecoverCrash}
+          onDismiss={handleDismissDraftPrompt}
+        />
+      )}
       
       {isManagerEdit && onBack && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 flex items-center justify-between">

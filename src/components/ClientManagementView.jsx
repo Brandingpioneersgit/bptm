@@ -1,12 +1,35 @@
-import React, { useMemo, useEffect, useState } from "react";
+import React, { useMemo, useEffect, useState, useCallback } from "react";
 import { useSupabase } from "./SupabaseProvider";
 import { CLIENT_SERVICES, DELIVERY_FREQUENCIES, createServiceObject, EMPTY_CLIENT } from "./clientServices";
 import { getClientRepository } from "./ClientRepository";
+import { 
+  useEnhancedClientCreation, 
+  ClientCreationStatus, 
+  DuplicateNameChecker 
+} from "./ClientCreationEnhancements";
+import { useDataSync } from "./DataSyncContext";
 
 export function ClientManagementView() {
   const supabase = useSupabase();
-  const [clients, setClients] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { 
+    clients, 
+    loading: dataLoading, 
+    addClient, 
+    updateClient, 
+    fetchClients,
+    getClientsByTeam
+  } = useDataSync();
+  
+  const loading = dataLoading.clients;
+  
+  const getClientsByStatus = useCallback((status) => {
+    if (status === 'All') return clients;
+    return clients.filter(client => client.status === status);
+  }, [clients]);
+  
+  const refreshClients = useCallback(() => {
+    return fetchClients(true);
+  }, [fetchClients]);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('Active');
@@ -21,6 +44,37 @@ export function ClientManagementView() {
   const [selectedClientForServices, setSelectedClientForServices] = useState(null);
   const [selectedServices, setSelectedServices] = useState([]);
   const [serviceFrequencies, setServiceFrequencies] = useState({});
+  
+  // Enhanced client creation
+  const {
+    createClient,
+    isCreating,
+    validationErrors,
+    validationWarnings,
+    creationStatus,
+    resetValidation
+  } = useEnhancedClientCreation(
+    supabase,
+    (createdClient) => {
+      console.log('✅ Client created successfully:', createdClient.name);
+      
+      // Add to synchronized client state
+      addClient(createdClient);
+      
+      // Reset form
+      setNewClient({ ...EMPTY_CLIENT });
+      setSelectedServices([]);
+      setServiceFrequencies({});
+      
+      // Close form after short delay to show success message
+      setTimeout(() => {
+        setShowCreateForm(false);
+      }, 2000);
+    },
+    (error) => {
+      console.error('❌ Client creation failed:', error);
+    }
+  );
 
   const [departureForm, setDepartureForm] = useState({
     isOpen: false,
@@ -29,64 +83,20 @@ export function ClientManagementView() {
     employees: []
   });
 
-  const fetchClients = async () => {
-    if (!supabase) return;
-    
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      setClients(data || []);
-    } catch (error) {
-      console.error('Error fetching clients:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchClients();
-  }, [supabase]);
+  // No longer needed - using ClientSyncContext
 
   const handleCreateClient = async (e) => {
     e.preventDefault();
-    if (!supabase) return;
+    if (!supabase || isCreating) return;
 
-    try {
-      const clientRepository = getClientRepository(supabase);
-      
-      // Create client with services
-      const clientData = {
-        ...newClient,
-        services: selectedServices.map(service => createServiceObject(
-          service, 
-          serviceFrequencies[service] || "Monthly",
-          ""
-        ))
-      };
-      
-      const result = await clientRepository.upsertClient(clientData);
-      
-      if (!result) {
-        throw new Error('Failed to create client');
-      }
-      
-      // Reset form
-      setNewClient({ ...EMPTY_CLIENT });
-      setSelectedServices([]);
-      setServiceFrequencies({});
-      setShowCreateForm(false);
-      fetchClients();
-      
-      console.log('✅ Successfully created client:', result.name);
-    } catch (error) {
-      console.error('Error creating client:', error);
-      alert('Failed to create client. Please try again.');
+    // Use enhanced client creation
+    const result = await createClient(newClient, selectedServices, serviceFrequencies);
+    
+    if (result.success) {
+      // Success is handled by the success callback and ClientSyncContext
+      console.log('🎉 Client creation completed via enhanced workflow');
     }
+    // Error handling is done by the error callback
   };
 
   const handleEditServices = (client) => {
@@ -105,7 +115,7 @@ export function ClientManagementView() {
     if (!selectedClientForServices || !supabase) return;
     
     try {
-      const clientRepository = getClientRepository(supabase);
+      const clientRepository = getClientRepository(supabase, { updateClient, addClient });
       
       const services = selectedServices.map(service => createServiceObject(
         service,
@@ -113,13 +123,17 @@ export function ClientManagementView() {
         ""
       ));
       
-      await clientRepository.updateClientServices(selectedClientForServices.id, services);
+      const updatedClient = await clientRepository.updateClientServices(selectedClientForServices.id, services);
+      
+      // Update the client in sync context
+      if (updatedClient) {
+        updateClient(updatedClient);
+      }
       
       setShowServicesModal(false);
       setSelectedClientForServices(null);
       setSelectedServices([]);
       setServiceFrequencies({});
-      fetchClients();
       
       console.log('✅ Successfully updated client services');
     } catch (error) {
@@ -150,6 +164,35 @@ export function ClientManagementView() {
     }));
   };
 
+  // Handle form reset and validation reset
+  const handleFormCancel = () => {
+    setNewClient({ ...EMPTY_CLIENT });
+    setSelectedServices([]);
+    setServiceFrequencies({});
+    resetValidation();
+    setShowCreateForm(false);
+  };
+
+  const handleFormShow = () => {
+    resetValidation();
+    setShowCreateForm(true);
+  };
+
+  // Handle duplicate name suggestions
+  const handleSuggestionClick = (suggestedName) => {
+    setNewClient(prev => ({ ...prev, name: suggestedName }));
+  };
+
+  // Add event listener for suggestion clicks
+  useEffect(() => {
+    const handleSuggestion = (e) => {
+      handleSuggestionClick(e.detail);
+    };
+    
+    document.addEventListener('suggestionClick', handleSuggestion);
+    return () => document.removeEventListener('suggestionClick', handleSuggestion);
+  }, []);
+
   const handleClientDeparture = async () => {
     if (!supabase || !departureForm.clientId) return;
 
@@ -179,12 +222,19 @@ export function ClientManagementView() {
     }
   };
 
-  const filteredClients = clients.filter(client => {
-    const matchesSearch = client.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesTeam = selectedTeam === 'All' || client.team === selectedTeam;
-    const matchesStatus = client.status === selectedStatus;
-    return matchesSearch && matchesTeam && matchesStatus;
-  });
+  const filteredClients = useMemo(() => {
+    let filtered = getClientsByStatus(selectedStatus);
+    filtered = getClientsByTeam(selectedTeam).filter(c => filtered.includes(c));
+    
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(client => 
+        client.name.toLowerCase().includes(query)
+      );
+    }
+    
+    return filtered;
+  }, [clients, selectedTeam, selectedStatus, searchQuery, getClientsByTeam, getClientsByStatus]);
 
   if (loading) {
     return (
@@ -207,8 +257,9 @@ export function ClientManagementView() {
           </div>
           
           <button
-            onClick={() => setShowCreateForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            onClick={handleFormShow}
+            disabled={isCreating}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -430,8 +481,9 @@ export function ClientManagementView() {
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">Add New Client</h3>
                 <button
-                  onClick={() => setShowCreateForm(false)}
+                  onClick={handleFormCancel}
                   className="text-gray-400 hover:text-gray-500"
+                  disabled={isCreating}
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -439,6 +491,14 @@ export function ClientManagementView() {
                 </button>
               </div>
             </div>
+
+            {/* Enhanced Status Display */}
+            <ClientCreationStatus
+              status={creationStatus}
+              errors={validationErrors}
+              warnings={validationWarnings}
+              className="mx-6 mt-4"
+            />
 
             <form onSubmit={handleCreateClient} className="px-6 py-4 space-y-6">
               <div>
@@ -448,9 +508,29 @@ export function ClientManagementView() {
                   required
                   value={newClient.name}
                   onChange={(e) => setNewClient(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 transition-colors ${
+                    validationErrors.name 
+                      ? 'border-red-300 focus:ring-red-500 focus:border-red-500 bg-red-50'
+                      : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  }`}
                   placeholder="Enter client name"
+                  disabled={isCreating}
                 />
+                
+                {/* Real-time duplicate detection */}
+                <DuplicateNameChecker
+                  clientName={newClient.name}
+                  existingClients={clients}
+                  onDuplicateFound={(isDuplicate, suggestions) => {
+                    // This could be used to show visual feedback
+                  }}
+                />
+                
+                {validationErrors.name && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {validationErrors.name}
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -459,7 +539,12 @@ export function ClientManagementView() {
                   <select
                     value={newClient.client_type}
                     onChange={(e) => setNewClient(prev => ({ ...prev, client_type: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 transition-colors ${
+                      validationErrors.client_type 
+                        ? 'border-red-300 focus:ring-red-500 focus:border-red-500 bg-red-50'
+                        : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                    }`}
+                    disabled={isCreating}
                   >
                     <option value="Standard">Standard</option>
                     <option value="Premium">Premium</option>
@@ -472,7 +557,12 @@ export function ClientManagementView() {
                   <select
                     value={newClient.team}
                     onChange={(e) => setNewClient(prev => ({ ...prev, team: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 transition-colors ${
+                      validationErrors.team 
+                        ? 'border-red-300 focus:ring-red-500 focus:border-red-500 bg-red-50'
+                        : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                    }`}
+                    disabled={isCreating}
                   >
                     <option value="Web">Web Team</option>
                     <option value="Marketing">Marketing Team</option>
@@ -538,16 +628,21 @@ export function ClientManagementView() {
               <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => setShowCreateForm(false)}
-                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  onClick={handleFormCancel}
+                  disabled={isCreating}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  disabled={isCreating || Object.keys(validationErrors).length > 0}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                 >
-                  Create Client
+                  {isCreating && (
+                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                  )}
+                  {isCreating ? 'Creating...' : 'Create Client'}
                 </button>
               </div>
             </form>

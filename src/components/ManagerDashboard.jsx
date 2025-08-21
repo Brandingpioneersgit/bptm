@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useSupabase } from "./SupabaseProvider";
 import { useModal } from "./AppShell";
 import { useFetchSubmissions } from "./useFetchSubmissions";
+import { useDataSync } from "./DataSyncContext";
 import { ClientManagementView } from "./ClientManagementView";
 import { ClientDashboardView } from "./ClientDashboardView";
 import { FixedLeaderboardView } from "./FixedLeaderboardView";
@@ -9,7 +10,11 @@ import { FixedLeaderboardView } from "./FixedLeaderboardView";
 export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport }) {
   const supabase = useSupabase();
   const { allSubmissions, loading, error, refreshSubmissions } = useFetchSubmissions();
+  const { submissions: syncedSubmissions, refreshAllData, updateSubmission } = useDataSync();
   const { openModal, closeModal } = useModal();
+  
+  // Use synced submissions if available, fallback to fetch hook
+  const workingSubmissions = syncedSubmissions.length > 0 ? syncedSubmissions : allSubmissions;
   
   const [activeView, setActiveView] = useState('dashboard');
   const [selectedMonth, setSelectedMonth] = useState('all');
@@ -22,6 +27,14 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
   const [selectedEmployees, setSelectedEmployees] = useState(new Set());
   
+  // Loading states for different operations
+  const [operationStates, setOperationStates] = useState({
+    refreshing: false,
+    exporting: false,
+    savingEvaluation: false,
+    bulkOperations: false
+  });
+  
   const [evaluationPanel, setEvaluationPanel] = useState({
     isOpen: false,
     submission: null,
@@ -31,11 +44,11 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
   });
 
   const processedData = useMemo(() => {
-    if (!allSubmissions.length) return { employees: [], stats: {}, departments: [] };
+    if (!workingSubmissions.length) return { employees: [], stats: {}, departments: [] };
 
     const filteredByDate = selectedMonth === 'all' 
-      ? allSubmissions 
-      : allSubmissions.filter(sub => sub.monthKey === selectedMonth);
+      ? workingSubmissions 
+      : workingSubmissions.filter(sub => sub.monthKey === selectedMonth);
 
     const employeeGroups = {};
     filteredByDate.forEach(submission => {
@@ -124,7 +137,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
     const departments = [...new Set(employees.map(emp => emp.department))].sort();
 
     return { employees: filteredEmployees, stats, departments, allEmployees: employees };
-  }, [allSubmissions, selectedMonth, searchQuery, filters, sortConfig]);
+  }, [workingSubmissions, selectedMonth, searchQuery, filters, sortConfig]);
 
   const openEvaluation = (submission) => {
     setEvaluationPanel({
@@ -137,9 +150,13 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
   };
 
   const saveEvaluation = async () => {
-    if (!evaluationPanel.submission || !supabase) return;
+    if (!evaluationPanel.submission || !supabase || operationStates.savingEvaluation) return;
 
+    setOperationStates(prev => ({ ...prev, savingEvaluation: true }));
+    
     try {
+      console.log('💾 Saving employee evaluation...');
+      
       const updatedSubmission = {
         ...evaluationPanel.submission,
         manager: {
@@ -158,12 +175,92 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
 
       if (error) throw error;
 
+      console.log('🔄 Refreshing submissions data...');
+      
+      // Notify DataSync of the updated submission
+      await updateSubmission(updatedSubmission);
+      
+      // Also refresh traditional hook for backward compatibility
       await refreshSubmissions();
+      
       setEvaluationPanel({ isOpen: false, submission: null, score: 8, comments: '', recommendations: '' });
+      console.log('✅ Evaluation saved successfully');
       openModal('Success', 'Employee evaluation saved successfully!', closeModal);
     } catch (error) {
-      console.error('Failed to save evaluation:', error);
+      console.error('❌ Failed to save evaluation:', error);
       openModal('Error', 'Failed to save evaluation. Please try again.', closeModal);
+    } finally {
+      setOperationStates(prev => ({ ...prev, savingEvaluation: false }));
+    }
+  };
+
+  // Enhanced refresh with loading state
+  const handleRefresh = async () => {
+    if (operationStates.refreshing) return;
+    
+    setOperationStates(prev => ({ ...prev, refreshing: true }));
+    
+    try {
+      console.log('🔄 Refreshing dashboard data...');
+      // Use DataSync for consistent refreshing
+      await Promise.all([
+        refreshAllData(),
+        refreshSubmissions()
+      ]);
+      console.log('✅ Dashboard data refreshed successfully');
+    } catch (error) {
+      console.error('❌ Failed to refresh data:', error);
+      openModal('Error', 'Failed to refresh data. Please try again.', closeModal);
+    } finally {
+      setOperationStates(prev => ({ ...prev, refreshing: false }));
+    }
+  };
+
+  // Enhanced export with loading state
+  const handleExportBulkData = async () => {
+    if (operationStates.exporting) return;
+    
+    setOperationStates(prev => ({ ...prev, exporting: true }));
+    
+    try {
+      console.log('📄 Exporting bulk data...');
+      
+      const csvContent = [
+        ['Employee Name', 'Department', 'Phone', 'Average Score', 'Total Hours', 'Performance', 'Latest Month', 'Reports Count'],
+        ...processedData.employees.map(emp => [
+          emp.name,
+          emp.department,
+          emp.phone,
+          emp.averageScore,
+          emp.totalHours.toFixed(1),
+          emp.performance,
+          emp.latestSubmission?.monthKey || 'N/A',
+          emp.submissions.length
+        ])
+      ];
+      
+      const csvString = csvContent.map(row => row.join(',')).join('\n');
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      
+      link.setAttribute('href', url);
+      link.setAttribute('download', `employee-performance-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      URL.revokeObjectURL(url);
+      
+      console.log('✅ Data exported successfully');
+      openModal('Success', 'Employee data exported successfully!', closeModal);
+    } catch (error) {
+      console.error('❌ Failed to export data:', error);
+      openModal('Error', 'Failed to export data. Please try again.', closeModal);
+    } finally {
+      setOperationStates(prev => ({ ...prev, exporting: false }));
     }
   };
 
@@ -284,31 +381,11 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
     URL.revokeObjectURL(url);
   };
 
-  const exportBulkData = () => {
-    const csvContent = [
-      ['Employee Name', 'Department', 'Phone', 'Average Score', 'Total Hours', 'Performance', 'Latest Month', 'Reports Count'],
-      ...processedData.employees.map(emp => [
-        emp.name,
-        emp.department,
-        emp.phone,
-        emp.averageScore,
-        emp.totalHours.toFixed(1),
-        emp.performance,
-        emp.latestSubmission?.monthKey || 'N/A',
-        emp.submissions.length
-      ])
-    ].map(row => row.join(',')).join('\n');
+  // Removed old exportBulkData - replaced with handleExportBulkData above
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `team_performance_report_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleViewReport = (employee) => {
+  const handleViewReport = async (employee) => {
+    if (operationStates.bulkOperations) return;
+    
     console.log('📊 Opening Report View for:', employee.name);
     
     if (!employee.submissions || employee.submissions.length === 0) {
@@ -321,7 +398,20 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
     console.log('📞 Using phone number:', phoneNumber);
     console.log('📊 Submissions count:', employee.submissions.length);
     
-    onViewReport(employee.name, phoneNumber);
+    setOperationStates(prev => ({ ...prev, bulkOperations: true }));
+    
+    try {
+      onViewReport(employee.name, phoneNumber);
+      // Give a brief moment for navigation to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+    } catch (error) {
+      console.error('❌ Failed to open report view:', error);
+      openModal('Error', 'Failed to open report view. Please try again.', closeModal);
+    } finally {
+      setTimeout(() => {
+        setOperationStates(prev => ({ ...prev, bulkOperations: false }));
+      }, 500);
+    }
   };
   
   const handleFullReport = (employee) => {
@@ -340,7 +430,9 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
     onViewReport(employee.name, phoneNumber);
   };
 
-  const handleEditReport = (employee) => {
+  const handleEditReport = async (employee) => {
+    if (operationStates.bulkOperations) return;
+    
     console.log('✏️ Opening Report Editor for:', employee.name);
     
     if (!employee.latestSubmission) {
@@ -348,7 +440,50 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       return;
     }
 
-    onEditReport(employee.name, employee.phone);
+    setOperationStates(prev => ({ ...prev, bulkOperations: true }));
+    
+    try {
+      onEditReport(employee.name, employee.phone);
+      // Give a brief moment for navigation to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+    } catch (error) {
+      console.error('❌ Failed to open report editor:', error);
+      openModal('Error', 'Failed to open report editor. Please try again.', closeModal);
+    } finally {
+      setTimeout(() => {
+        setOperationStates(prev => ({ ...prev, bulkOperations: false }));
+      }, 500);
+    }
+  };
+
+  // General purpose button handler for immediate feedback
+  const handleButtonClick = (callback, buttonId = null) => {
+    return async (e) => {
+      // Prevent double clicks
+      if (e.target.disabled || operationStates.bulkOperations) return;
+      
+      // Visual feedback
+      const button = e.target;
+      const originalText = button.textContent;
+      
+      try {
+        // Add clicked state
+        button.style.transform = 'scale(0.95)';
+        
+        // Execute callback
+        if (typeof callback === 'function') {
+          await callback();
+        }
+        
+      } catch (error) {
+        console.error('Button action failed:', error);
+      } finally {
+        // Reset visual state
+        setTimeout(() => {
+          button.style.transform = 'scale(1)';
+        }, 150);
+      }
+    };
   };
 
   if (loading) {
@@ -368,10 +503,14 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
         <div className="text-red-600 text-lg mb-2">⚠️ Error Loading Data</div>
         <div className="text-red-700 mb-4">{error}</div>
         <button 
-          onClick={refreshSubmissions}
-          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
+          onClick={handleRefresh}
+          disabled={operationStates.refreshing}
+          className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
         >
-          Try Again
+          {operationStates.refreshing && (
+            <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+          )}
+          {operationStates.refreshing ? 'Retrying...' : 'Try Again'}
         </button>
       </div>
     );
@@ -388,23 +527,33 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
           
           <div className="flex flex-wrap items-center gap-3">
             <button
-              onClick={refreshSubmissions}
-              className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              onClick={handleRefresh}
+              disabled={operationStates.refreshing}
+              className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-400 transition-colors"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Refresh
+              {operationStates.refreshing ? (
+                <div className="animate-spin w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full"></div>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              )}
+              {operationStates.refreshing ? 'Refreshing...' : 'Refresh'}
             </button>
             
             <button
-              onClick={exportBulkData}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              onClick={handleExportBulkData}
+              disabled={operationStates.exporting}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed transition-colors"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Export CSV
+              {operationStates.exporting ? (
+                <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              )}
+              {operationStates.exporting ? 'Exporting...' : 'Export CSV'}
             </button>
           </div>
         </div>
@@ -654,8 +803,12 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => handleViewReport(employee)}
-                              className="text-blue-600 hover:text-blue-900 hover:bg-blue-50 px-3 py-1 rounded transition-colors"
+                              disabled={operationStates.bulkOperations}
+                              className="text-blue-600 hover:text-blue-900 hover:bg-blue-50 disabled:text-blue-300 disabled:bg-gray-50 disabled:cursor-not-allowed px-3 py-1 rounded transition-colors flex items-center gap-1"
                             >
+                              {operationStates.bulkOperations ? (
+                                <div className="animate-spin w-3 h-3 border border-blue-300 border-t-transparent rounded-full"></div>
+                              ) : null}
                               View Report
                             </button>
                             <button
@@ -671,16 +824,29 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                               Download PDF
                             </button>
                             <button
-                              onClick={() => onEditEmployee(employee.name, employee.phone)}
-                              className="text-orange-600 hover:text-orange-900 hover:bg-orange-50 px-3 py-1 rounded transition-colors"
+                              onClick={() => {
+                                if (!operationStates.bulkOperations) {
+                                  setOperationStates(prev => ({ ...prev, bulkOperations: true }));
+                                  onEditEmployee(employee.name, employee.phone);
+                                  setTimeout(() => {
+                                    setOperationStates(prev => ({ ...prev, bulkOperations: false }));
+                                  }, 500);
+                                }
+                              }}
+                              disabled={operationStates.bulkOperations}
+                              className="text-orange-600 hover:text-orange-900 hover:bg-orange-50 disabled:text-orange-300 disabled:bg-gray-50 disabled:cursor-not-allowed px-3 py-1 rounded transition-colors"
                             >
                               Edit Employee
                             </button>
                             {employee.latestSubmission && (
                               <button
                                 onClick={() => handleEditReport(employee)}
-                                className="text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 px-3 py-1 rounded transition-colors"
+                                disabled={operationStates.bulkOperations}
+                                className="text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 disabled:text-indigo-300 disabled:bg-gray-50 disabled:cursor-not-allowed px-3 py-1 rounded transition-colors flex items-center gap-1"
                               >
+                                {operationStates.bulkOperations ? (
+                                  <div className="animate-spin w-3 h-3 border border-indigo-300 border-t-transparent rounded-full"></div>
+                                ) : null}
                                 Edit Report
                               </button>
                             )}
@@ -795,10 +961,13 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
               </button>
               <button
                 onClick={saveEvaluation}
-                disabled={!supabase}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                disabled={!supabase || operationStates.savingEvaluation}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
               >
-                Save Evaluation
+                {operationStates.savingEvaluation && (
+                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                )}
+                {operationStates.savingEvaluation ? 'Saving...' : 'Save Evaluation'}
               </button>
             </div>
           </div>
