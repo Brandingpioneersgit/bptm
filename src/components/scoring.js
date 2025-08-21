@@ -209,15 +209,68 @@ export function generateSummary(model) {
   const esc = (model.clients || []).reduce((s, c) => s + (c.relationship?.escalations?.length || 0), 0);
   const appr = (model.clients || []).reduce((s, c) => s + (c.relationship?.appreciations?.length || 0), 0);
   const learnMin = (model.learning || []).reduce((s, e) => s + (e.durationMins || 0), 0);
-  const parts = [];
-  parts.push(`Handled ${names.length} client(s): ${names.join(', ') || '—'}.`);
-  parts.push(`Meetings ${meet}, Appreciations ${appr}, Escalations ${esc}.`);
-  parts.push(`Learning: ${(learnMin / 60).toFixed(1)}h (${learnMin >= 360 ? 'Meets 6h' : 'Below 6h'}).`);
-  if (model.flags?.missingReports) parts.push('⚠️ Missing report links for some clients.');
-  if (model.flags?.hasEscalations) parts.push('⚠️ Escalations present — investigate.');
-  parts.push(`Scores — KPI ${model.scores?.kpiScore}/10, Learning ${model.scores?.learningScore}/10, Client Status ${model.scores?.relationshipScore}/10, Overall ${model.scores?.overall}/10.`);
-  if (model.manager?.score) parts.push(`Manager Score: ${model.manager.score}/10`);
-  return parts.join(' ');
+
+  const summary = {
+    overview: `Handled ${names.length} client(s): ${names.join(', ') || '—'}. Meetings ${meet}, Appreciations ${appr}, Escalations ${esc}. Learning: ${(learnMin / 60).toFixed(1)}h (${learnMin >= 360 ? 'Meets 6h' : 'Below 6h'}). Scores — KPI ${model.scores?.kpiScore}/10, Learning ${model.scores?.learningScore}/10, Client Status ${model.scores?.relationshipScore}/10, Overall ${model.scores?.overall}/10.${model.manager?.score ? ` Manager Score: ${model.manager.score}/10.` : ''}`,
+    strengths: [],
+    weaknesses: [],
+    missed: [],
+    tips: []
+  };
+
+  const scores = model.scores || {};
+  const high = 8;
+  const low = 6;
+
+  // KPI
+  if (scores.kpiScore >= high) {
+    summary.strengths.push('Strong KPI performance');
+  } else if (scores.kpiScore < low) {
+    summary.weaknesses.push('KPI score below expectations');
+    summary.tips.push('Review KPI metrics and strategize improvements');
+  }
+
+  // Learning
+  if (scores.learningScore >= high) {
+    summary.strengths.push('Completed learning goals');
+  } else if (scores.learningScore < low) {
+    summary.weaknesses.push('Learning score is low');
+    summary.tips.push('Schedule regular learning to meet 6h requirement');
+  }
+  if (model.flags?.missingLearningHours) {
+    summary.missed.push('Did not complete 6h of learning');
+  }
+
+  // Client relationship
+  if (scores.relationshipScore >= high) {
+    summary.strengths.push('Maintained strong client relationships');
+  } else if (scores.relationshipScore < low) {
+    summary.weaknesses.push('Client relationship score needs attention');
+    summary.tips.push('Increase client meetings and follow-ups');
+  }
+
+  // Flags
+  if (model.flags?.missingReports) {
+    summary.missed.push('Missing report links for some clients');
+    summary.tips.push('Ensure all client reports are submitted on time');
+  }
+  if (model.flags?.hasEscalations) {
+    summary.weaknesses.push('Client escalations present');
+    summary.tips.push('Resolve escalations promptly and monitor client satisfaction');
+  }
+
+  // Overall score
+  if (scores.overall >= high) {
+    summary.strengths.push('Excellent overall performance');
+  } else if (scores.overall < low) {
+    summary.weaknesses.push('Overall performance below expectations');
+    summary.tips.push('Work with your manager to plan improvements');
+  }
+
+  // Remove duplicate tips
+  summary.tips = Array.from(new Set(summary.tips));
+
+  return summary;
 }
 
 function calculateScopeCompletion(client, service) {

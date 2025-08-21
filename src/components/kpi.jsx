@@ -196,28 +196,35 @@ function ScopePrompt({ client, service, title }) {
   if (!client.services || !client.services.includes(service) || !client.service_scopes || !client.service_scopes[service]) {
     return null;
   }
-  
+
   const scope = client.service_scopes[service];
   const completion = calculateScopeCompletion(client, service);
-  
+  const isComplete = completion !== null && completion >= 100;
+
   return (
     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
       <div className="flex items-center justify-between mb-2">
         <h4 className="font-medium text-blue-800">{title} Scope Tracker</h4>
         {completion !== null && (
           <span className={`px-2 py-1 rounded text-xs font-medium ${
-            completion >= 100 ? 'bg-green-100 text-green-800' : 
-            completion >= 75 ? 'bg-yellow-100 text-yellow-800' : 
+            completion >= 100 ? 'bg-green-100 text-green-800' :
+            completion >= 75 ? 'bg-yellow-100 text-yellow-800' :
             'bg-red-100 text-red-800'
           }`}>
             {completion}% Complete
           </span>
         )}
       </div>
-      <div className="text-sm text-blue-700">
-        <p>📋 <strong>Target:</strong> {scope.deliverables} {service.toLowerCase()} deliverables this month</p>
+      <div className="text-sm text-blue-700 space-y-1">
+        <p className={`flex items-center ${isComplete ? 'text-green-700' : 'text-red-700'}`}>
+          📋 <strong className="ml-1">Target:</strong> {scope.deliverables} {service.toLowerCase()} deliverables this month
+          <span className="ml-1">{isComplete ? '✅' : '⚠️'}</span>
+        </p>
         {scope.description && <p>📝 <strong>Scope:</strong> {scope.description}</p>}
-        <p>⏰ <strong>Frequency:</strong> {scope.frequency}</p>
+        <p className={`flex items-center ${isComplete ? 'text-green-700' : 'text-red-700'}`}>
+          ⏰ <strong className="ml-1">Frequency:</strong> {scope.frequency}
+          <span className="ml-1">{isComplete ? '✅' : '⚠️'}</span>
+        </p>
       </div>
     </div>
   );
@@ -304,6 +311,40 @@ function calculateScopeCompletion(client, service) {
     default:
       return 0;
   }
+}
+
+function ClientScopePreview({ client, department }) {
+  const deptServices = {
+    'Web': ['Website Maintenance', 'AI'],
+    'Web Head': ['Website Maintenance', 'AI'],
+    'Social Media': ['Social Media'],
+    'Ads': ['Google Ads', 'Meta Ads'],
+    'SEO': ['SEO', 'GBP SEO'],
+    'Operations Head': ['Website Maintenance', 'AI', 'Social Media', 'Google Ads', 'Meta Ads', 'SEO', 'GBP SEO']
+  };
+  const services = deptServices[department] || [];
+  const scopes = services
+    .map(service => ({ service, scope: client.service_scopes?.[service] }))
+    .filter(s => s.scope);
+  if (!client.scope_of_work && scopes.length === 0) return null;
+
+  return (
+    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
+      {client.scope_of_work && (
+        <p className="text-sm mb-2"><strong>Scope of Work:</strong> {client.scope_of_work}</p>
+      )}
+      {scopes.map(({ service, scope }) => {
+        const completion = calculateScopeCompletion(client, service);
+        const incomplete = completion !== null && completion < 100;
+        return (
+          <div key={service} className={`text-sm flex items-center justify-between mb-1 ${incomplete ? 'text-red-700' : 'text-green-700'}`}>
+            <span>{service}: {scope.deliverables} required ({scope.frequency})</span>
+            <span>{incomplete ? '⚠️' : '✅'}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function KPIsSocial({ client, prevClient, employeeRole, onChange, monthPrev, monthThis, isNewClient }) {
@@ -998,6 +1039,7 @@ function ClientTable({ currentSubmission, previousSubmission, comparisonSubmissi
         return (
           <div key={c.id} className="border rounded-2xl p-4 my-4 bg-white">
             <div className="font-semibold mb-2">KPIs • {c.name} <span className="text-xs text-gray-500">({monthLabel(monthPrev)} vs {monthLabel(monthThis)})</span></div>
+            <ClientScopePreview client={c} department={currentSubmission.employee.department} />
             {currentSubmission.employee.department === 'Web' && (
               <KPIsWeb client={c} prevClient={prevClient} onChange={(cc) => setModel(m => ({ ...m, clients: m.clients.map(x => x.id === c.id ? cc : x) }))} monthPrev={monthPrev} monthThis={monthThis} isNewClient={isNewClient} />
             )}

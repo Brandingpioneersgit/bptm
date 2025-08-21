@@ -655,93 +655,27 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     });
   }, [kpiScore, learningScore, relationshipScore, overall, flags]);
 
-  const generatePerformanceFeedback = (submission) => {
-    const scores = submission.scores || {};
-    const feedback = {
-      overall: scores.overall || 0,
-      strengths: [],
-      improvements: [],
-      nextMonthGoals: [],
-      summary: ''
-    };
-
-    if (scores.kpiScore >= 8) {
-      feedback.strengths.push('Excellent KPI performance - exceeding departmental targets');
-    } else if (scores.kpiScore >= 6) {
-      feedback.strengths.push('Good KPI performance - meeting most targets');
-      feedback.improvements.push('Focus on key metrics that are slightly below target');
-    } else {
-      feedback.improvements.push('KPI performance needs improvement - review departmental goals and strategies');
-      feedback.nextMonthGoals.push('Develop action plan to improve key performance indicators');
-    }
-
-    const learningHours = (submission.learning || []).reduce((s, e) => s + (e.durationMins || 0), 0) / 60;
-    if (scores.learningScore >= 8) {
-      feedback.strengths.push(`Outstanding commitment to learning with ${learningHours.toFixed(1)} hours completed`);
-    } else if (scores.learningScore >= 6) {
-      feedback.strengths.push('Good learning progress this month');
-    } else {
-      feedback.improvements.push('Increase learning activities to meet minimum 6-hour requirement');
-      feedback.nextMonthGoals.push('Schedule dedicated learning time throughout the month');
-    }
-
-    if (scores.relationshipScore >= 8) {
-      feedback.strengths.push('Excellent client relationship management and communication');
-    } else if (scores.relationshipScore >= 6) {
-      feedback.improvements.push('Continue strengthening client relationships and communication');
-    } else {
-      feedback.improvements.push('Client relationship management needs significant improvement');
-      feedback.nextMonthGoals.push('Develop better client communication strategies and follow-up systems');
-    }
-
-    if (submission.flags?.missingLearningHours) {
-      feedback.improvements.push('Complete the required 6 hours of learning activities');
-      feedback.nextMonthGoals.push('Plan learning schedule at the beginning of each month');
-    }
-
-    if (submission.flags?.hasEscalations) {
-      feedback.improvements.push('Address client escalations and improve proactive communication');
-      feedback.nextMonthGoals.push('Implement client satisfaction monitoring and regular check-ins');
-    }
-
-    if (submission.flags?.missingReports) {
-      feedback.improvements.push('Ensure all client reports are completed and delivered on time');
-      feedback.nextMonthGoals.push('Set up report delivery tracking and deadline reminders');
-    }
-
-    if (feedback.overall >= 8) {
-      feedback.summary = 'Exceptional performance this month! You\'re exceeding expectations and making significant contributions to the team.';
-    } else if (feedback.overall >= 6) {
-      feedback.summary = 'Good solid performance with room for growth. Focus on the improvement areas to reach the next level.';
-    } else {
-      feedback.summary = 'Performance needs improvement. Please work closely with your manager to address the identified areas.';
-    }
-
-    return feedback;
-  };
-
-  const showPerformanceFeedbackModal = (feedback, submission) => {
+  const showSubmissionSummaryModal = (summary, submission) => {
     const modalContent = `
-📊 PERFORMANCE REPORT - ${submission.monthKey.replace('-', ' ').toUpperCase()}
+📊 PERFORMANCE SUMMARY - ${submission.monthKey.replace('-', ' ').toUpperCase()}
 
-🎯 Overall Score: ${feedback.overall.toFixed(1)}/10
-
-${feedback.summary}
+${summary.overview}
 
 ✅ STRENGTHS:
-${feedback.strengths.map(s => `• ${s}`).join('\n') || '• None identified this month'}
+${summary.strengths.map(s => `• ${s}`).join('\n') || '• None'}
 
-🔧 AREAS FOR IMPROVEMENT:
-${feedback.improvements.map(i => `• ${i}`).join('\n') || '• Keep up the excellent work!'}
+⚠️ WEAKNESSES:
+${summary.weaknesses.map(i => `• ${i}`).join('\n') || '• None'}
 
-🎯 NEXT MONTH'S GOALS:
-${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue current performance level'}
+📌 MISSED TASKS:
+${summary.missed.map(i => `• ${i}`).join('\n') || '• None'}
 
-💡 Remember: Consistent improvement leads to long-term success!
+📝 NEXT MONTH TIPS:
+${summary.tips.map(g => `• ${g}`).join('\n') || '• Keep up the great work'}
     `;
 
     openModal(
-      'Performance Feedback Report',
+      'Performance Summary',
       modalContent,
       closeModal,
       null,
@@ -892,8 +826,8 @@ Your progress has been automatically saved, so you won't lose any other informat
         console.error('Failed to remove backup:', e);
       }
       
-      const performanceFeedback = generatePerformanceFeedback(final);
-      showPerformanceFeedbackModal(performanceFeedback, final);
+      const summary = generateSummary(final);
+      showSubmissionSummaryModal(summary, final);
       
       clearDraft(); // Clear draft only on success
       setCurrentSubmission({ ...EMPTY_SUBMISSION, monthKey: prevMonthKey(thisMonthKey()) });
