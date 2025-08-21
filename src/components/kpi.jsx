@@ -200,31 +200,125 @@ function ScopePrompt({ client, service, title }) {
   const scope = client.service_scopes[service];
   const completion = calculateScopeCompletion(client, service);
   const isComplete = completion !== null && completion >= 100;
+  const completedDeliverables = Math.round((completion / 100) * scope.deliverables);
+  
+  // Calculate urgency based on time of month (mock calculation)
+  const now = new Date();
+  const dayOfMonth = now.getDate();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const monthProgress = (dayOfMonth / daysInMonth) * 100;
+  const isUrgent = completion < monthProgress - 10; // Behind schedule
 
   return (
-    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="font-medium text-blue-800">{title} Scope Tracker</h4>
-        {completion !== null && (
-          <span className={`px-2 py-1 rounded text-xs font-medium ${
-            completion >= 100 ? 'bg-green-100 text-green-800' :
-            completion >= 75 ? 'bg-yellow-100 text-yellow-800' :
-            'bg-red-100 text-red-800'
-          }`}>
-            {completion}% Complete
+    <div className={`border rounded-xl p-4 mb-4 ${
+      isComplete 
+        ? 'bg-green-50 border-green-200' 
+        : isUrgent 
+        ? 'bg-red-50 border-red-200'
+        : 'bg-blue-50 border-blue-200'
+    }`}>
+      {/* Header with completion status */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">
+            {isComplete ? '✅' : isUrgent ? '🚨' : '⏳'}
           </span>
-        )}
+          <h4 className={`font-semibold ${
+            isComplete ? 'text-green-800' : 
+            isUrgent ? 'text-red-800' : 
+            'text-blue-800'
+          }`}>
+            {title} Scope Requirements
+          </h4>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {completion !== null && (
+            <>
+              <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full transition-all duration-500 ${
+                    completion >= 100 ? 'bg-green-500' :
+                    completion >= 75 ? 'bg-yellow-500' :
+                    'bg-red-500'
+                  }`}
+                  style={{ width: `${Math.min(completion, 100)}%` }}
+                ></div>
+              </div>
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                completion >= 100 ? 'bg-green-100 text-green-800' :
+                completion >= 75 ? 'bg-yellow-100 text-yellow-800' :
+                'bg-red-100 text-red-800'
+              }`}>
+                {completion}%
+              </span>
+            </>
+          )}
+        </div>
       </div>
-      <div className="text-sm text-blue-700 space-y-1">
-        <p className={`flex items-center ${isComplete ? 'text-green-700' : 'text-red-700'}`}>
-          📋 <strong className="ml-1">Target:</strong> {scope.deliverables} {service.toLowerCase()} deliverables this month
-          <span className="ml-1">{isComplete ? '✅' : '⚠️'}</span>
-        </p>
-        {scope.description && <p>📝 <strong>Scope:</strong> {scope.description}</p>}
-        <p className={`flex items-center ${isComplete ? 'text-green-700' : 'text-red-700'}`}>
-          ⏰ <strong className="ml-1">Frequency:</strong> {scope.frequency}
-          <span className="ml-1">{isComplete ? '✅' : '⚠️'}</span>
-        </p>
+
+      {/* Detailed requirements */}
+      <div className="space-y-3">
+        {/* Deliverables Progress */}
+        <div className={`flex items-center justify-between p-2 rounded-lg ${
+          isComplete ? 'bg-green-100' : 
+          completedDeliverables > 0 ? 'bg-yellow-100' : 
+          'bg-red-100'
+        }`}>
+          <div className="flex items-center gap-2">
+            <span className={`text-sm ${
+              isComplete ? 'text-green-700' : 
+              completedDeliverables > 0 ? 'text-yellow-700' : 
+              'text-red-700'
+            }`}>
+              📋 <strong>Monthly Target:</strong> {scope.deliverables} deliverables
+            </span>
+          </div>
+          <div className={`text-sm font-semibold ${
+            isComplete ? 'text-green-700' : 
+            completedDeliverables > 0 ? 'text-yellow-700' : 
+            'text-red-700'
+          }`}>
+            {completedDeliverables}/{scope.deliverables} completed
+          </div>
+        </div>
+
+        {/* Frequency Requirement */}
+        <div className="flex items-center justify-between text-sm">
+          <span className={`${isComplete ? 'text-green-700' : 'text-blue-700'}`}>
+            ⏰ <strong>Frequency:</strong> {scope.frequency}
+          </span>
+          <span className={`px-2 py-1 rounded text-xs ${
+            isComplete 
+              ? 'bg-green-200 text-green-800' 
+              : 'bg-blue-200 text-blue-800'
+          }`}>
+            {isComplete ? 'On Track' : 'In Progress'}
+          </span>
+        </div>
+
+        {/* Description if available */}
+        {scope.description && (
+          <div className="text-sm text-gray-700 bg-white/50 p-2 rounded">
+            <span className="font-medium">📝 Scope Details:</span> {scope.description}
+          </div>
+        )}
+
+        {/* Urgency warning */}
+        {isUrgent && !isComplete && (
+          <div className="flex items-center gap-2 text-xs bg-red-100 text-red-700 p-2 rounded border border-red-200">
+            <span>⚠️</span>
+            <span><strong>Action Required:</strong> You're behind schedule for this month's deliverables</span>
+          </div>
+        )}
+
+        {/* Success message */}
+        {isComplete && (
+          <div className="flex items-center gap-2 text-xs bg-green-100 text-green-700 p-2 rounded border border-green-200">
+            <span>🎉</span>
+            <span><strong>Great job!</strong> Monthly scope requirements completed</span>
+          </div>
+        )}
       </div>
     </div>
   );

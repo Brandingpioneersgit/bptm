@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useFetchSubmissions } from "./useFetchSubmissions.js";
 import { useModal } from "./AppShell";
 import { thisMonthKey, monthLabel } from "./constants";
 import { ClientReportsView } from "./ClientReportsView";
 import { ProfileEditModal } from "./ProfileEditModal";
 import { useSupabase } from "./SupabaseProvider";
+import { DataCard, MetricRow, SmartDataDisplay } from "./DataDisplay";
 
 export function EmployeePersonalDashboard({ employee: initialEmployee, onBack }) {
   const [employee, setEmployee] = useState(initialEmployee);
@@ -13,17 +14,49 @@ export function EmployeePersonalDashboard({ employee: initialEmployee, onBack })
   const supabase = useSupabase();
   const [showProfileModal, setShowProfileModal] = useState(false);
 
-  const missingProfileFields = useMemo(() => {
-    const required = [
-      'photoUrl',
-      'joiningDate',
-      'dob',
-      'education',
-      'certifications',
-      'skills',
+  const profileCompleteness = useMemo(() => {
+    const requiredFields = [
+      { key: 'photoUrl', label: 'Profile Photo', critical: true },
+      { key: 'joiningDate', label: 'Joining Date', critical: true },
+      { key: 'dob', label: 'Date of Birth', critical: false },
+      { key: 'education', label: 'Education', critical: true },
+      { key: 'certifications', label: 'Certifications', critical: false },
+      { key: 'skills', label: 'Skills & Tools', critical: true },
+      { key: 'department', label: 'Department', critical: true },
+      { key: 'role', label: 'Role', critical: true },
+      { key: 'directManager', label: 'Direct Manager', critical: true },
     ];
-    return required.filter((f) => !employee?.[f]);
+    
+    const missing = requiredFields.filter(field => {
+      const value = employee?.[field.key];
+      if (field.key === 'role') {
+        return !value || (Array.isArray(value) && value.length === 0);
+      }
+      return !value || (typeof value === 'string' && value.trim() === '');
+    });
+    
+    const criticalMissing = missing.filter(f => f.critical);
+    const completionPercentage = Math.round(((requiredFields.length - missing.length) / requiredFields.length) * 100);
+    
+    return {
+      missing,
+      criticalMissing,
+      completionPercentage,
+      isComplete: missing.length === 0,
+      needsCriticalInfo: criticalMissing.length > 0,
+      isFirstTime: missing.length >= 6 // More than half fields missing suggests first time
+    };
   }, [employee]);
+
+  const [hasShownFirstTimeModal, setHasShownFirstTimeModal] = useState(false);
+  
+  // Auto-show profile modal for first-time users
+  useEffect(() => {
+    if (profileCompleteness.isFirstTime && !hasShownFirstTimeModal && !loading) {
+      setShowProfileModal(true);
+      setHasShownFirstTimeModal(true);
+    }
+  }, [profileCompleteness.isFirstTime, hasShownFirstTimeModal, loading]);
 
   const handleSaveProfile = async (data) => {
     if (!supabase) return;
@@ -131,19 +164,96 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
   return (
     <>
       <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
-        {missingProfileFields.length > 0 && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-start gap-3">
-            <div className="text-yellow-600">⚠️</div>
+        {/* Enhanced Profile Completeness Prompt */}
+        {!profileCompleteness.isComplete && (
+          <div className={`rounded-xl p-4 flex items-start gap-4 ${
+            profileCompleteness.needsCriticalInfo 
+              ? 'bg-red-50 border border-red-200' 
+              : 'bg-blue-50 border border-blue-200'
+          }`}>
+            <div className={`text-2xl ${
+              profileCompleteness.needsCriticalInfo ? 'text-red-500' : 'text-blue-500'
+            }`}>
+              {profileCompleteness.needsCriticalInfo ? '🚨' : '📝'}
+            </div>
             <div className="flex-1">
-              <p className="text-sm text-yellow-800">
-                Complete your profile to get the most out of your dashboard.
+              <div className="flex items-center justify-between mb-2">
+                <h3 className={`text-sm font-semibold ${
+                  profileCompleteness.needsCriticalInfo ? 'text-red-800' : 'text-blue-800'
+                }`}>
+                  {profileCompleteness.isFirstTime 
+                    ? '🎉 Welcome! Complete Your Profile to Get Started' 
+                    : `Profile ${profileCompleteness.completionPercentage}% Complete`
+                  }
+                </h3>
+                <div className="flex items-center gap-2">
+                  <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all duration-500 ${
+                        profileCompleteness.completionPercentage >= 80 ? 'bg-green-500' :
+                        profileCompleteness.completionPercentage >= 50 ? 'bg-blue-500' :
+                        'bg-yellow-500'
+                      }`}
+                      style={{ width: `${profileCompleteness.completionPercentage}%` }}
+                    ></div>
+                  </div>
+                  <span className="text-xs font-medium text-gray-600">
+                    {profileCompleteness.completionPercentage}%
+                  </span>
+                </div>
+              </div>
+              
+              {profileCompleteness.criticalMissing.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-xs text-red-700 mb-2">
+                    🔴 <strong>Critical Info Needed:</strong>
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {profileCompleteness.criticalMissing.slice(0, 4).map(field => (
+                      <span key={field.key} className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded">
+                        {field.label}
+                      </span>
+                    ))}
+                    {profileCompleteness.criticalMissing.length > 4 && (
+                      <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded">
+                        +{profileCompleteness.criticalMissing.length - 4} more
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              <p className={`text-xs mb-3 ${
+                profileCompleteness.needsCriticalInfo ? 'text-red-700' : 'text-blue-700'
+              }`}>
+                {profileCompleteness.isFirstTime 
+                  ? 'Complete your profile to unlock performance tracking, personalized insights, and better reporting features.'
+                  : profileCompleteness.needsCriticalInfo
+                  ? 'Some critical information is missing. This may affect your performance tracking and reporting accuracy.'
+                  : 'A few optional details are missing. Complete them for a richer dashboard experience.'
+                }
               </p>
-              <button
-                onClick={() => setShowProfileModal(true)}
-                className="mt-2 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
-              >
-                Complete Profile
-              </button>
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowProfileModal(true)}
+                  className={`px-4 py-2 text-white rounded-lg font-medium transition-colors ${
+                    profileCompleteness.needsCriticalInfo
+                      ? 'bg-red-600 hover:bg-red-700'
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                >
+                  {profileCompleteness.isFirstTime ? 'Get Started' : 'Complete Profile'}
+                </button>
+                {!profileCompleteness.needsCriticalInfo && (
+                  <button
+                    onClick={() => {/* dismiss for session */}}
+                    className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Maybe Later
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -177,6 +287,40 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
           </div>
         </div>
 
+        {/* Performance Overview Cards */}
+        {overallStats && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <DataCard
+              title="Overall Score"
+              value={overallStats.avgOverallScore}
+              unit="/10"
+              icon="⭐"
+              className="bg-gradient-to-r from-purple-50 to-purple-100"
+            />
+            <DataCard
+              title="KPI Performance"
+              value={overallStats.avgKpiScore}
+              unit="/10"
+              icon="🎯"
+              className="bg-gradient-to-r from-blue-50 to-blue-100"
+            />
+            <DataCard
+              title="Learning Hours"
+              value={overallStats.totalLearningHours}
+              unit=" hrs"
+              icon="📚"
+              className="bg-gradient-to-r from-green-50 to-green-100"
+            />
+            <DataCard
+              title="Total Reports"
+              value={overallStats.totalSubmissions}
+              unit=""
+              icon="📊"
+              className="bg-gradient-to-r from-yellow-50 to-yellow-100"
+            />
+          </div>
+        )}
+
         {currentMonthSubmission && (
           <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-xl p-4 sm:p-6">
             <div className="flex items-start gap-3">
@@ -189,6 +333,45 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
                   {monthLabel(currentMonthSubmission.monthKey)} report submitted with {currentMonthSubmission.scores?.overall?.toFixed(1) || 'N/A'}/10 overall score
                 </p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Current Month Performance Details */}
+        {currentMonthSubmission && (
+          <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold mb-4">
+              {monthLabel(currentMonthSubmission.monthKey)} Performance Breakdown
+            </h3>
+            <div className="space-y-3">
+              <MetricRow
+                label="Overall Score"
+                currentValue={currentMonthSubmission.scores?.overall}
+                previousValue={employeeSubmissions[1]?.scores?.overall}
+                unit="/10"
+                target="7.0"
+              />
+              <MetricRow
+                label="KPI Performance"
+                currentValue={currentMonthSubmission.scores?.kpiScore}
+                previousValue={employeeSubmissions[1]?.scores?.kpiScore}
+                unit="/10"
+                target="8.0"
+              />
+              <MetricRow
+                label="Learning Activities"
+                currentValue={currentMonthSubmission.scores?.learningScore}
+                previousValue={employeeSubmissions[1]?.scores?.learningScore}
+                unit="/10"
+                target="7.0"
+              />
+              <MetricRow
+                label="Client Relations"
+                currentValue={currentMonthSubmission.scores?.relationshipScore}
+                previousValue={employeeSubmissions[1]?.scores?.relationshipScore}
+                unit="/10"
+                target="8.0"
+              />
             </div>
           </div>
         )}
@@ -254,6 +437,7 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
           onClose={() => setShowProfileModal(false)}
           employee={employee}
           onSave={handleSaveProfile}
+          isFirstTime={profileCompleteness.isFirstTime}
         />
       )}
     </>

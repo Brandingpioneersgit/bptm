@@ -10,6 +10,8 @@ import { DeptClientsBlock } from "./kpi";
 import { LearningBlock } from "./LearningBlock";
 import { getClientRepository } from "./ClientRepository";
 import { validateSubmission } from "./validation";
+import { dataPersistence, useDraftPersistence } from "./DataPersistence";
+import { DraftResumePrompt, CrashRecoveryPrompt } from "./DraftResumePrompt";
 
 export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack = null }) {
   const DEBUG = false;
@@ -27,6 +29,13 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   const [isEditMode, setIsEditMode] = useState(false);
   const [lastAutoSave, setLastAutoSave] = useState(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
+  // Enhanced persistence state
+  const [showDraftPrompt, setShowDraftPrompt] = useState(false);
+  const [showCrashRecovery, setShowCrashRecovery] = useState(false);
+  const [pendingDrafts, setPendingDrafts] = useState([]);
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
+  const draftPersistence = useDraftPersistence();
   
   const FORM_STEPS = [
     { id: 1, title: "Profile & Month", icon: "👤", description: "Basic information and reporting period" },
@@ -188,6 +197,11 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
 
 
   const autoSave = useCallback(async () => {
+    if (!autoSaveEnabled) {
+      console.log('💾 Auto-save disabled');
+      return;
+    }
+
     // Check if there's meaningful data to save
     const hasEmployeeData = currentSubmission.employee?.name || currentSubmission.employee?.phone;
     const hasFormData = currentSubmission.monthKey || hasEmployeeData;
@@ -198,39 +212,66 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     }
     
     try {
-      const autoSaveKey = getAutoSaveKey();
-      const autoSaveData = {
-        ...currentSubmission,
-        lastSaved: new Date().toISOString(),
-        currentStep: currentStep,
-        autoSaveKey: autoSaveKey // Store the key used for debugging
-      };
+      const employeeName = currentSubmission.employee?.name || selectedEmployee?.name;
+      const employeePhone = currentSubmission.employee?.phone || selectedEmployee?.phone;
+      const monthKey = currentSubmission.monthKey || thisMonthKey();
       
-    dlog('💾 Auto-saving form data:', {
-        key: autoSaveKey,
-        employee: autoSaveData.employee,
-        step: currentStep,
-        hasName: !!autoSaveData.employee?.name,
-        hasPhone: !!autoSaveData.employee?.phone,
-        monthKey: autoSaveData.monthKey
-      });
-      
-      localStorage.setItem(autoSaveKey, JSON.stringify(autoSaveData));
-      setLastAutoSave(new Date());
-      setHasUnsavedChanges(false);
-      
-      // Verify the save worked
-      const verification = localStorage.getItem(autoSaveKey);
-      if (!verification) {
-        throw new Error('Auto-save verification failed - data not found in localStorage');
+      if (!employeeName || !employeePhone || !monthKey) {
+        console.log('💾 Skipping auto-save: missing required identifiers');
+        return;
       }
       
-      dlog('✅ Auto-save successful and verified');
+      const draftData = {
+        ...currentSubmission,
+        name: employeeName,
+        phone: employeePhone,
+        monthKey: monthKey,
+        currentStep: currentStep,
+        sessionInfo: {
+          userAgent: navigator.userAgent,
+          timestamp: Date.now(),
+          url: window.location.href
+        }
+      };
+      
+      dlog('💾 Auto-saving with enhanced persistence:', {
+        name: employeeName,
+        phone: employeePhone,
+        monthKey: monthKey,
+        step: currentStep,
+        fieldCount: dataPersistence.countFormFields ? dataPersistence.countFormFields(draftData) : 0
+      });
+      
+      // Use the new persistence service
+      const success = draftPersistence.saveDraft(draftData, {
+        forceImmediate: hasUnsavedChanges && currentStep > 1
+      });
+      
+      if (success) {
+        setLastAutoSave(new Date());
+        setHasUnsavedChanges(false);
+        dlog('✅ Enhanced auto-save successful');
+      } else {
+        throw new Error('Enhanced auto-save returned false');
+      }
+      
     } catch (error) {
-      if (DEBUG) console.error('❌ Auto-save failed:', error);
-      // Don't reset hasUnsavedChanges if save failed
+      console.error('❌ Enhanced auto-save failed:', error);
+      // Fallback to legacy localStorage save
+      try {
+        const legacyKey = getAutoSaveKey();
+        const legacyData = {
+          ...currentSubmission,
+          lastSaved: new Date().toISOString(),
+          currentStep: currentStep
+        };
+        localStorage.setItem(legacyKey, JSON.stringify(legacyData));
+        console.log('💾 Fallback save successful');
+      } catch (fallbackError) {
+        console.error('❌ Fallback save also failed:', fallbackError);
+      }
     }
-  }, [currentSubmission, currentStep, getAutoSaveKey]);
+  }, [currentSubmission, currentStep, selectedEmployee, autoSaveEnabled, hasUnsavedChanges, getAutoSaveKey, draftPersistence]);
 
   // Keep a ref to the latest autoSave function for stable callbacks
   const autoSaveRef = useRef(autoSave);
@@ -549,6 +590,52 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     return () => clearInterval(timer);
   }, [currentStep, selectedEmployee, getStepValidation]);
 
+  // Enhanced draft detection and crash recovery
+  useEffect(() => {
+    // Check for crashed sessions first
+    const checkForCrashes = () => {
+      try {
+        const crashedDrafts = dataPersistence.checkCrashedSessions ? dataPersistence.checkCrashedSessions() : [];
+        if (crashedDrafts.length > 0) {
+          console.log('🚨 Found crashed drafts:', crashedDrafts);
+          setShowCrashRecovery(true);
+          setPendingDrafts(crashedDrafts);
+        }
+      } catch (error) {
+        console.error('Error checking for crashes:', error);
+      }
+    };
+
+    // Check for existing drafts when employee changes
+    const checkForExistingDrafts = () => {
+      if (!selectedEmployee?.name || !selectedEmployee?.phone) return;
+
+      try {
+        const userDrafts = draftPersistence.getUserDrafts(selectedEmployee.name, selectedEmployee.phone);
+        if (userDrafts.length > 0) {
+          console.log('📄 Found existing drafts for user:', userDrafts);
+          setPendingDrafts(userDrafts);
+          setShowDraftPrompt(true);
+          return true; // Don't load default draft
+        }
+      } catch (error) {
+        console.error('Error checking for existing drafts:', error);
+      }
+      return false;
+    };
+
+    // Run checks on mount and employee change
+    if (selectedEmployee) {
+      setTimeout(() => {
+        checkForCrashes();
+        if (!checkForExistingDrafts()) {
+          // No drafts found, proceed with normal loading
+          console.log('No existing drafts found, proceeding normally');
+        }
+      }, 500); // Small delay to allow UI to settle
+    }
+  }, [selectedEmployee, draftPersistence]);
+
   // Enhanced draft loading - only on initial mount or when meaningful employee change occurs
   const loadedDraftRef = useRef(new Set());
   
@@ -588,10 +675,27 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   
   // Save on page unload to prevent data loss
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    const handleBeforeUnload = (e) => {
       if (selectedEmployee && hasUnsavedChanges) {
-        autoSave();
-        console.log('💾 Saved on page unload');
+        // Synchronous save attempt for page unload
+        try {
+          const autoSaveKey = getAutoSaveKey();
+          const autoSaveData = {
+            ...currentSubmission,
+            lastSaved: new Date().toISOString(),
+            currentStep: currentStep,
+            emergencySave: true
+          };
+          localStorage.setItem(autoSaveKey, JSON.stringify(autoSaveData));
+          console.log('💾 Emergency save on page unload');
+        } catch (error) {
+          console.error('❌ Emergency save failed:', error);
+        }
+        
+        // Show warning if user tries to leave with unsaved changes
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return 'You have unsaved changes. Are you sure you want to leave?';
       }
     };
     
@@ -609,7 +713,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [selectedEmployee, hasUnsavedChanges, autoSave]);
+  }, [selectedEmployee, hasUnsavedChanges, autoSave, getAutoSaveKey, currentSubmission, currentStep]);
 
   // Debounce score calculations to prevent constant re-renders
   const [debouncedSubmission, setDebouncedSubmission] = useState(currentSubmission);
@@ -852,7 +956,7 @@ Your progress has been automatically saved, so you won't lose any other informat
   const isNewEmployee = !selectedEmployee;
 
   // Enhanced navigation with auto-save and validation feedback
-  const goToStep = useCallback(async (stepId) => {
+  const goToStep = useCallback((stepId) => {
     console.log(`🎯 goToStep called: ${currentStep} -> ${stepId}`);
     
     // If already on the target step, just return
@@ -869,31 +973,25 @@ Your progress has been automatically saved, so you won't lose any other informat
     
     console.log(`🔄 Starting navigation from step ${currentStep} to step ${stepId}...`);
     
-    // Always save when changing steps if there are unsaved changes
-    if (hasUnsavedChanges) {
-      console.log('🔄 Saving before step navigation...');
-      try {
-        await autoSave();
-        console.log('✅ Auto-save completed before navigation');
-      } catch (error) {
-        console.error('❌ Auto-save failed during navigation:', error);
-        // Continue with navigation even if save fails
-      }
-    }
+    // Immediate navigation to prevent blank screen - save happens in background
+    setCurrentStep(stepId);
     
-    // Update validation state for current step
-    const validation = getStepValidation(currentStep);
+    // Update validation state for new step
+    const validation = getStepValidation(stepId);
     setFieldErrors(validation.errors);
     setValidationWarnings(validation.warnings);
-    console.log(`🔍 Validation updated for step ${currentStep}:`, { 
-      errors: Object.keys(validation.errors).length, 
-      warnings: Object.keys(validation.warnings).length 
-    });
     
-    console.log(`📍 Successfully navigating from step ${currentStep} to step ${stepId}`);
-    setCurrentStep(stepId);
-    console.log(`✅ setCurrentStep(${stepId}) called`)
-  }, [hasUnsavedChanges, autoSave, getStepValidation, currentStep]);
+    // Auto-save in background if needed (non-blocking)
+    if (hasUnsavedChanges) {
+      console.log('🔄 Background saving after navigation...');
+      autoSave().catch(error => {
+        console.error('❌ Background auto-save failed:', error);
+        // Don't interrupt user flow for save failures
+      });
+    }
+    
+    console.log(`✅ Navigation completed: ${currentStep} -> ${stepId}`);
+  }, [currentStep, hasUnsavedChanges, autoSave, getStepValidation]);
 
   const nextStep = () => {
     const nextStepNumber = currentStep + 1;
@@ -936,6 +1034,74 @@ Your progress has been automatically saved, so you won't lose any other informat
       goToStep(currentStep - 1);
     }
   };
+
+  // Enhanced draft handling functions
+  const handleResumeDraft = useCallback((draft) => {
+    try {
+      console.log('📄 Resuming draft:', draft.draftId);
+      
+      // Set the draft data
+      setCurrentSubmission(draft);
+      setCurrentStep(draft.currentStep || 1);
+      
+      // Set employee if available
+      if (draft.name && draft.phone) {
+        setSelectedEmployee({ name: draft.name, phone: draft.phone });
+      } else if (draft.employee?.name && draft.employee?.phone) {
+        setSelectedEmployee({ name: draft.employee.name, phone: draft.employee.phone });
+      }
+      
+      // Update timestamps
+      if (draft.lastSaved) {
+        setLastAutoSave(new Date(draft.lastSaved));
+      }
+      
+      // Mark as no unsaved changes since we just loaded
+      setHasUnsavedChanges(false);
+      
+      // Hide prompts
+      setShowDraftPrompt(false);
+      setShowCrashRecovery(false);
+      
+      console.log('✅ Draft resumed successfully');
+    } catch (error) {
+      console.error('❌ Error resuming draft:', error);
+      openModal('Error', 'Failed to resume draft. Starting fresh.', closeModal);
+    }
+  }, [setCurrentSubmission, setCurrentStep, setSelectedEmployee, setLastAutoSave, setHasUnsavedChanges, openModal, closeModal]);
+
+  const handleStartFresh = useCallback(() => {
+    try {
+      console.log('🆕 Starting fresh form');
+      
+      // Reset to empty submission
+      setCurrentSubmission({ ...EMPTY_SUBMISSION, isDraft: true });
+      setCurrentStep(1);
+      setHasUnsavedChanges(false);
+      setLastAutoSave(null);
+      
+      // Keep current employee selection but clear form data
+      // selectedEmployee remains as is
+      
+      // Hide prompts
+      setShowDraftPrompt(false);
+      setShowCrashRecovery(false);
+      
+      console.log('✅ Fresh form started');
+    } catch (error) {
+      console.error('❌ Error starting fresh:', error);
+    }
+  }, [setCurrentSubmission, setCurrentStep, setHasUnsavedChanges, setLastAutoSave]);
+
+  const handleDismissDraftPrompt = useCallback(() => {
+    setShowDraftPrompt(false);
+    setShowCrashRecovery(false);
+  }, []);
+
+  const handleRecoverCrash = useCallback((crashedDraft) => {
+    console.log('🚨 Recovering from crash:', crashedDraft);
+    handleResumeDraft(crashedDraft.data || crashedDraft);
+  }, [handleResumeDraft]);
 
   const getCurrentStepData = () => {
     const validStep = Math.max(1, Math.min(currentStep || 1, FORM_STEPS.length));
@@ -1126,10 +1292,12 @@ Your progress has been automatically saved, so you won't lose any other informat
                         placeholder="e.g., 9876543210"
                         value={currentSubmission.employee.phone || ""}
                         onChange={(e) => handlePhoneChange(e.target.value)}
-                        onBlur={(e) => {
-                          if (e.target.value) {
-                            handlePhoneChange(e.target.value);
-                          }
+                        onInput={(e) => handlePhoneChange(e.target.value)} // Handles programmatic/autofill input
+                        onPaste={(e) => {
+                          // Handle paste events for better UX
+                          e.preventDefault();
+                          const pastedData = e.clipboardData.getData('text');
+                          handlePhoneChange(pastedData);
                         }}
                         disabled={isFormDisabled}
                         className={`w-full border rounded-xl p-3 text-base focus:ring-2 transition-colors duration-200 ${
@@ -1347,15 +1515,34 @@ Your progress has been automatically saved, so you won't lose any other informat
             )}
             
             {!previousSubmission && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <h4 className="font-medium text-yellow-800 mb-2 flex items-center gap-2">
-                  <span className="text-yellow-500">⚠️</span>
-                  No Previous Report Found
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-5">
+                <h4 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                  <span className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">🎯</span>
+                  Welcome! This is Your First Performance Report
                 </h4>
-                <div className="text-sm text-yellow-700">
-                  <p>This appears to be your first report. Comparative analysis will be limited, but you can still complete all sections.</p>
-                  <div className="text-yellow-600 bg-yellow-100 p-2 rounded text-xs mt-2">
-                    💡 Future reports will include comparative analysis against this baseline.
+                <div className="space-y-3 text-sm">
+                  <div className="bg-white/70 rounded-lg p-3">
+                    <p className="text-blue-800 font-medium mb-2">🚀 What to Expect:</p>
+                    <ul className="text-blue-700 space-y-1 text-xs">
+                      <li>• This report establishes your performance baseline</li>
+                      <li>• Complete all sections to showcase your work and achievements</li>
+                      <li>• Your data will be used for future month-over-month comparisons</li>
+                    </ul>
+                  </div>
+                  <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-3 border border-green-200">
+                    <p className="text-green-800 font-medium mb-2">📈 Future Benefits:</p>
+                    <ul className="text-green-700 space-y-1 text-xs">
+                      <li>• Next month: See your growth trends and improvements</li>
+                      <li>• Track KPI improvements with visual comparisons</li>
+                      <li>• Get detailed performance insights and recommendations</li>
+                      <li>• Build a comprehensive performance history</li>
+                    </ul>
+                  </div>
+                  <div className="text-center bg-blue-100 rounded-lg p-3 mt-3">
+                    <p className="text-blue-800 font-semibold text-sm">💡 Pro Tip</p>
+                    <p className="text-blue-700 text-xs mt-1">
+                      Be thorough with this first report - it sets the foundation for all future comparisons and growth tracking!
+                    </p>
                   </div>
                 </div>
               </div>
