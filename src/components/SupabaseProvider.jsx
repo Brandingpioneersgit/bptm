@@ -13,18 +13,10 @@ export const SupabaseProvider = ({ children }) => {
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (!window.supabase) {
-        console.warn("Supabase CDN failed, attempting fallback...");
-        // Create a basic mock client for development
-        window.supabase = {
-          createClient: () => ({
-            from: () => ({
-              select: () => Promise.resolve({ data: [], error: null }),
-              insert: () => Promise.resolve({ data: null, error: null }),
-              update: () => Promise.resolve({ data: null, error: null }),
-              delete: () => Promise.resolve({ data: null, error: null })
-            })
-          })
-        };
+        console.warn("Supabase CDN failed to load");
+        clearInterval(intervalId);
+        setError("Supabase failed to load");
+        setLoading(false);
       }
     }, 2000);
 
@@ -44,13 +36,13 @@ export const SupabaseProvider = ({ children }) => {
     };
   }, []);
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center text-gray-600"><div>Loading Database Connection...</div></div>;
-  }
+    if (error) {
+      return <div className="min-h-screen flex items-center justify-center text-red-600 p-4"><div>Error: {error}</div></div>;
+    }
 
-  if (error) {
-    return <div className="min-h-screen flex items-center justify-center text-red-600 p-4"><div>Error: {error}</div></div>;
-  }
+    if (loading) {
+      return <div className="min-h-screen flex items-center justify-center text-gray-600"><div>Loading Database Connection...</div></div>;
+    }
 
   return (
     <SupabaseContext.Provider value={supabaseClient}>
