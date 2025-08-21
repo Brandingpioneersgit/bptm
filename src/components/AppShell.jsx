@@ -24,7 +24,7 @@ function useHash() {
   return hash;
 }
 
-import { ModalContext, useModal } from "@/shared/components/ModalContext";
+import { ModalContext } from "@/shared/components/ModalContext";
 
 
 export function AppContent() {
