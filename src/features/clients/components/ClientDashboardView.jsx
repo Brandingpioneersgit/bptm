@@ -2,7 +2,7 @@ import React, { useMemo, useEffect, useState } from "react";
 import { useSupabase } from "@/components/SupabaseProvider";
 import { useFetchSubmissions } from "@/components/useFetchSubmissions.js";
 import { MultiSelect } from "@/shared/components/ui";
-import { calculateScopeCompletion } from "@/shared/lib/scoring";
+import { calculateScopeCompletion, getServiceWeight } from "@/shared/lib/scoring";
 
 export function ClientDashboardView() {
   const supabase = useSupabase();
@@ -144,14 +144,14 @@ export function ClientDashboardView() {
                   const total = services.reduce((acc, s) => {
                     const nm = typeof s === 'string' ? s : s.service;
                     const p = calculateScopeCompletion(selectedClientData.client, nm, { monthKey: selectedClientData.latestMonthKey }) || 0;
-                    const ww = require('@/shared/lib/scoring').getServiceWeight(nm);
+                    const ww = getServiceWeight(nm);
                     return acc + (ww * p);
                   }, 0) || 1;
                   return services.map((s, idx) => {
                     const name = typeof s === 'string' ? s : s.service;
                     const comp = calculateScopeCompletion(selectedClientData.client, name, { monthKey: selectedClientData.latestMonthKey });
                     const pct = comp == null ? 0 : Math.max(0, Math.min(100, comp));
-                    const w = require('@/shared/lib/scoring').getServiceWeight(name);
+                    const w = getServiceWeight(name);
                     const share = Math.round(((w * pct) / total) * 100);
                     return (
                       <div key={idx} className="text-sm">

@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState } from "react";
-import { calculateScopeCompletion } from "@/shared/lib/scoring";
+import { calculateScopeCompletion, getServiceWeight } from "@/shared/lib/scoring";
 import { useSupabase } from "@/components/SupabaseProvider";
 
 export function ClientReportsView({ employee, employeeSubmissions }) {
@@ -143,12 +143,12 @@ export function ClientReportsView({ employee, employeeSubmissions }) {
                     {services.map((s, idx) => {
                       const name = typeof s === 'string' ? s : s.service;
                       const pct = calculateScopeCompletion(latestClient, name, { monthKey: latest?.monthKey }) || 0;
-                      const w = require('@/shared/lib/scoring').getServiceWeight(name);
+                      const w = getServiceWeight(name);
                       // compute contribution share across services
                       const total = services.reduce((acc, sv) => {
                         const nm = typeof sv === 'string' ? sv : sv.service;
                         const p = calculateScopeCompletion(latestClient, nm, { monthKey: latest?.monthKey }) || 0;
-                        const ww = require('@/shared/lib/scoring').getServiceWeight(nm);
+                        const ww = getServiceWeight(nm);
                         return acc + (ww * p);
                       }, 0) || 1;
                       const share = Math.round(((w * pct) / total) * 100);
