@@ -36,13 +36,21 @@ export const SupabaseProvider = ({ children }) => {
     };
   }, []);
 
-    if (error) {
-      return <div className="min-h-screen flex items-center justify-center text-red-600 p-4"><div>Error: {error}</div></div>;
-    }
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-red-600 p-4">
+        <div>Error: {error}</div>
+      </div>
+    );
+  }
 
-    if (loading) {
-      return <div className="min-h-screen flex items-center justify-center text-gray-600"><div>Loading Database Connection...</div></div>;
-    }
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-gray-600">
+        <div>Loading Database Connection...</div>
+      </div>
+    );
+  }
 
   return (
     <SupabaseContext.Provider value={supabaseClient}>
