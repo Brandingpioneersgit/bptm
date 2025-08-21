@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useState } from "react";
 import { useFetchSubmissions } from "./useFetchSubmissions";
-import { useModal } from "./AppShell";
+import { useModal } from "@/shared/components/ModalContext";
 import { Section } from "@/shared/components/ui";
 import { PerformanceChart } from "./PerformanceChart";
 import { PDFDownloadButton } from "./PDFDownloadButton";

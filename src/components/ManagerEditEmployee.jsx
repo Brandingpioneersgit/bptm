@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useSupabase } from "./SupabaseProvider";
 import { useFetchSubmissions } from "./useFetchSubmissions.js";
-import { useModal } from "./AppShell";
+import { useModal } from "@/shared/components/ModalContext";
 import { monthLabel } from "@/shared/lib/constants";
 import { useToast } from "@/shared/components/Toast";
 

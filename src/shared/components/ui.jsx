@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { InfoTooltip } from '@/shared/components/InfoTooltip';
 import { isDriveUrl, isGensparkUrl, uid } from '@/shared/lib/constants';
-import { useModal } from '@/components/AppShell';
+import { useModal } from '@/shared/components/ModalContext';
 
 export function Section({ title, children, number, info }) {
   return (

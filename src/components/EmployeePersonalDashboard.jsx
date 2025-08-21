@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useFetchSubmissions } from "./useFetchSubmissions.js";
-import { useModal } from "./AppShell";
+import { useModal } from "@/shared/components/ModalContext";
 import { thisMonthKey, monthLabel } from "@/shared/lib/constants";
 import { calculateScopeCompletion, getServiceWeight } from "@/shared/lib/scoring";
 import { ClientReportsView } from "@/features/clients/components/ClientReportsView";

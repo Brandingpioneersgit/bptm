@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { NumField } from "@/shared/components/ui";
 import { toDDMMYYYY, isDriveUrl, uid } from "@/shared/lib/constants";
-import { useModal } from "@/components/AppShell";
+import { useModal } from "@/shared/components/ModalContext";
 
 export function ClientReportStatus({ client, prevClient, onChange }) {
   const rel = client.relationship || { roadmapSentDate: '', reportSentDate: '', meetings: [], appreciations: [], escalations: [], clientSatisfaction: 0, paymentReceived: false, paymentDate: '' };

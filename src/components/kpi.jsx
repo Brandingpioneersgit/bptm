@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { NumField, ProofField, TextArea, MultiSelect, PrevValue, TinyLinks, Section, ComparativeField, ThreeWayComparativeField } from "@/shared/components/ui";
 import { calculateScopeCompletion } from "@/shared/lib/scoring";
 import { monthLabel, isDriveUrl, isGensparkUrl, uid, round1 } from "@/shared/lib/constants";
-import { useModal } from "./AppShell";
+import { useModal } from "@/shared/components/ModalContext";
 import { useSupabase } from "./SupabaseProvider";
 import { ClientReportStatus } from "@/features/clients/components/ClientReportStatus";
 import { useClientSync } from "@/features/clients/context/ClientSyncContext";

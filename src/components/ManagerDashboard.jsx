@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useSupabase } from "./SupabaseProvider";
 import { useToast } from "@/shared/components/Toast";
-import { useModal } from "./AppShell";
+import { useModal } from "@/shared/components/ModalContext";
 import { useFetchSubmissions } from "./useFetchSubmissions";
 import { useDataSync } from "./DataSyncContext";
 import { ClientManagementView } from "@/features/clients/components/ClientManagementView";

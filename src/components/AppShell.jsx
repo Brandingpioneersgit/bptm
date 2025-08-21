@@ -24,8 +24,7 @@ function useHash() {
   return hash;
 }
 
-const ModalContext = React.createContext({ openModal: () => { }, closeModal: () => { } });
-export const useModal = () => React.useContext(ModalContext);
+import { ModalContext, useModal } from "@/shared/components/ModalContext";
 
 
 export function AppContent() {
