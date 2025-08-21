@@ -8,6 +8,7 @@ import { ProfileEditModal } from "./ProfileEditModal";
 import { useSupabase } from "./SupabaseProvider";
 import { DataCard, MetricRow, SmartDataDisplay } from "./DataDisplay";
 import { useToast } from "@/shared/components/Toast";
+import { ProfileImage } from "@/shared/components/ImageDisplay";
 
 export function EmployeePersonalDashboard({ employee: initialEmployee, onBack }) {
   const [employee, setEmployee] = useState(initialEmployee);
@@ -291,17 +292,12 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
         <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3 sm:gap-4">
-              {employee.photoUrl ? (
-                <img
-                  src={employee.photoUrl}
-                  alt={employee.name}
-                  className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover flex-shrink-0"
-                />
-              ) : (
-                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-lg sm:text-2xl font-bold flex-shrink-0">
-                  {employee.name.charAt(0).toUpperCase()}
-                </div>
-              )}
+              <ProfileImage
+                src={employee.photoUrl}
+                name={employee.name}
+                size="lg"
+                className="flex-shrink-0"
+              />
               <div className="min-w-0 flex-1">
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{employee.name}</h1>
                 <p className="text-sm sm:text-base text-gray-600">{employee.department} Department</p>
