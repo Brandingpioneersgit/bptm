@@ -420,6 +420,98 @@ export function ProgressIndicator({ current, target, label, unit = "", color = "
   );
 }
 
+// Three-way comparative field for showing baseline -> previous -> current values
+export function ThreeWayComparativeField({ 
+  label, 
+  currentValue, 
+  previousValue, 
+  comparisonValue, // baseline value for three-way comparison
+  onChange, 
+  placeholder = "Enter value",
+  unit = "",
+  disabled = false,
+  monthComparison = "Baseline Month",
+  monthPrev = "Previous Month",
+  monthThis = "This Month" 
+}) {
+  const baseline = Number(comparisonValue || 0);
+  const prev = Number(previousValue || 0);
+  const curr = Number(currentValue || 0);
+  
+  const prevChange = prev - baseline;
+  const currChange = curr - prev;
+  const totalChange = curr - baseline;
+  
+  const getChangeColor = (change) => {
+    if (change > 0) return 'text-green-600';
+    if (change < 0) return 'text-red-600';
+    return 'text-gray-600';
+  };
+  
+  const getChangeIcon = (change) => {
+    if (change > 0) return '📈 ↗️';
+    if (change < 0) return '📉 ↘️';
+    return '📊 ➡️';
+  };
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+        <input
+          type="number"
+          inputMode="numeric"
+          className={`w-full border rounded-xl p-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+            disabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''
+          }`}
+          placeholder={placeholder}
+          value={currentValue || ""}
+          onChange={e => disabled ? null : onChange(Number(e.target.value || 0))}
+          disabled={disabled}
+        />
+      </div>
+      
+      <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-3">
+        <div className="flex justify-between items-center mb-3">
+          <span className="text-xs font-medium text-blue-700">Three-Month Trend Analysis</span>
+          <span className={`text-xs font-bold ${getChangeColor(totalChange)}`}>
+            {getChangeIcon(totalChange)}
+          </span>
+        </div>
+        
+        <div className="grid grid-cols-3 gap-3 text-sm mb-3">
+          <div className="text-center bg-white/60 rounded p-2">
+            <div className="text-xs text-gray-500">{monthComparison}</div>
+            <div className="font-semibold text-gray-600">{baseline}{unit}</div>
+            <div className="text-xs text-gray-400">Baseline</div>
+          </div>
+          <div className="text-center bg-white/60 rounded p-2">
+            <div className="text-xs text-gray-500">{monthPrev}</div>
+            <div className="font-semibold text-gray-700">{prev}{unit}</div>
+            <div className={`text-xs ${getChangeColor(prevChange)}`}>
+              {prevChange >= 0 ? '+' : ''}{prevChange}{unit}
+            </div>
+          </div>
+          <div className="text-center bg-white/80 rounded p-2 border border-blue-300">
+            <div className="text-xs text-blue-600">{monthThis}</div>
+            <div className="font-semibold text-blue-800">{curr}{unit}</div>
+            <div className={`text-xs ${getChangeColor(currChange)}`}>
+              {currChange >= 0 ? '+' : ''}{currChange}{unit}
+            </div>
+          </div>
+        </div>
+        
+        <div className="text-center border-t border-blue-200 pt-2">
+          <div className={`text-xs font-medium ${getChangeColor(totalChange)}`}>
+            Overall Trend: {totalChange >= 0 ? '+' : ''}{totalChange}{unit} 
+            ({monthComparison} → {monthThis})
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Step validation indicator
 export function StepValidationIndicator({ errors = {}, warnings = {}, stepTitle }) {
   const errorCount = Object.keys(errors).length;

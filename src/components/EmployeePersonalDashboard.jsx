@@ -129,7 +129,6 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
   }
 
   return (
-  return (
     <>
       <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
         {missingProfileFields.length > 0 && (
