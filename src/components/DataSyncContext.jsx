@@ -73,8 +73,6 @@ export const DataSyncProvider = ({ children }) => {
   const fetchSubmissions = useCallback(async (force = false) => {
     if (!supabase) return;
     
-    const operationId = `fetch-submissions-${Date.now()}`;
-    
     // Prevent duplicate operations
     if (!force && pendingOperations.current.has('fetch-submissions')) {
       console.log('📋 Submissions fetch already in progress, skipping...');
