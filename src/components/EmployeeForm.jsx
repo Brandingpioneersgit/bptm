@@ -5,19 +5,22 @@ import { useFetchSubmissions } from "./useFetchSubmissions";
 import { EMPTY_SUBMISSION, thisMonthKey, prevMonthKey, monthLabel, DEPARTMENTS, ROLES_BY_DEPT } from "./constants";
 import { scoreKPIs, scoreLearning, scoreRelationshipFromClients, overallOutOf10, generateSummary } from "./scoring";
 import { CelebrationEffect } from "./CelebrationEffect";
-import { Section, TextField, NumField, TextArea, MultiSelect, ProgressIndicator, StepValidationIndicator } from "./ui";
+import { Section, TextField, NumField, TextArea, MultiSelect, ProgressIndicator, StepValidationIndicator, ThreeWayComparativeField } from "./ui";
 import { DeptClientsBlock } from "./kpi";
 import { LearningBlock } from "./LearningBlock";
 import { getClientRepository } from "./ClientRepository";
 import { validateSubmission } from "./validation";
 
 export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack = null }) {
+  const DEBUG = false;
+  const dlog = (...args) => { if (DEBUG) console.log(...args); };
   const supabase = useSupabase();
   const { openModal, closeModal } = useModal();
   const { allSubmissions } = useFetchSubmissions();
 
   const [currentSubmission, setCurrentSubmission] = useState({ ...EMPTY_SUBMISSION, isDraft: true });
   const [previousSubmission, setPreviousSubmission] = useState(null);
+  const [comparisonSubmission, setComparisonSubmission] = useState(null); // Month before the previous month
   const [selectedEmployee, setSelectedEmployee] = useState(currentUser);
   
   const [currentStep, setCurrentStep] = useState(1);
@@ -34,15 +37,17 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   ];
 
   const getAutoSaveKey = useCallback(() => {
-    // Use form data for key if employee not selected yet but form has data
-    const employeeName = selectedEmployee?.name || currentSubmission.employee?.name || 'anonymous';
-    const employeePhone = selectedEmployee?.phone || currentSubmission.employee?.phone || 'new';
+    // Stabilize key during typing: only switch once inputs are complete
+    const rawName = currentSubmission.employee?.name?.trim() || '';
+    const rawPhone = currentSubmission.employee?.phone?.trim() || '';
+
+    const stableName = selectedEmployee?.name || (rawName.length >= 2 ? rawName : 'anonymous');
+    const stablePhone = selectedEmployee?.phone || (/^\d{10}$/.test(rawPhone) ? rawPhone : 'new');
     const monthKey = currentSubmission.monthKey || thisMonthKey();
-    
-    const employeeId = `${employeeName}-${employeePhone}`;
+
+    const employeeId = `${stableName}-${stablePhone}`;
     const key = `autosave-${employeeId}-${monthKey}`;
-    
-    console.log('🔑 Auto-save key generated:', key);
+
     return key;
   }, [selectedEmployee, currentSubmission.employee?.name, currentSubmission.employee?.phone, currentSubmission.monthKey]);
 
@@ -83,7 +88,10 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
       return false; // Invalid month values, not a previous month issue
     }
     
-    return selectedMonth !== currentMonth && selectedMonth < currentMonth;
+    // For comparative reporting, allow current month and immediate previous month
+    // Only block if it's more than 2 months old
+    const monthsAgo = (new Date(currentMonth) - new Date(selectedMonth)) / (1000 * 60 * 60 * 24 * 30);
+    return monthsAgo > 2;
   }, [currentSubmission.monthKey]);
 
   if (currentUser && isSubmissionFinalized && currentSubmission.monthKey === thisMonthKey() && !isManagerEdit) {
@@ -117,6 +125,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   useEffect(() => {
     if (!selectedEmployee) {
       setPreviousSubmission(null);
+      setComparisonSubmission(null);
       // Don't reset the entire submission - preserve any entered data
       setCurrentSubmission(prev => ({
         ...prev,
@@ -125,11 +134,25 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
       return;
     }
 
-    const prevSub = allSubmissions
+    // Get submissions for this employee, sorted by month (newest first)
+    const employeeSubmissions = allSubmissions
       .filter(s => s.employee.phone === selectedEmployee.phone)
-      .sort((a, b) => b.monthKey.localeCompare(a.monthKey))[0] || null;
-
+      .sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+    
+    // Set previous submission (most recent)
+    const prevSub = employeeSubmissions[0] || null;
     setPreviousSubmission(prevSub);
+    
+    // Set comparison submission (second most recent, for month-over-month comparison)
+    const comparisonSub = employeeSubmissions[1] || null;
+    setComparisonSubmission(comparisonSub);
+    
+    console.log('📊 Comparative data loaded:', {
+      current: currentSubmission.monthKey,
+      previous: prevSub?.monthKey || 'None',
+      comparison: comparisonSub?.monthKey || 'None',
+      totalSubmissions: employeeSubmissions.length
+    });
 
     // CRITICAL FIX: Only update employee info, preserve all other form data
     setCurrentSubmission(prev => {
@@ -183,7 +206,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
         autoSaveKey: autoSaveKey // Store the key used for debugging
       };
       
-      console.log('💾 Auto-saving form data:', {
+    dlog('💾 Auto-saving form data:', {
         key: autoSaveKey,
         employee: autoSaveData.employee,
         step: currentStep,
@@ -202,9 +225,9 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
         throw new Error('Auto-save verification failed - data not found in localStorage');
       }
       
-      console.log('✅ Auto-save successful and verified');
+      dlog('✅ Auto-save successful and verified');
     } catch (error) {
-      console.error('❌ Auto-save failed:', error);
+      if (DEBUG) console.error('❌ Auto-save failed:', error);
       // Don't reset hasUnsavedChanges if save failed
     }
   }, [currentSubmission, currentStep, getAutoSaveKey]);
@@ -263,11 +286,11 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     try {
       const key = getAutoSaveKey();
       localStorage.removeItem(key);
-      console.log('🗑️ Cleared draft for key:', key);
+      dlog('🗑️ Cleared draft for key:', key);
       setLastAutoSave(null);
       setHasUnsavedChanges(false);
     } catch (error) {
-      console.error('Failed to clear draft:', error);
+      if (DEBUG) console.error('Failed to clear draft:', error);
     }
   }, [getAutoSaveKey]);
   
@@ -275,7 +298,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   const debugAutoSave = useCallback(() => {
     const key = getAutoSaveKey();
     const savedData = localStorage.getItem(key);
-    console.log('🔍 Auto-save debug:', {
+    dlog('🔍 Auto-save debug:', {
       key,
       hasSavedData: !!savedData,
       savedDataSize: savedData ? savedData.length : 0,
@@ -287,20 +310,20 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     if (savedData) {
       try {
         const parsed = JSON.parse(savedData);
-        console.log('📋 Saved data preview:', {
+        dlog('📋 Saved data preview:', {
           employee: parsed.employee,
           monthKey: parsed.monthKey,
           lastSaved: parsed.lastSaved,
           currentStep: parsed.currentStep
         });
       } catch (e) {
-        console.error('❌ Failed to parse saved data:', e);
+        if (DEBUG) console.error('❌ Failed to parse saved data:', e);
       }
     }
   }, [getAutoSaveKey, lastAutoSave, hasUnsavedChanges, currentSubmission.employee]);
 
   const updateCurrentSubmission = useCallback((key, value) => {
-    console.log(`📝 Updating form field: ${key} = ${value}`);
+    dlog(`📝 Updating form field: ${key} =`, value);
     setCurrentSubmission(prev => {
       const updated = { ...prev };
       let current = updated;
@@ -311,17 +334,21 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
         current = current[part];
       }
       current[keyParts[keyParts.length - 1]] = value;
-      console.log(`📋 Form state after ${key} update:`, updated.employee);
+      dlog(`📋 Form state after ${key} update:`, updated.employee);
       return updated;
     });
 
     setHasUnsavedChanges(true);
-
-    // Immediately persist every field change to prevent data loss
-    setTimeout(() => {
-      autoSaveRef.current();
-    }, 100); // Small delay to ensure state update is processed
-  }, []);
+    
+    // Force immediate auto-save only for non-text identity fields
+    const criticalFields = ['employee.department', 'employee.role', 'monthKey'];
+    if (criticalFields.includes(key)) {
+      dlog(`🚨 Critical field ${key} updated - forcing immediate auto-save`);
+      setTimeout(() => {
+        autoSave();
+      }, 100); // Small delay to ensure state update is processed
+    }
+  }, [autoSave]);
 
   // Wrapper for setModel that tracks unsaved changes
   const setModelWithTracking = useCallback((updaterOrValue) => {
@@ -347,16 +374,16 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   const handlePhoneChange = useCallback((value) => {
     // Clean phone number input - remove non-digits and limit to 10 digits
     const cleanPhone = value.replace(/\D/g, '').slice(0, 10);
-    console.log(`📱 Phone input: "${value}" -> cleaned: "${cleanPhone}"`);
+    dlog(`📱 Phone input: "${value}" -> cleaned: "${cleanPhone}"`);
     
     // Force immediate state update to prevent input lag
     updateCurrentSubmission('employee.phone', cleanPhone);
     
     // Additional validation for registration issues
     if (cleanPhone.length === 10) {
-      console.log('✅ Phone number complete (10 digits):', cleanPhone);
+      dlog('✅ Phone number complete (10 digits):', cleanPhone);
     } else if (cleanPhone.length > 0) {
-      console.log(`📱 Phone number in progress (${cleanPhone.length}/10):`, cleanPhone);
+      dlog(`📱 Phone number in progress (${cleanPhone.length}/10):`, cleanPhone);
     }
   }, [updateCurrentSubmission]);
   const handleWFOChange = useCallback((value) => updateCurrentSubmission('meta.attendance.wfo', value), [updateCurrentSubmission]);
@@ -528,36 +555,24 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   useEffect(() => {
     const autoSaveKey = getAutoSaveKey();
 
-    // Only prompt when we have identifiable user info
-    const hasIdentity = currentSubmission.employee?.name && currentSubmission.employee?.phone;
-    if (!hasIdentity) return;
+    // Prevent loading the same draft multiple times
+    if (loadedDraftRef.current.has(autoSaveKey)) return;
 
-    // Avoid prompting multiple times for same draft
-    if (loadedDraftRef.current.has(autoSaveKey)) {
-      return;
-    }
+    // Load draft only when we have a stable identity (selected employee
+    // or both name and a complete 10-digit phone number)
+    const hasStableIdentity = !!selectedEmployee || (
+      (currentSubmission.employee?.name?.trim()?.length || 0) >= 2 &&
+      /^\d{10}$/.test(currentSubmission.employee?.phone || '')
+    );
 
-    if (autoSaveKey && autoSaveKey !== 'autosave-anonymous-new-undefined') {
-      const saved = localStorage.getItem(autoSaveKey);
-      if (saved) {
-        const draft = JSON.parse(saved);
-        openModal(
-          'Resume saved draft?',
-          `A saved draft was found for ${draft.employee?.name || 'this user'} (last saved ${draft.lastSaved ? new Date(draft.lastSaved).toLocaleString() : 'previously'}).\nClick OK to resume or Cancel to start fresh.`,
-          () => {
-            loadDraft();
-            closeModal();
-            loadedDraftRef.current.add(autoSaveKey);
-          },
-          () => {
-            clearDraft();
-            closeModal();
-            loadedDraftRef.current.add(autoSaveKey);
-          }
-        );
+    if (hasStableIdentity) {
+      const hasDraft = loadDraft();
+      if (hasDraft) {
+        loadedDraftRef.current.add(autoSaveKey);
+        setHasUnsavedChanges(false);
       }
     }
-  }, [getAutoSaveKey, currentSubmission.employee?.name, currentSubmission.employee?.phone, currentSubmission.monthKey, loadDraft, clearDraft, openModal, closeModal]);
+  }, [getAutoSaveKey, loadDraft, selectedEmployee, currentSubmission.employee?.name, currentSubmission.employee?.phone]);
   
   // Auto-save on any form change to prevent data loss - removed autoSave from deps to prevent infinite loops
   useEffect(() => {
@@ -755,9 +770,9 @@ ${feedback.nextMonthGoals.map(g => `• ${g}`).join('\n') || '• Continue curre
       return;
     }
 
-    if (isPreviousMonth) {
-      console.log('❌ Previous month editing restricted');
-      openModal("Previous Month Editing Restricted", "You can only edit the current month's submission. Previous months cannot be modified.", closeModal);
+    if (isPreviousMonth && !isManagerEdit) {
+      console.log('❌ Historical month submission blocked');
+      openModal("Historical Data Not Allowed", "For data accuracy and audit purposes, submissions are limited to the current month and up to 2 months prior. Please select a more recent month for reporting.", closeModal);
       return;
     }
 
@@ -898,6 +913,7 @@ Your progress has been automatically saved, so you won't lose any other informat
 
   const mPrev = previousSubmission ? previousSubmission.monthKey : prevMonthKey(currentSubmission.monthKey);
   const mThis = currentSubmission.monthKey;
+  const mComparison = comparisonSubmission ? comparisonSubmission.monthKey : prevMonthKey(mPrev);
   const rolesForDept = ROLES_BY_DEPT[currentSubmission.employee.department] || [];
   const isNewEmployee = !selectedEmployee;
 
@@ -1048,7 +1064,7 @@ Your progress has been automatically saved, so you won't lose any other informat
 
   const StepContent = () => {
     const stepData = getCurrentStepData();
-    const isFormDisabled = (isSubmissionFinalized || isPreviousMonth) && !isManagerEdit;
+    const isFormDisabled = (isSubmissionFinalized) && !isManagerEdit;
     
     return (
       <div className={`bg-white rounded-xl shadow-sm border p-6 ${ isFormDisabled ? 'opacity-75' : ''}`}>
@@ -1059,9 +1075,9 @@ Your progress has been automatically saved, so you won't lose any other informat
           <div>
             <h3 className="text-xl font-semibold">{stepData.title}</h3>
             <p className="text-gray-600 text-sm">{stepData.description}</p>
-            {isFormDisabled && (
+            {isSubmissionFinalized && !isManagerEdit && (
               <p className="text-sm text-red-600 mt-1">
-                {isSubmissionFinalized ? '✓ Submission completed - form locked' : '🔒 Previous month - editing restricted'}
+                ✓ Submission completed - form locked
               </p>
             )}
             {isManagerEdit && isSubmissionFinalized && (
@@ -1095,7 +1111,7 @@ Your progress has been automatically saved, so you won't lose any other informat
   };
 
   function renderProfileStep() {
-    const isFormDisabled = isSubmissionFinalized || isPreviousMonth;
+    const isFormDisabled = isSubmissionFinalized && !isManagerEdit;
     const validation = getStepValidation(1);
     
     return (
@@ -1176,22 +1192,10 @@ Your progress has been automatically saved, so you won't lose any other informat
                         placeholder="e.g., 9876543210"
                         value={currentSubmission.employee.phone || ""}
                         onChange={(e) => handlePhoneChange(e.target.value)}
-                        onFocus={(e) => {
-                          console.log('📱 Phone field focused, current value:', e.target.value);
-                          // Ensure field is properly registered for input
-                          e.target.focus();
-                        }}
                         onBlur={(e) => {
-                          console.log('📱 Phone field blurred, final value:', e.target.value);
-                          // Force final validation on blur
                           if (e.target.value) {
                             handlePhoneChange(e.target.value);
                           }
-                        }}
-                        onInput={(e) => {
-                          // Handle input event in addition to onChange for better responsiveness
-                          console.log('📱 Phone field input event:', e.target.value);
-                          handlePhoneChange(e.target.value);
                         }}
                         disabled={isFormDisabled}
                         className={`w-full border rounded-xl p-3 text-base focus:ring-2 transition-colors duration-200 ${
@@ -1346,15 +1350,29 @@ Your progress has been automatically saved, so you won't lose any other informat
                 <p className="mt-1 text-sm text-red-600">{fieldErrors['monthKey']}</p>
               )}
               <div className="text-xs text-gray-500 mt-1">
-                💡 Tip: Select the month you're reporting data for (usually the previous month)
+                💡 Tip: Select the month you're reporting data for (typically the previous month for retrospective analysis)
               </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
-                <h5 className="text-sm font-medium text-blue-800 mb-2">📊 Comparative Reporting</h5>
-                <div className="text-xs text-blue-700 space-y-1">
-                  <div><strong>Report Month:</strong> {monthLabel(mThis)} (selected month)</div>
-                  <div><strong>Comparison Base:</strong> {monthLabel(mPrev)} (previous month)</div>
-                  <div className="text-blue-600 mt-2">
-                    💡 Your data for <strong>{monthLabel(mThis)}</strong> will be compared against <strong>{monthLabel(mPrev)}</strong> to show growth and improvements.
+              <div className="bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-lg p-3 mt-3">
+                <h5 className="text-sm font-medium text-blue-800 mb-2 flex items-center gap-1">
+                  📊 Three-Month Comparative Analysis
+                </h5>
+                <div className="text-xs text-blue-700 space-y-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="text-center p-2 bg-white/60 rounded">
+                      <div className="font-medium">{monthLabel(mComparison)}</div>
+                      <div className="text-gray-600">Baseline</div>
+                    </div>
+                    <div className="text-center p-2 bg-white/60 rounded">
+                      <div className="font-medium">{monthLabel(mPrev)}</div>
+                      <div className="text-gray-600">Previous</div>
+                    </div>
+                    <div className="text-center p-2 bg-white/80 rounded border border-blue-300">
+                      <div className="font-medium text-blue-800">{monthLabel(mThis)}</div>
+                      <div className="text-blue-600">Reporting</div>
+                    </div>
+                  </div>
+                  <div className="text-blue-600 text-center mt-2 font-medium">
+                    🎯 Your performance trends will be analyzed across these three months
                   </div>
                 </div>
               </div>
@@ -1417,8 +1435,10 @@ Your progress has been automatically saved, so you won't lose any other informat
   function renderAttendanceStep() {
     const validation = getStepValidation(2);
     const prevAttendance = previousSubmission?.meta?.attendance || { wfo: 0, wfh: 0 };
+    const comparisonAttendance = comparisonSubmission?.meta?.attendance || { wfo: 0, wfh: 0 };
     const currentTotal = (currentSubmission.meta.attendance.wfo || 0) + (currentSubmission.meta.attendance.wfh || 0);
     const prevTotal = (prevAttendance.wfo || 0) + (prevAttendance.wfh || 0);
+    const comparisonTotal = (comparisonAttendance.wfo || 0) + (comparisonAttendance.wfh || 0);
     
     return (
       <div className="space-y-6">
@@ -1432,21 +1452,30 @@ Your progress has been automatically saved, so you won't lose any other informat
             <h4 className="font-medium text-gray-900 flex items-center gap-2">
               📅 Work Attendance
             </h4>
-            <div className="grid grid-cols-2 gap-4">
-              <NumField 
-                label="WFO days" 
+            <div className="space-y-4">
+              <ThreeWayComparativeField 
+                label="Work from Office (WFO) Days" 
                 placeholder="0-31" 
-                value={currentSubmission.meta.attendance.wfo} 
+                unit=" days"
+                currentValue={currentSubmission.meta.attendance.wfo} 
+                previousValue={prevAttendance.wfo}
+                comparisonValue={comparisonAttendance.wfo}
                 onChange={handleWFOChange}
-                error={fieldErrors['meta.attendance.wfo']}
-                warning={validationWarnings['meta.attendance']}
+                monthComparison={monthLabel(mComparison)}
+                monthPrev={monthLabel(mPrev)}
+                monthThis={monthLabel(mThis)}
                 />
-              <NumField 
-                label="WFH days" 
+              <ThreeWayComparativeField 
+                label="Work from Home (WFH) Days" 
                 placeholder="0-31"
-                value={currentSubmission.meta.attendance.wfh} 
+                unit=" days"
+                currentValue={currentSubmission.meta.attendance.wfh} 
+                previousValue={prevAttendance.wfh}
+                comparisonValue={comparisonAttendance.wfh}
                 onChange={handleWFHChange}
-                error={fieldErrors['meta.attendance.wfh']}
+                monthComparison={monthLabel(mComparison)}
+                monthPrev={monthLabel(mPrev)}
+                monthThis={monthLabel(mThis)}
                 />
             </div>
             <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
@@ -1488,11 +1517,17 @@ Your progress has been automatically saved, so you won't lose any other informat
             <h4 className="font-medium text-gray-900 flex items-center gap-2">
               ✅ Task Management
             </h4>
-            <NumField 
-              label="Tasks completed" 
+            <ThreeWayComparativeField 
+              label="Tasks Completed" 
               placeholder="Number of tasks" 
-              value={currentSubmission.meta.tasks.count} 
-              onChange={handleTasksChange} 
+              unit=" tasks"
+              currentValue={currentSubmission.meta.tasks.count} 
+              previousValue={previousSubmission?.meta?.tasks?.count}
+              comparisonValue={comparisonSubmission?.meta?.tasks?.count}
+              onChange={handleTasksChange}
+              monthComparison={monthLabel(mComparison)}
+              monthPrev={monthLabel(mPrev)}
+              monthThis={monthLabel(mThis)}
             />
             <TextField 
               label="AI Table / PM link" 
@@ -1538,9 +1573,11 @@ Your progress has been automatically saved, so you won't lose any other informat
         <DeptClientsBlock 
           currentSubmission={currentSubmission} 
           previousSubmission={previousSubmission} 
+          comparisonSubmission={comparisonSubmission}
           setModel={setModelWithTracking} 
           monthPrev={mPrev} 
-          monthThis={mThis} 
+          monthThis={mThis}
+          monthComparison={mComparison}
           openModal={openModal} 
           closeModal={closeModal} 
         />

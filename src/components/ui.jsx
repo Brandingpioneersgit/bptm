@@ -83,8 +83,14 @@ export const NumField = React.memo(function NumField({ label, value, onChange, c
         } ${
           disabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''
         }`}
-        value={Number(value || 0)} 
-        onChange={e => disabled ? null : onChange(Number(e.target.value || 0))}
+        value={value ?? ''}
+        onChange={e => {
+          if (disabled) return null;
+          const raw = e.target.value;
+          // Allow empty during typing; downstream consumers coerce as needed
+          if (raw === '' || raw === null) return onChange('');
+          return onChange(Number(raw));
+        }}
         onBlur={onBlur}
         disabled={disabled}
         autoComplete="off"
@@ -156,23 +162,22 @@ export function MultiSelect({ options = [], selected = [], onChange, placeholder
 
   const toggleDropdown = () => {
     if (disabled) return;
-    console.log('🔄 MultiSelect dropdown toggled, isOpen:', !isOpen);
+    // reduced debug noise
     setIsOpen(!isOpen);
   };
 
   const handleSelect = (option) => {
     if (disabled) return;
     
-    console.log('📝 MultiSelect option selected:', option);
-    console.log('📋 Current selected:', safeSelected);
+    // reduced debug noise
     
     if (safeSelected.includes(option)) {
       const newSelected = safeSelected.filter(item => item !== option);
-      console.log('➖ Removing option, new selection:', newSelected);
+      // reduced debug noise
       onChange(newSelected);
     } else {
       const newSelected = [...safeSelected, option];
-      console.log('➕ Adding option, new selection:', newSelected);
+      // reduced debug noise
       onChange(newSelected);
     }
   };
@@ -191,13 +196,7 @@ export function MultiSelect({ options = [], selected = [], onChange, placeholder
 
   const displayValue = safeSelected.length > 0 ? safeSelected.join(", ") : placeholder;
 
-  console.log('🎯 MultiSelect render:', {
-    options: safeOptions,
-    selected: safeSelected,
-    disabled,
-    isOpen,
-    displayValue
-  });
+  // reduced debug noise
 
   return (
     <div className="relative" ref={dropdownRef}>
