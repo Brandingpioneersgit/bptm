@@ -11,7 +11,7 @@ import { EmployeePersonalDashboard } from "./EmployeePersonalDashboard";
 import { HeaderBrand } from "@/shared/components/HeaderBrand";
 import { useFetchSubmissions } from "./useFetchSubmissions";
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
-import { ToastProvider, useToast } from "@/shared/components/Toast";
+import { ToastProvider } from "@/shared/components/Toast";
 
 function useHash() {
   const initial = typeof window === 'undefined' ? '' : (window.location.hash || '');
