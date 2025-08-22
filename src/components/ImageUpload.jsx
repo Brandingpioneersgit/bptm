@@ -312,14 +312,14 @@ export const ProfileImageUpload = ({
           <img
             src={currentImageUrl}
             alt="Profile"
-            className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+            className="w-16 sm:w-20 md:w-24 h-16 sm:h-20 md:h-24 rounded-full object-cover border-2 sm:border-4 border-white shadow-lg"
             onError={(e) => {
               e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userId)}&background=6366f1&color=fff&size=96`;
             }}
           />
         ) : (
-          <div className="w-24 h-24 rounded-full bg-gray-200 border-4 border-white shadow-lg flex items-center justify-center">
-            <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+          <div className="w-16 sm:w-20 md:w-24 h-16 sm:h-20 md:h-24 rounded-full bg-gray-200 border-2 sm:border-4 border-white shadow-lg flex items-center justify-center">
+            <svg className="w-6 sm:w-8 h-6 sm:h-8 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
               <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
           </div>

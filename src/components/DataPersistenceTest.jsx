@@ -15,7 +15,12 @@ export function DataPersistenceTest() {
   
   const [savedDrafts, setSavedDrafts] = useState([]);
   const [status, setStatus] = useState('Ready');
-  const draftPersistence = useDraftPersistence();
+  const draftPersistence = useDraftPersistence({
+    name: testData.name,
+    phone: testData.phone,
+    monthKey: testData.monthKey,
+    model: testData
+  });
 
   // Load existing drafts on mount
   useEffect(() => {

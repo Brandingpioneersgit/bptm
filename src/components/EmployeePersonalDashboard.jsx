@@ -229,7 +229,7 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
                   }
                 </h3>
                 <div className="flex items-center gap-2">
-                  <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="w-16 sm:w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
                     <div 
                       className={`h-full transition-all duration-500 ${
                         profileCompleteness.completionPercentage >= 80 ? 'bg-green-500' :

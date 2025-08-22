@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useSupabase } from '@/components/SupabaseProvider';
+import { ensureClientsTableExists } from '@/utils/createClientsTable.js';
 
 const ClientSyncContext = createContext(null);
 
@@ -17,7 +18,7 @@ export const ClientSyncProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(Date.now());
 
-  const fetchClients = useCallback(async (force = false) => {
+  const fetchClients = useCallback(async (force = false, retryCount = 0) => {
     if (!supabase) return;
 
     try {
@@ -26,11 +27,36 @@ export const ClientSyncProvider = ({ children }) => {
         .from('clients')
         .select('*')
         .order('created_at', { ascending: false });
-      if (error) throw error;
+      
+      if (error) {
+        // Handle PGRST205 error by checking the table
+        if (error.code === 'PGRST205' && retryCount === 0) {
+          console.log('🔧 Clients table not found, checking database setup...');
+          try {
+            const result = await ensureClientsTableExists(supabase);
+            if (Array.isArray(result)) {
+              // Table doesn't exist, use empty array
+              setClients(result);
+              return;
+            } else if (result === true) {
+              // Table exists, retry the fetch
+              console.log('✅ Clients table exists, retrying fetch...');
+              return fetchClients(force, 1);
+            }
+          } catch (createError) {
+            console.error('❌ Failed to check clients table:', createError);
+            setClients([]);
+            return;
+          }
+        }
+        throw error;
+      }
+      
       setClients(data || []);
       setLastRefresh(Date.now());
     } catch (error) {
       console.error('Error fetching clients in sync context:', error);
+      setClients([]);
     } finally {
       setLoading(false);
     }

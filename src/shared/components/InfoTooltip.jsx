@@ -17,7 +17,7 @@ export const InfoTooltip = ({ content }) => {
         </svg>
       </button>
       {showTooltip && (
-        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 p-3 bg-gray-900 text-white text-sm rounded-lg shadow-lg z-10">
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 sm:w-64 p-2 sm:p-3 bg-gray-900 text-white text-xs sm:text-sm rounded-lg shadow-lg z-10">
           <div className="whitespace-pre-wrap">{content}</div>
           <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
         </div>

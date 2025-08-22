@@ -7,6 +7,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { useSupabase } from './SupabaseProvider';
+import { ensureClientsTableExists } from '../utils/createClientsTable.js';
 
 const DataSyncContext = createContext(null);
 
@@ -138,8 +139,28 @@ export const DataSyncProvider = ({ children }) => {
   }, [supabase, notifyDataChange]);
 
   // Fetch clients with caching and error handling
-  const fetchClients = useCallback(async (force = false) => {
-    if (!supabase) return;
+  const fetchClients = useCallback(async (force = false, retryCount = 0) => {
+    if (!supabase) {
+      // Running in local mode - load from localStorage
+      try {
+        const localData = localStorage.getItem('codex_clients') || '[]';
+        const clients = JSON.parse(localData);
+        setData(prev => ({
+          ...prev,
+          clients: clients,
+          lastRefresh: {
+            ...prev.lastRefresh,
+            clients: Date.now()
+          }
+        }));
+        setError(prev => ({ ...prev, clients: null }));
+        notifyDataChange('clients', clients);
+      } catch (error) {
+        console.error('Error loading local clients:', error);
+        setError(prev => ({ ...prev, clients: error.message }));
+      }
+      return;
+    }
     
     // Prevent duplicate operations
     if (!force && pendingOperations.current.has('fetch-clients')) {
@@ -160,7 +181,45 @@ export const DataSyncProvider = ({ children }) => {
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (clientsError) throw clientsError;
+      if (clientsError) {
+        // Handle PGRST205 error by checking the table
+        if (clientsError.code === 'PGRST205' && retryCount === 0) {
+          console.log('🔧 Clients table not found, checking database setup...');
+          try {
+            const result = await ensureClientsTableExists(supabase);
+            if (Array.isArray(result)) {
+              // Table doesn't exist, use empty array
+              setData(prev => ({
+                ...prev,
+                clients: result,
+                lastRefresh: {
+                  ...prev.lastRefresh,
+                  clients: Date.now()
+                }
+              }));
+              console.log('✅ Using empty clients array');
+              return;
+            } else if (result === true) {
+              // Table exists, retry the fetch
+              console.log('✅ Clients table verified, retrying fetch...');
+              pendingOperations.current.delete('fetch-clients');
+              return fetchClients(force, 1);
+            }
+          } catch (createError) {
+            console.error('❌ Failed to check clients table:', createError);
+            setData(prev => ({
+              ...prev,
+              clients: [],
+              lastRefresh: {
+                ...prev.lastRefresh,
+                clients: Date.now()
+              }
+            }));
+            return;
+          }
+        }
+        throw clientsError;
+      }
       
       setData(prev => ({
         ...prev,
@@ -179,6 +238,14 @@ export const DataSyncProvider = ({ children }) => {
     } catch (error) {
       console.error('❌ Failed to fetch clients:', error);
       setError(prev => ({ ...prev, clients: error.message }));
+      setData(prev => ({
+        ...prev,
+        clients: [],
+        lastRefresh: {
+          ...prev.lastRefresh,
+          clients: Date.now()
+        }
+      }));
     } finally {
       setLoading(prev => ({ ...prev, clients: false }));
       pendingOperations.current.delete('fetch-clients');
@@ -262,6 +329,27 @@ export const DataSyncProvider = ({ children }) => {
   const addClient = useCallback(async (clientData) => {
     console.log('➕ Adding client to sync cache...');
     
+    if (!supabase) {
+      // Running in local mode - save to localStorage
+      try {
+        const localData = localStorage.getItem('codex_clients') || '[]';
+        const clients = JSON.parse(localData);
+        const newClients = [clientData, ...clients];
+        localStorage.setItem('codex_clients', JSON.stringify(newClients));
+        
+        // Update local state
+        setData(prev => ({
+          ...prev,
+          clients: newClients
+        }));
+        
+        console.log('✅ Client saved to local storage');
+      } catch (error) {
+        console.error('Error saving client to local storage:', error);
+      }
+      return;
+    }
+    
     // Optimistic update
     setData(prev => ({
       ...prev,
@@ -272,7 +360,7 @@ export const DataSyncProvider = ({ children }) => {
     setTimeout(() => {
       fetchClients(true);
     }, 100);
-  }, [fetchClients]);
+  }, [fetchClients, supabase]);
 
   // Force refresh all data
   const refreshAllData = useCallback(async () => {

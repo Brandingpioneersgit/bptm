@@ -361,13 +361,13 @@ export function ClientManagementView() {
 
       {/* Edit Client Modal */}
       {editingClient && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl p-4 w-full max-w-2xl">
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-white rounded-xl p-3 sm:p-4 w-full max-w-xs sm:max-w-md md:max-w-lg lg:max-w-2xl max-h-[95vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <div className="text-lg font-medium">Edit Client</div>
               <button className="text-gray-500" onClick={() => setEditingClient(null)}>✕</button>
             </div>
-            <div className="grid md:grid-cols-2 gap-3 mt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
               <div>
                 <label className="text-sm">Client Name</label>
                 <input className="w-full border rounded-xl p-2" value={editingClient.name} onChange={e => setEditingClient(c => ({ ...c, name: e.target.value }))} />
@@ -387,7 +387,7 @@ export function ClientManagementView() {
                   <option>Left</option>
                 </select>
               </div>
-              <div className="md:col-span-2">
+              <div className="sm:col-span-2">
                 <label className="text-sm">Scope Notes</label>
                 <textarea className="w-full border rounded-xl p-2" rows={3} value={editingClient.scope_notes} onChange={e => setEditingClient(c => ({ ...c, scope_notes: e.target.value }))} />
               </div>
@@ -402,8 +402,8 @@ export function ClientManagementView() {
 
       {/* Add Services Modal */}
       {showServicesModal && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl p-4 w-full max-w-2xl">
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-white rounded-xl p-3 sm:p-4 w-full max-w-xs sm:max-w-md md:max-w-lg lg:max-w-2xl max-h-[95vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <div className="text-lg font-medium">Add Services</div>
               <button className="text-gray-500" onClick={() => setShowServicesModal(false)}>✕</button>

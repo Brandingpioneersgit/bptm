@@ -4,7 +4,7 @@ import { useToast } from "@/shared/components/Toast";
 import { useModal } from "@/shared/components/ModalContext";
 import { useFetchSubmissions } from "./useFetchSubmissions";
 import { useDataSync } from "./DataSyncContext";
-import { EMPTY_SUBMISSION, thisMonthKey, prevMonthKey, monthLabel, DEPARTMENTS, ROLES_BY_DEPT } from "@/shared/lib/constants";
+import { EMPTY_SUBMISSION, thisMonthKey, prevMonthKey, monthLabel, DEPARTMENTS, ROLES_BY_DEPT, daysInMonth } from "@/shared/lib/constants";
 import { scoreKPIs, scoreLearning, scoreRelationshipFromClients, overallOutOf10, generateSummary, computeDisciplinePenalty } from "@/shared/lib/scoring";
 import { CelebrationEffect } from "./CelebrationEffect";
 import { Section, TextField, NumField, TextArea, MultiSelect, ProgressIndicator, StepValidationIndicator, ThreeWayComparativeField } from "@/shared/components/ui";
@@ -22,6 +22,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   const { openModal, closeModal } = useModal();
   const { notify } = useToast();
   const { allSubmissions } = useFetchSubmissions();
+  
   const { addSubmission, updateSubmission, addClient, refreshAllData } = useDataSync();
 
   const [currentSubmission, setCurrentSubmission] = useState({ ...EMPTY_SUBMISSION, isDraft: true });
@@ -39,7 +40,15 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   const [showCrashRecovery, setShowCrashRecovery] = useState(false);
   const [pendingDrafts, setPendingDrafts] = useState([]);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
-  const draftPersistence = useDraftPersistence();
+  const draftPersistence = useDraftPersistence({
+    name: selectedEmployee?.name,
+    phone: selectedEmployee?.phone,
+    monthKey: currentSubmission?.monthKey,
+    model: currentSubmission,
+    onRestore: (data) => {
+      if (data) setCurrentSubmission(data);
+    }
+  });
   
   const FORM_STEPS = [
     { id: 1, title: "Profile & Month", icon: "👤", description: "Basic information and reporting period" },
@@ -390,14 +399,16 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     const criticalFields = ['employee.department', 'employee.role', 'currentStep']; // Important structural fields
     const regularFields = ['meta.', 'learning.', 'clients.', 'feedback.']; // Content fields
     
+    // Use requestAnimationFrame to schedule auto-save after rendering is complete
+    // This prevents cursor ejection during typing by ensuring DOM updates happen first
     if (immediateFields.includes(key)) {
       // Identity fields - save immediately to establish user identity
       dlog(`🆔 Identity field ${key} updated - immediate save`);
-      setTimeout(() => autoSave(), 100);
+      requestAnimationFrame(() => setTimeout(() => autoSave(), 100));
     } else if (criticalFields.includes(key) || criticalFields.some(cf => key.startsWith(cf))) {
       // Critical fields - save quickly but allow small batching
       dlog(`🚨 Critical field ${key} updated - priority save`);
-      setTimeout(() => autoSave(), 500);
+      requestAnimationFrame(() => setTimeout(() => autoSave(), 500));
     } else if (regularFields.some(rf => key.startsWith(rf))) {
       // Regular content fields - normal debounced save
       dlog(`📝 Content field ${key} updated - debounced save`);
@@ -405,7 +416,7 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     } else {
       // Unknown fields - save with medium priority
       dlog(`❓ Unknown field ${key} updated - medium priority save`);
-      setTimeout(() => autoSave(), 1000);
+      requestAnimationFrame(() => setTimeout(() => autoSave(), 1000));
     }
   }, [autoSave]);
 
@@ -423,9 +434,12 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
     }
 
     // Ensure complex updates are also saved immediately
-    setTimeout(() => {
-      autoSaveRef.current();
-    }, 100);
+    // Use requestAnimationFrame to prevent cursor ejection during typing
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        autoSaveRef.current();
+      }, 100);
+    });
   }, []);
 
   // Create stable onChange handlers to prevent re-renders
@@ -682,12 +696,20 @@ export function EmployeeForm({ currentUser = null, isManagerEdit = false, onBack
   // Auto-save on any form change to prevent data loss - removed autoSave from deps to prevent infinite loops
   useEffect(() => {
     if (hasUnsavedChanges) {
-      const timer = setTimeout(() => {
-        autoSave();
-        console.log('💾 Auto-saved form data');
-      }, 2000); // Reduced to 2 seconds for better responsiveness
+      // Use requestAnimationFrame to ensure DOM updates complete before auto-save
+      // This prevents cursor ejection during typing
+      const animationFrameId = requestAnimationFrame(() => {
+        const timer = setTimeout(() => {
+          autoSave();
+          console.log('💾 Auto-saved form data');
+        }, 2000); // Reduced to 2 seconds for better responsiveness
+        
+        return () => clearTimeout(timer);
+      });
       
-      return () => clearTimeout(timer);
+      return () => {
+        cancelAnimationFrame(animationFrameId);
+      };
     }
   }, [hasUnsavedChanges]); // Removed autoSave from dependencies
   

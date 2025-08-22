@@ -490,7 +490,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
     setOperationStates(prev => ({ ...prev, bulkOperations: true }));
     
     try {
-      onEditReport(employee.name, employee.phone);
+      onEditReport(employee.name, employee.phone, employee.latestSubmission);
       // Give a brief moment for navigation to complete
       await new Promise(resolve => setTimeout(resolve, 100));
     } catch (error) {
@@ -1050,7 +1050,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                             <td className="py-2 pr-4">{e.client}</td>
                             <td className="py-2 pr-4">{e.service}</td>
                             <td className="py-2 pr-4">
-                              <div className="w-40 bg-gray-200 h-2 rounded-full">
+                              <div className="w-24 sm:w-32 md:w-40 bg-gray-200 h-2 rounded-full">
                                 <div className={`${e.pct>=100?'bg-green-500':e.pct>=60?'bg-yellow-500':'bg-red-500'} h-2 rounded-full`} style={{ width: `${Math.max(0,Math.min(100,e.pct))}%` }}></div>
                               </div>
                               <div className="text-xs text-gray-600 mt-1">{e.pct}%</div>
@@ -1198,9 +1198,9 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
         })()}
       </div>
       {evaluationPanel.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b border-gray-200">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-xs sm:max-w-md md:max-w-lg lg:max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">
                   Evaluate: {evaluationPanel.submission?.employee?.name}
@@ -1216,7 +1216,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
               </div>
             </div>
             
-            <div className="px-6 py-4 space-y-6">
+            <div className="px-3 sm:px-6 py-3 sm:py-4 space-y-4 sm:space-y-6">
               {evaluationPanel.submission?.discipline?.penalty > 0 && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
                   Late submission penalty applied: -{evaluationPanel.submission.discipline.penalty} (late by {evaluationPanel.submission.discipline.lateDays} day(s)).

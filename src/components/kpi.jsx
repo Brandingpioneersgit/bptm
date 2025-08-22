@@ -237,7 +237,7 @@ function ScopePrompt({ client, service, title }) {
         <div className="flex items-center gap-2">
           {completion !== null && (
             <>
-              <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div className="w-16 sm:w-20 md:w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
                 <div 
                   className={`h-full transition-all duration-500 ${
                     completion >= 100 ? 'bg-green-500' :
@@ -1116,9 +1116,9 @@ function ClientTable({ currentSubmission, previousSubmission, comparisonSubmissi
       })}
 
       {showNewClientForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b border-gray-200">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-xs sm:max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">Create New Client</h3>
                 <button
@@ -1132,7 +1132,7 @@ function ClientTable({ currentSubmission, previousSubmission, comparisonSubmissi
               </div>
             </div>
 
-            <form onSubmit={handleCreateNewClient} className="px-6 py-4 space-y-4">
+            <form onSubmit={handleCreateNewClient} className="px-3 sm:px-6 py-3 sm:py-4 space-y-3 sm:space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Client Name *</label>
                 <input

@@ -3,7 +3,7 @@ import { Modal } from "@/shared/components/Modal";
 import { useSupabase } from "./SupabaseProvider";
 import { LoginModal } from "./LoginModal";
 import { EMPTY_SUBMISSION, ADMIN_TOKEN } from "@/shared/lib/constants";
-import { EmployeeForm } from "./EmployeeForm";
+import { NewEmployeeForm } from "./EmployeeForm/NewEmployeeForm";
 import { ManagerDashboard } from "./ManagerDashboard";
 import { NewReportDashboard } from "./NewReportDashboard";
 import { ManagerEditEmployee } from "./ManagerEditEmployee";
@@ -43,6 +43,7 @@ export function AppContent() {
   });
   const [view, setView] = useState('form');
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: null, onCancel: null, inputLabel: '', inputValue: '', onClose: () => setModalState(s => ({ ...s, isOpen: false })) });
   const openModal = (title, message, onConfirm = null, onCancel = null, inputLabel = '', inputValue = '') => {
@@ -197,6 +198,7 @@ export function AppContent() {
       window.location.hash = '#/dashboard';
     }
     setSelectedEmployee(null);
+    setSelectedSubmission(null);
   }, [authState.userType]);
 
   const handleEditEmployee = useCallback((employeeName, employeePhone) => {
@@ -204,8 +206,9 @@ export function AppContent() {
     setView('editEmployee');
   }, []);
 
-  const handleEditReport = useCallback((employeeName, employeePhone) => {
+  const handleEditReport = useCallback((employeeName, employeePhone, submission = null) => {
     setSelectedEmployee({ name: employeeName, phone: employeePhone });
+    setSelectedSubmission(submission);
     setView('editReport');
   }, []);
 
@@ -239,8 +242,9 @@ export function AppContent() {
           <div className="max-w-xl mx-auto bg-yellow-50 border border-yellow-200 rounded-xl p-4">Missing employee context. Returning to dashboard…</div>
         );
         return (
-          <EmployeeForm 
+          <NewEmployeeForm 
             currentUser={selectedEmployee}
+            existingSubmission={selectedSubmission}
             isManagerEdit={true}
             onBack={handleBackToDashboard}
           />
@@ -256,7 +260,7 @@ export function AppContent() {
           />
         );
       default:
-        return <EmployeeForm currentUser={authState.isLoggedIn && authState.userType === 'employee' ? authState.currentUser : null} />;
+        return <NewEmployeeForm currentUser={authState.isLoggedIn && authState.userType === 'employee' ? authState.currentUser : null} />;
     }
   };
 

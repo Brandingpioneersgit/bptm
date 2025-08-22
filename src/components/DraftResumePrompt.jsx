@@ -122,7 +122,7 @@ export function DraftResumePrompt({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-xs sm:max-w-md md:max-w-lg lg:max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6">
           <div className="flex items-center justify-between">
@@ -152,7 +152,7 @@ export function DraftResumePrompt({
           </div>
 
           {/* Draft Selection */}
-          <div className="space-y-3 mb-6 max-h-64 overflow-y-auto">
+          <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6 max-h-48 sm:max-h-64 overflow-y-auto">
             {drafts.map((draft, index) => (
               <div
                 key={`${draft.draftId}-${draft.version}`}
@@ -320,7 +320,7 @@ export function CrashRecoveryPrompt({ onRecover, onDismiss }) {
   }
 
   return (
-    <div className="fixed top-4 right-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4 shadow-lg z-50 max-w-sm">
+    <div className="fixed top-2 right-2 sm:top-4 sm:right-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3 sm:p-4 shadow-lg z-50 max-w-xs sm:max-w-sm">
       <div className="flex items-start gap-3">
         <span className="text-xl">🚨</span>
         <div className="flex-1">

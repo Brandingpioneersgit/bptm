@@ -61,7 +61,14 @@ class DataPersistenceService {
     if (forceImmediate) { this.storage.setItem(storageKey, merged); this.updateDraftIndex(draftId, storageKey); this.notify('save', merged); return; }
     this.pendingSaves.set(storageKey, merged); this.scheduleAutoSave();
   }
-  scheduleAutoSave() { if (this.autoSaveTimer) return; this.autoSaveTimer = setTimeout(()=> this.flushPendingSaves(), 500); }
+  scheduleAutoSave() { 
+    if (this.autoSaveTimer) return; 
+    // Use requestAnimationFrame to ensure DOM updates complete before auto-save
+    // This prevents cursor ejection during typing
+    requestAnimationFrame(() => {
+      this.autoSaveTimer = setTimeout(()=> this.flushPendingSaves(), 500); 
+    });
+  }
   flushPendingSaves() { this.pendingSaves.forEach((data, key)=>{ this.storage.setItem(key, data); this.notify('save', data);}); this.pendingSaves.clear(); this.autoSaveTimer = null; }
   getDraft(name, phone, monthKey) { const id=generateDraftId(name, phone, monthKey); return this.storage.getItem(STORAGE_KEYS.DRAFT_PREFIX+id); }
   getAllDrafts() { const index=this.getDraftIndex(); return Object.values(index).map(i=>({ ...i, data: this.storage.getItem(i.storageKey) })).filter(Boolean); }
@@ -79,7 +86,8 @@ class DataPersistenceService {
 export const dataPersistence = new DataPersistenceService();
 
 import { useEffect, useRef, useState } from 'react';
-export function useDraftPersistence({ name, phone, monthKey, model, onRestore }) {
+export function useDraftPersistence(props = {}) {
+  const { name, phone, monthKey, model, onRestore } = props || {};
   const [status, setStatus] = useState({ lastSaved: null, restored: false });
   const lastModelRef = useRef(model);
 
@@ -96,19 +104,35 @@ export function useDraftPersistence({ name, phone, monthKey, model, onRestore })
   }, [onRestore]);
 
   useEffect(() => {
+    if (!model) return;
     const snapshot = JSON.stringify(model);
     const lastSnapshot = JSON.stringify(lastModelRef.current);
     if (snapshot !== lastSnapshot) {
-      dataPersistence.saveDraft({ ...model, name, phone, monthKey });
+      // Only save if we have the minimum required data
+      if (name && phone && monthKey) {
+        // Use requestAnimationFrame to ensure DOM updates complete before auto-save
+        // This prevents cursor ejection during typing
+        requestAnimationFrame(() => {
+          dataPersistence.saveDraft({ ...model, name, phone, monthKey });
+        });
+      }
       lastModelRef.current = model;
     }
   }, [model, name, phone, monthKey]);
 
   const restore = () => {
-    const d = dataPersistence.getDraft(name, phone, monthKey);
-    if (d && onRestore) onRestore(d);
+    // Only attempt to restore if we have the minimum required data
+    if (name && phone && monthKey) {
+      const d = dataPersistence.getDraft(name, phone, monthKey);
+      if (d && onRestore) onRestore(d);
+    }
   };
-  const clear = () => dataPersistence.deleteDraft(name, phone, monthKey);
+  const clear = () => {
+    // Only attempt to clear if we have the minimum required data
+    if (name && phone && monthKey) {
+      dataPersistence.deleteDraft(name, phone, monthKey);
+    }
+  };
 
   return { status, restore, clear };
 }

@@ -157,7 +157,7 @@ export function ManagerEditEmployee({ employee, onBack }) {
 
       {isEditing && selectedSubmission && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-2xl w-full p-6">
+          <div className="bg-white rounded-xl w-full max-w-xs sm:max-w-md md:max-w-lg lg:max-w-2xl p-3 sm:p-6 max-h-[95vh] overflow-y-auto">
             <h3 className="text-lg font-semibold mb-4">
               Edit Remarks - {monthLabel(selectedSubmission.monthKey)}
             </h3>

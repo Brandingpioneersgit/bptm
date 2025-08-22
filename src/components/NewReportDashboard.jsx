@@ -770,7 +770,7 @@ export function NewReportDashboard({ employeeName, employeePhone, onBack }) {
                             type="text" 
                             value={data.verificationUrl} 
                             readOnly 
-                            className="bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-lg p-2 w-64"
+                            className="bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded-lg p-2 w-full sm:w-48 md:w-64"
                           />
                           <button
                             onClick={() => {
