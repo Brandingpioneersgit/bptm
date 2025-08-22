@@ -71,7 +71,27 @@ export const DataSyncProvider = ({ children }) => {
 
   // Fetch submissions with caching and error handling
   const fetchSubmissions = useCallback(async (force = false) => {
-    if (!supabase) return;
+    if (!supabase) {
+      // Running in local mode - load from localStorage
+      try {
+        const localData = localStorage.getItem('codex_submissions') || '[]';
+        const submissions = JSON.parse(localData);
+        setData(prev => ({
+          ...prev,
+          submissions: submissions,
+          lastRefresh: {
+            ...prev.lastRefresh,
+            submissions: Date.now()
+          }
+        }));
+        setError(prev => ({ ...prev, submissions: null }));
+        notifyDataChange('submissions', submissions);
+      } catch (error) {
+        console.error('Error loading local submissions:', error);
+        setError(prev => ({ ...prev, submissions: error.message }));
+      }
+      return;
+    }
     
     // Prevent duplicate operations
     if (!force && pendingOperations.current.has('fetch-submissions')) {
@@ -187,6 +207,27 @@ export const DataSyncProvider = ({ children }) => {
   const addSubmission = useCallback(async (submissionData) => {
     console.log('➕ Adding submission to sync cache...');
     
+    if (!supabase) {
+      // Running in local mode - save to localStorage
+      try {
+        const localData = localStorage.getItem('codex_submissions') || '[]';
+        const submissions = JSON.parse(localData);
+        const newSubmissions = [submissionData, ...submissions];
+        localStorage.setItem('codex_submissions', JSON.stringify(newSubmissions));
+        
+        // Update local state
+        setData(prev => ({
+          ...prev,
+          submissions: newSubmissions
+        }));
+        
+        console.log('✅ Submission saved to local storage');
+      } catch (error) {
+        console.error('Error saving submission to local storage:', error);
+      }
+      return;
+    }
+    
     // Optimistic update
     setData(prev => ({
       ...prev,
@@ -197,7 +238,7 @@ export const DataSyncProvider = ({ children }) => {
     setTimeout(() => {
       fetchSubmissions(true);
     }, 100);
-  }, [fetchSubmissions]);
+  }, [fetchSubmissions, supabase]);
 
   // Update client in cache and trigger refresh
   const updateClient = useCallback(async (clientData) => {

@@ -9,8 +9,19 @@ export function useFetchSubmissions() {
 
   const fetchSubmissions = useCallback(async () => {
     if (!supabase) {
+      // Running in local mode - load from localStorage
+      setLoading(true);
+      try {
+        const localData = localStorage.getItem('codex_submissions') || '[]';
+        const submissions = JSON.parse(localData);
+        setAllSubmissions(submissions);
+        setError(null);
+      } catch (err) {
+        console.error('Error loading local submissions:', err);
+        setAllSubmissions([]);
+        setError(null); // Don't show error for empty local storage
+      }
       setLoading(false);
-      setError("Database connection not ready. Please wait...");
       return;
     }
 
