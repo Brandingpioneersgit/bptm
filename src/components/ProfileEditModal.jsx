@@ -15,6 +15,16 @@ export function ProfileEditModal({ isOpen, onClose, employee, onSave, isFirstTim
     role: [],
     directManager: '',
     reportingStructure: '',
+    // Device Management
+    deviceType: '',
+    macAddress: '',
+    serialNumber: '',
+    // SIM & Communication
+    simCardProvided: 'no',
+    whatsappNumber: '',
+    rechargeDate: '',
+    // Company Property
+    companyAssets: [],
   });
 
   const [fieldErrors, setFieldErrors] = useState({});
@@ -23,7 +33,8 @@ export function ProfileEditModal({ isOpen, onClose, employee, onSave, isFirstTim
   const steps = [
     { id: 1, title: "Personal Info", fields: ['photoUrl', 'joiningDate', 'dob'] },
     { id: 2, title: "Education & Skills", fields: ['education', 'certifications', 'skills'] },
-    { id: 3, title: "Role & Reporting", fields: ['department', 'role', 'directManager', 'reportingStructure'] }
+    { id: 3, title: "Role & Reporting", fields: ['department', 'role', 'directManager', 'reportingStructure'] },
+    { id: 4, title: "Device & Assets", fields: ['deviceType', 'macAddress', 'serialNumber', 'simCardProvided', 'whatsappNumber', 'rechargeDate'] }
   ];
 
   useEffect(() => {
@@ -39,6 +50,16 @@ export function ProfileEditModal({ isOpen, onClose, employee, onSave, isFirstTim
         role: employee.role || [],
         directManager: employee.directManager || '',
         reportingStructure: employee.reportingStructure || '',
+        // Device Management
+        deviceType: employee.deviceType || '',
+        macAddress: employee.macAddress || '',
+        serialNumber: employee.serialNumber || '',
+        // SIM & Communication
+        simCardProvided: employee.simCardProvided || 'no',
+        whatsappNumber: employee.whatsappNumber || '',
+        rechargeDate: employee.rechargeDate || '',
+        // Company Property
+        companyAssets: employee.companyAssets || [],
       });
     }
   }, [employee, isOpen]);
@@ -383,6 +404,91 @@ export function ProfileEditModal({ isOpen, onClose, employee, onSave, isFirstTim
                             rows={2}
                             placeholder="Any additional details about your reporting structure or team dynamics"
                           />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 4: Device & Assets */}
+                    {currentStep === 4 && (
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Device & Assets Management</h3>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Device Type</label>
+                            <select
+                              name="deviceType"
+                              value={form.deviceType}
+                              onChange={handleChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="">Select device type</option>
+                              <option value="laptop">Laptop</option>
+                              <option value="desktop">Desktop</option>
+                              <option value="tablet">Tablet</option>
+                              <option value="other">Other</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">MAC Address</label>
+                            <input
+                              name="macAddress"
+                              type="text"
+                              value={form.macAddress}
+                              onChange={handleChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 font-mono"
+                              placeholder="AA:BB:CC:DD:EE:FF"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Serial Number</label>
+                            <input
+                              name="serialNumber"
+                              type="text"
+                              value={form.serialNumber}
+                              onChange={handleChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 font-mono"
+                              placeholder="Device serial number"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">SIM Card Provided</label>
+                            <select
+                              name="simCardProvided"
+                              value={form.simCardProvided}
+                              onChange={handleChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="no">No</option>
+                              <option value="yes">Yes</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp Number</label>
+                            <input
+                              name="whatsappNumber"
+                              type="tel"
+                              value={form.whatsappNumber}
+                              onChange={handleChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                              placeholder="+91 XXXXX XXXXX"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Last Recharge Date</label>
+                            <input
+                              name="rechargeDate"
+                              type="date"
+                              value={form.rechargeDate}
+                              onChange={handleChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
                         </div>
                       </div>
                     )}

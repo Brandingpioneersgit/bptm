@@ -29,6 +29,16 @@ export function EmployeePersonalDashboard({ employee: initialEmployee, onBack })
       { key: 'department', label: 'Department', critical: true },
       { key: 'role', label: 'Role', critical: true },
       { key: 'directManager', label: 'Direct Manager', critical: true },
+      // Device Management
+      { key: 'deviceType', label: 'Device Type', critical: false },
+      { key: 'macAddress', label: 'MAC Address', critical: false },
+      { key: 'serialNumber', label: 'Serial Number', critical: false },
+      // SIM & Communication
+      { key: 'simCardProvided', label: 'SIM Card Status', critical: false },
+      { key: 'whatsappNumber', label: 'WhatsApp Number', critical: false },
+      { key: 'rechargeDate', label: 'Last Recharge Date', critical: false },
+      // Company Property
+      { key: 'companyAssets', label: 'Company Assets', critical: false },
     ];
     
     const missing = requiredFields.filter(field => {
@@ -456,6 +466,109 @@ ${submission.manager_remarks ? `\n📝 Manager Feedback:\n${submission.manager_r
               ))}
             </div>
           )}
+        </div>
+
+        {/* Device Allocation Section */}
+        <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold mb-4 flex items-center gap-2">
+            💻 Device Allocation
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Device Type</label>
+              <div className="text-sm text-gray-900 bg-gray-50 p-3 rounded-lg">
+                {employee.deviceType || 'Not specified'}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">MAC Address</label>
+              <div className="text-sm text-gray-900 bg-gray-50 p-3 rounded-lg font-mono">
+                {employee.macAddress || 'Not provided'}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Serial Number</label>
+              <div className="text-sm text-gray-900 bg-gray-50 p-3 rounded-lg font-mono">
+                {employee.serialNumber || 'Not provided'}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+              <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                employee.deviceType ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+              }`}>
+                {employee.deviceType ? '✅ Allocated' : '⏳ Pending'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* SIM Card Management Section */}
+        <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold mb-4 flex items-center gap-2">
+            📱 SIM Card & Communication
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">SIM Card Provided</label>
+              <div className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium ${
+                employee.simCardProvided === 'yes' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+              }`}>
+                {employee.simCardProvided === 'yes' ? '✅ Yes' : '❌ No'}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">WhatsApp Number</label>
+              <div className="text-sm text-gray-900 bg-gray-50 p-3 rounded-lg">
+                {employee.whatsappNumber || 'Not provided'}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Last Recharge Date</label>
+              <div className="text-sm text-gray-900 bg-gray-50 p-3 rounded-lg">
+                {employee.rechargeDate ? new Date(employee.rechargeDate).toLocaleDateString() : 'Not recorded'}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Communication Status</label>
+              <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                employee.whatsappNumber ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+              }`}>
+                {employee.whatsappNumber ? '📞 Active' : '⏳ Setup Pending'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Company Property Tracking Section */}
+        <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold mb-4 flex items-center gap-2">
+            🏢 Company Property & Assets
+          </h3>
+          <div className="space-y-4">
+            {employee.companyAssets && employee.companyAssets.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {employee.companyAssets.map((asset, index) => (
+                  <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                    <div className="font-medium text-gray-900">{asset.name}</div>
+                    <div className="text-sm text-gray-600 mt-1">{asset.description}</div>
+                    <div className="text-xs text-gray-500 mt-2">
+                      Serial: {asset.serialNumber || 'N/A'} • 
+                      Status: <span className={`font-medium ${asset.status === 'Active' ? 'text-green-600' : 'text-yellow-600'}`}>
+                        {asset.status || 'Unknown'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <div className="text-3xl mb-3">📦</div>
+                <p className="text-gray-600">No company assets assigned yet</p>
+                <p className="text-sm text-gray-500 mt-1">Assets will appear here once allocated by management</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       {showProfileModal && (
