@@ -216,7 +216,7 @@ export const SEOAccessDenied = ({ message = "You don't have permission to access
 
 // Component to check SEO department access
 export const SEODepartmentGuard = ({ children, fallback = <SEOAccessDenied message="This feature is only available for SEO department members." /> }) => {
-  const { authState } = useMonthlyOSAuth();
+  const { authState } = useUnifiedAuth();
   const user = authState.user;
   
   // Only allow access to SEO department members
@@ -229,7 +229,7 @@ export const SEODepartmentGuard = ({ children, fallback = <SEOAccessDenied messa
 
 // Manager-only guard for appraisal access
 export const SEOManagerGuard = ({ children, fallback = <SEOAccessDenied message="Appraisal data is only accessible to managers." /> }) => {
-  const { authState } = useMonthlyOSAuth();
+  const { authState } = useUnifiedAuth();
   const user = authState.user;
   
   // Only allow access to managers or admins
@@ -242,7 +242,7 @@ export const SEOManagerGuard = ({ children, fallback = <SEOAccessDenied message=
 
 // Combined guard for SEO module with manager appraisal access
 export const SEOModuleGuard = ({ children, requireManagerAccess = false }) => {
-  const { authState } = useMonthlyOSAuth();
+  const { authState } = useUnifiedAuth();
   const user = authState.user;
   
   if (!user) {

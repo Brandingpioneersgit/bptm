@@ -7,7 +7,7 @@ export function LoginPage({ onLoginSuccess, onCancel }) {
   const { login, authState } = useUnifiedAuth();
   const { isLoading, loginError: error } = authState;
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
     phone: '',
     rememberMe: false
   });
@@ -43,94 +43,57 @@ export function LoginPage({ onLoginSuccess, onCancel }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.phone) {
+    if (!formData.firstName || !formData.phone) {
       return;
     }
 
     setIsSubmitting(true);
     
     try {
+      console.log('🔐 Submitting login form:', { 
+        firstName: formData.firstName,
+        phone: formData.phone 
+      });
+      
       // Save credentials to localStorage for auto-fill
-      localStorage.setItem('bptm_remember_name', formData.name);
+      localStorage.setItem('bptm_remember_firstName', formData.firstName);
       localStorage.setItem('bptm_remember_phone', formData.phone);
       
       const result = await login({
-        name: formData.name,
-        phone: formData.phone,
-        role: null // Let the system determine the role from database
+        firstName: formData.firstName,
+        phone: formData.phone
       });
 
-      if (result && result.success && onLoginSuccess) {
-        onLoginSuccess(result.user);
+      console.log('🔐 Login result:', { success: result?.success });
+      
+      if (result && result.success) {
+        console.log('✅ Login successful, redirecting to dashboard');
+        if (onLoginSuccess) {
+          onLoginSuccess(result.user);
+        }
+        
+        // If no onLoginSuccess handler, redirect to dashboard
+        if (!onLoginSuccess && result.dashboardRoute) {
+          window.location.href = result.dashboardRoute;
+        }
       }
     } catch (error) {
-      console.error('Login submission error:', error);
+      console.error('❌ Login submission error:', error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDemoLogin = async (userType) => {
-    setIsSubmitting(true);
-    try {
-      // Define demo credentials (matching actual database users created by create_database_test_users.cjs)
-      const demoCredentials = {
-        'Marketing': { name: 'Sarah Marketing', phone: '9876543230' },
-        'Developer': { name: 'David Developer', phone: '9876543231' },
-        'Finance': { name: 'Lisa Finance', phone: '9876543232' },
-        'Operations': { name: 'Tom Operations', phone: '9876543233' },
-        'Design': { name: 'Emma Designer', phone: '9876543234' },
-        'Sales': { name: 'Kevin Sales', phone: '9876543235' },
-        'Support': { name: 'Nina Support', phone: '9876543236' },
-        'Analytics': { name: 'Ryan Analytics', phone: '9876543237' },
-        // Fallback users (if database users don't work)
-        'SEO': { name: 'John SEO', phone: '+91-9876543210' },
-        'Ads': { name: 'Sarah Ads', phone: '+91-9876543211' },
-        'Social Media': { name: 'Mike Social', phone: '+91-9876543212' },
-        'Admin': { name: 'Admin Super', phone: '+91-9876543225' }
-      };
-
-      const credentials = demoCredentials[userType];
-      if (!credentials) {
-        throw new Error(`No demo credentials found for ${userType}`);
-      }
-      
-      // Update form data
-      setFormData({
-        ...formData,
-        name: credentials.name,
-        phone: credentials.phone,
-        rememberMe: true
-      });
-      
-      // Save credentials to localStorage
-      localStorage.setItem('bptm_remember_name', credentials.name);
-      localStorage.setItem('bptm_remember_phone', credentials.phone);
-      
-      const result = await login({
-        name: credentials.name,
-        phone: credentials.phone,
-        role: userType // Pass the selected role
-      });
-      
-      if (result && result.success && onLoginSuccess) {
-        onLoginSuccess(result.user);
-      }
-    } catch (error) {
-      console.error('Demo login failed:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  // Demo login function removed - users must enter credentials manually
 
   // Load remembered credentials - always load them for easier testing
   useEffect(() => {
-    const rememberedName = localStorage.getItem('bptm_remember_name');
+    const rememberedFirstName = localStorage.getItem('bptm_remember_firstName');
     const rememberedPhone = localStorage.getItem('bptm_remember_phone');
-    if (rememberedName && rememberedPhone) {
+    if (rememberedFirstName && rememberedPhone) {
       setFormData(prev => ({
         ...prev,
-        name: rememberedName,
+        firstName: rememberedFirstName,
         phone: rememberedPhone,
         rememberMe: true
       }));
@@ -182,18 +145,18 @@ export function LoginPage({ onLoginSuccess, onCancel }) {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                  Full Name
+                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                  First Name
                 </label>
                 <input
-                  id="name"
-                  name="name"
+                  id="firstName"
+                  name="firstName"
                   type="text"
                   required
-                  value={formData.name}
+                  value={formData.firstName}
                   onChange={handleInputChange}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder="Enter your full name as registered during onboarding"
+                  placeholder="Enter your first name (e.g., John, Sarah, David)"
                   disabled={isSubmitting}
                 />
               </div>
@@ -236,7 +199,7 @@ export function LoginPage({ onLoginSuccess, onCancel }) {
 
               <button
                 type="submit"
-                disabled={isSubmitting || !formData.name || !formData.phone}
+                disabled={isSubmitting || !formData.firstName || !formData.phone}
                 className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isSubmitting ? (
@@ -246,31 +209,6 @@ export function LoginPage({ onLoginSuccess, onCancel }) {
                 )}
               </button>
             </form>
-
-            {/* Demo Login Section */}
-            <div className="border-t border-gray-200 pt-6">
-              <h4 className="text-sm font-medium text-gray-700 mb-3 text-center">
-                Quick Demo Access
-              </h4>
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                {['Marketing', 'Developer', 'Finance', 'Operations', 'Design', 'Sales', 'Support', 'Analytics', 'SEO', 'Ads', 'Social Media', 'Admin'].map((userType) => (
-                  <button
-                    key={userType}
-                    type="button"
-                    onClick={() => handleDemoLogin(userType)}
-                    disabled={isSubmitting}
-                    className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 transition-colors disabled:opacity-50"
-                  >
-                    {userType}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-gray-500 mt-2 text-center">
-                Login with name and phone from employee onboarding
-              </p>
-            </div>
-
-            {/* Guest Access Removed - All users must authenticate */}
           </div>
 
           {/* Help Text */}

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../features/auth/useAuth';
+import { useUnifiedAuth } from '../features/auth/UnifiedAuthContext';
 import { useSupabase } from './SupabaseProvider';
 import { useAppNavigation } from '@/utils/navigation';
 
 const PerformanceConcerns = () => {
   const supabase = useSupabase();
-  const { user, userType } = useAuth();
+  const { user, userCategory } = useUnifiedAuth();
   const navigation = useAppNavigation();
   const [isEligible, setIsEligible] = useState(false);
   const [loading, setLoading] = useState(true);

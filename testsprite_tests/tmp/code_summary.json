@@ -1,0 +1,55 @@
+{
+  "tech_stack": ["JavaScript", "React", "Vite", "Supabase", "TailwindCSS", "React Router", "Recharts", "Vitest"],
+  "features": [
+    {
+      "name": "Authentication System",
+      "description": "Unified authentication system using Supabase for user login, session management, and role-based access control",
+      "files": ["src/features/auth/UnifiedAuthContext.jsx", "src/features/auth/ProtectedRoute.jsx", "src/api/authApi.js", "src/shared/lib/supabase.js"]
+    },
+    {
+      "name": "Dashboard System",
+      "description": "Role-based dashboards for different user types including employees, managers, admins, and super admins",
+      "files": ["src/components/AgencyDashboard.jsx", "src/components/EmployeeDashboard.jsx", "src/components/ManagerDashboard.jsx", "src/components/SuperAdminDashboard.jsx", "src/components/SEOTeamDashboard.jsx", "src/components/AdsExecutiveDashboard.jsx"]
+    },
+    {
+      "name": "Performance Tracking",
+      "description": "KPI tracking and performance evaluation system for employees",
+      "files": ["src/components/PerformanceKPI.jsx", "src/components/PerformanceScoring.jsx", "src/components/LeaderboardView.jsx", "src/components/KPIDashboard.jsx"]
+    },
+    {
+      "name": "Client Management",
+      "description": "Client onboarding, tracking, and management system",
+      "files": ["src/components/ClientOnboardingForm.jsx", "src/components/ClientDirectory.jsx", "src/components/ClientManagementView.jsx", "src/components/ClientServicingDashboard.jsx"]
+    },
+    {
+      "name": "Employee Management",
+      "description": "Employee onboarding, directory, and management system",
+      "files": ["src/components/EmployeeDirectory.jsx", "src/components/EmployeeForm.jsx", "src/components/EmployeeOnboardingForm.jsx", "src/components/ManagerEditEmployee.jsx"]
+    },
+    {
+      "name": "SEO Module",
+      "description": "SEO team specific features including data entry, reporting, and appraisal",
+      "files": ["src/components/SEOModule.jsx", "src/components/SEODataEntryForm.jsx", "src/components/SEOAppraisalSystem.jsx", "src/components/SEOEmployeeDashboard.jsx"]
+    },
+    {
+      "name": "Reporting System",
+      "description": "Various reporting dashboards and analytics features",
+      "files": ["src/components/MonthlyReportDashboard.jsx", "src/components/NewReportDashboard.jsx", "src/components/GrowthReportGenerator.jsx", "src/components/DashboardAnalytics.jsx"]
+    },
+    {
+      "name": "Arcade System",
+      "description": "Gamification system for employee engagement and rewards",
+      "files": ["src/components/ArcadeDashboard.jsx", "src/components/ArcadeEarnPoints.jsx", "src/components/ArcadeRedeemPoints.jsx", "src/components/ArcadeAdminPanel.jsx"]
+    },
+    {
+      "name": "UI Components",
+      "description": "Shared UI components used throughout the application",
+      "files": ["src/components/ui/", "src/shared/components/", "src/components/AppShell.jsx"]
+    },
+    {
+      "name": "API Services",
+      "description": "API services for interacting with the Supabase backend",
+      "files": ["src/api/authApi.js", "src/api/attendanceApi.js", "src/api/scoringApi.js", "src/api/seoApi.js", "src/services/"]
+    }
+  ]
+}

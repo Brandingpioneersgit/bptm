@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/database/supabaseClient';
-import { useAuth } from '@/features/auth/useAuth';
+import { useUnifiedAuth } from '@/features/auth/UnifiedAuthContext';
 import { useToast } from '@/shared/components/Toast';
 import { InputSanitizer } from '@/shared/utils/securityUtils';
 
 const MonthlySummaryTable = () => {
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const { showToast } = useToast();
   
   const [monthlyRows, setMonthlyRows] = useState([]);

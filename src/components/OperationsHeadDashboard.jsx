@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/shared/components/Toast';
 import { useModal } from '@/shared/components/ModalContext';
-import { useAuth } from '@/features/auth/AuthProvider';
+import { useUnifiedAuth } from '@/features/auth/UnifiedAuthContext';
 import { useAppNavigation } from '@/utils/navigation';
 import { useUnifiedDataManager } from '@/hooks/useUnifiedDataManager';
 import { thisMonthKey, monthLabel } from '@/shared/lib/constants';
@@ -18,7 +18,7 @@ import DashboardHeader from './shared/DashboardHeader';
 export function OperationsHeadDashboard({ onNavigateToDashboard }) {
   const { notify } = useToast();
   const { openModal, closeModal } = useModal();
-  const { user, hasPermission } = useAuth();
+  const { user, hasPermission } = useUnifiedAuth();
   const navigation = useAppNavigation();
   
   // Use prop navigation if provided, otherwise use hook navigation

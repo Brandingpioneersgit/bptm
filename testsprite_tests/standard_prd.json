@@ -1,0 +1,166 @@
+{
+  "meta": {
+    "project": "BP Agency Dashboard",
+    "date": "2025-09-04",
+    "prepared_by": "Software Development Manager"
+  },
+  "product_overview": "BP Agency Dashboard is a comprehensive management system tailored for digital marketing agencies that offers role-based dashboards and features for various user roles such as employees, managers, admins, and super admins, enabling efficient agency operations and real-time performance tracking.",
+  "core_goals": [
+    "Provide secure and unified authentication with role-based access control",
+    "Deliver personalized dashboards tailored to distinct user roles",
+    "Enable comprehensive employee performance tracking and KPI evaluation",
+    "Facilitate efficient client onboarding, management, and servicing",
+    "Support detailed employee management including onboarding and reviews",
+    "Offer SEO team-specific data entry, reporting, and appraisal capabilities",
+    "Provide robust reporting and analytics across departments and time periods",
+    "Engage users through gamification with reward point systems and controls"
+  ],
+  "key_features": [
+    "Unified authentication system with phone/password login and session management via Supabase",
+    "Role-specific dashboards for Super Admin, Admin, Management, Employees, Freelancers, and Interns",
+    "KPI tracking, performance leaderboards, and monthly performance reports",
+    "Client management features including onboarding forms, directories, and servicing dashboards",
+    "Employee management modules covering onboarding, directory, and performance reviews",
+    "SEO module featuring data entry forms, reporting dashboards, and appraisal system",
+    "Comprehensive reporting system providing growth analytics and department-specific reports",
+    "Arcade gamification system with point earning and redemption components and admin control panels",
+    "Responsive UI built with React, TailwindCSS and real-time data updates via Supabase"
+  ],
+  "user_flow_summary": [
+    "User logs in via secure authentication interface using phone and password",
+    "System authenticates user and determines role-based access permissions",
+    "User is directed to their personalized dashboard based on their role",
+    "Employees track and evaluate their KPIs and view leaderboard standings",
+    "Managers and admins monitor client portfolios and employee performance",
+    "SEO team members input SEO data and generate performance reports",
+    "Users participate in arcade gamification to earn and redeem points for rewards",
+    "Admins perform oversight, analytics, and manage user roles and permissions"
+  ],
+  "validation_criteria": [
+    "Successful login/logout with accurate session management",
+    "Correct role-based access and view restrictions enforced throughout the system",
+    "Dashboards display role-appropriate data and respond to real-time updates",
+    "Performance KPIs accurately tracked and leaderboard scores correctly calculated",
+    "Client and employee data can be created, read, updated, and deleted without errors",
+    "SEO data entry and reports reflect accurate analytics and appraisals",
+    "Reporting system generates correct monthly and growth reports",
+    "Arcade system correctly tracks points earned and redeemed, with admin controls effective",
+    "Frontend is responsive and functions seamlessly across supported devices"
+  ],
+  "code_summary": {
+    "tech_stack": [
+      "JavaScript",
+      "React",
+      "Vite",
+      "Supabase",
+      "TailwindCSS",
+      "React Router",
+      "Recharts",
+      "Vitest"
+    ],
+    "features": [
+      {
+        "name": "Authentication System",
+        "description": "Unified authentication system using Supabase for user login, session management, and role-based access control",
+        "files": [
+          "src/features/auth/UnifiedAuthContext.jsx",
+          "src/features/auth/ProtectedRoute.jsx",
+          "src/api/authApi.js",
+          "src/shared/lib/supabase.js"
+        ]
+      },
+      {
+        "name": "Dashboard System",
+        "description": "Role-based dashboards for different user types including employees, managers, admins, and super admins",
+        "files": [
+          "src/components/AgencyDashboard.jsx",
+          "src/components/EmployeeDashboard.jsx",
+          "src/components/ManagerDashboard.jsx",
+          "src/components/SuperAdminDashboard.jsx",
+          "src/components/SEOTeamDashboard.jsx",
+          "src/components/AdsExecutiveDashboard.jsx"
+        ]
+      },
+      {
+        "name": "Performance Tracking",
+        "description": "KPI tracking and performance evaluation system for employees",
+        "files": [
+          "src/components/PerformanceKPI.jsx",
+          "src/components/PerformanceScoring.jsx",
+          "src/components/LeaderboardView.jsx",
+          "src/components/KPIDashboard.jsx"
+        ]
+      },
+      {
+        "name": "Client Management",
+        "description": "Client onboarding, tracking, and management system",
+        "files": [
+          "src/components/ClientOnboardingForm.jsx",
+          "src/components/ClientDirectory.jsx",
+          "src/components/ClientManagementView.jsx",
+          "src/components/ClientServicingDashboard.jsx"
+        ]
+      },
+      {
+        "name": "Employee Management",
+        "description": "Employee onboarding, directory, and management system",
+        "files": [
+          "src/components/EmployeeDirectory.jsx",
+          "src/components/EmployeeForm.jsx",
+          "src/components/EmployeeOnboardingForm.jsx",
+          "src/components/ManagerEditEmployee.jsx"
+        ]
+      },
+      {
+        "name": "SEO Module",
+        "description": "SEO team specific features including data entry, reporting, and appraisal",
+        "files": [
+          "src/components/SEOModule.jsx",
+          "src/components/SEODataEntryForm.jsx",
+          "src/components/SEOAppraisalSystem.jsx",
+          "src/components/SEOEmployeeDashboard.jsx"
+        ]
+      },
+      {
+        "name": "Reporting System",
+        "description": "Various reporting dashboards and analytics features",
+        "files": [
+          "src/components/MonthlyReportDashboard.jsx",
+          "src/components/NewReportDashboard.jsx",
+          "src/components/GrowthReportGenerator.jsx",
+          "src/components/DashboardAnalytics.jsx"
+        ]
+      },
+      {
+        "name": "Arcade System",
+        "description": "Gamification system for employee engagement and rewards",
+        "files": [
+          "src/components/ArcadeDashboard.jsx",
+          "src/components/ArcadeEarnPoints.jsx",
+          "src/components/ArcadeRedeemPoints.jsx",
+          "src/components/ArcadeAdminPanel.jsx"
+        ]
+      },
+      {
+        "name": "UI Components",
+        "description": "Shared UI components used throughout the application",
+        "files": [
+          "src/components/ui/",
+          "src/shared/components/",
+          "src/components/AppShell.jsx"
+        ]
+      },
+      {
+        "name": "API Services",
+        "description": "API services for interacting with the Supabase backend",
+        "files": [
+          "src/api/authApi.js",
+          "src/api/attendanceApi.js",
+          "src/api/scoringApi.js",
+          "src/api/seoApi.js",
+          "src/services/"
+        ]
+      }
+    ]
+  }
+}

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { useAuth } from './AuthContext';
+import { useUnifiedAuth } from './UnifiedAuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const PasswordSetup = () => {
-  const { setupPassword, user, getDashboardPath } = useAuth();
+  const { setupPassword, user, getDashboardPath } = useUnifiedAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     newPassword: '',

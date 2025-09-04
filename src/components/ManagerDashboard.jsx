@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { useToast } from "@/shared/components/Toast";
 import { useModal } from "@/shared/components/ModalContext";
 import { useUnifiedDataManager } from "@/hooks/useUnifiedDataManager";
-import { useAuth } from "@/features/auth/AuthProvider";
+import { useUnifiedAuth } from "@/features/auth/UnifiedAuthContext";
 import { ClientManagementView } from "@/features/clients/components/ClientManagementView";
 import { ClientDashboardView } from "@/features/clients/components/ClientDashboardView";
 import { FixedLeaderboardView } from "./FixedLeaderboardView";
@@ -19,10 +19,25 @@ import { useAppNavigation } from '../utils/navigation';
 import liveDataService from '@/shared/services/liveDataService';
 import { exportReport, reportUtils } from '../utils/reportGenerator';
 
-export const ManagerDashboard = React.memo(function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport }) {
+// Helper function to get default view based on dashboard type
+function getDefaultView(dashboardType) {
+  if (!dashboardType) return 'overview';
+  
+  switch(dashboardType) {
+    case 'operations': return 'operations';
+    case 'hr': return 'employees';
+    case 'accounting': return 'finance';
+    case 'sales': return 'clients';
+    default: return 'overview';
+  }
+}
+
+export const ManagerDashboard = React.memo(function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport, dashboardType }) {
+  // Log dashboard type for debugging
+  console.log('📊 Loading manager dashboard with type:', dashboardType);
   const { notify } = useToast();
   const { openModal, closeModal } = useModal();
-  const { user, hasPermission } = useAuth();
+  const { user, hasPermission } = useUnifiedAuth();
   const navigation = useAppNavigation();
   const { navigate } = navigation;
   
@@ -123,6 +138,13 @@ export const ManagerDashboard = React.memo(function ManagerDashboard({ onViewRep
     testimonialUrl: ''
   });
 
+  // Update active view based on dashboard type
+  useEffect(() => {
+    if (dashboardType) {
+      setActiveView(getDefaultView(dashboardType));
+    }
+  }, [dashboardType]);
+  
   // Dynamic stats from liveDataService
   const [dynamicStats, setDynamicStats] = useState({
     totalEmployees: 0,

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useModal } from '@/shared/components/ModalContext';
 import { useToast } from '@/shared/components/Toast';
 import { useSupabase } from './SupabaseProvider';
-import { useAuth } from '@/features/auth/useAuth';
+import { useUnifiedAuth } from '@/features/auth/UnifiedAuthContext';
 import { Section } from '@/shared/components/ui';
 import { monthLabel, thisMonthKey } from '@/shared/lib/constants';
 import QuoteOfTheDay from './QuoteOfTheDay';
@@ -188,7 +188,7 @@ function InternDashboard({ onBack }) {
   
   const { openModal, closeModal } = useModal();
   const { notify } = useToast();
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const { supabase } = useSupabase();
 
   // Load intern data from backend

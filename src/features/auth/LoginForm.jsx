@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { useAuth } from './AuthContext';
+import { useUnifiedAuth } from './UnifiedAuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const LoginForm = () => {
-  const { login, loading } = useAuth();
+  const { login, loading } = useUnifiedAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     phone: '',

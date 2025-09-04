@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSupabase } from '@/components/SupabaseProvider';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useUnifiedAuth } from '@/features/auth/UnifiedAuthContext';
 import { useToast } from '@/shared/components/Toast';
 
 /**
@@ -29,7 +29,7 @@ export function useUnifiedDataManager() {
   });
 
   const { supabase } = useSupabase();
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const { notify } = useToast();
   
   // Use ref to track if component is mounted

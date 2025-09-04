@@ -6,6 +6,7 @@ const ProtectedRoute = ({
   children, 
   requiredRole = null, 
   requiredRoles = [], 
+  allowedRoles = [], // New prop for more flexible role checking
   redirectTo = '/login',
   fallback = null 
 }) => {
@@ -37,6 +38,10 @@ const ProtectedRoute = ({
 
   // Check role-based access
   if (requiredRole && user.role !== requiredRole) {
+    console.log('🔒 Access denied - required role not matched:', { 
+      userRole: user.role, 
+      requiredRole 
+    });
     // If user doesn't have required role, show fallback or redirect
     if (fallback) {
       return fallback;
@@ -66,8 +71,23 @@ const ProtectedRoute = ({
     );
   }
 
-  // Check multiple roles access
+  // Check multiple roles access (required roles)
   if (requiredRoles.length > 0 && !requiredRoles.includes(user.role)) {
+    console.log('🔒 Access denied - user role not in required roles list:', { 
+      userRole: user.role, 
+      requiredRoles 
+    });
+    if (fallback) {
+      return fallback;
+    }
+  }
+  
+  // Check allowed roles access (if specified)
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+    console.log('🔒 Access denied - user role not in allowed roles list:', { 
+      userRole: user.role, 
+      allowedRoles 
+    });
     if (fallback) {
       return fallback;
     }

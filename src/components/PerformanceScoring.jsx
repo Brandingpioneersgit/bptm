@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSupabase } from './SupabaseProvider';
-import { useAuth } from '../features/auth/useAuth';
+import { useUnifiedAuth } from '../features/auth/UnifiedAuthContext';
 import { useEnhancedErrorHandling } from '@/shared/hooks/useEnhancedErrorHandling';
 
 const PerformanceScoring = () => {
@@ -37,7 +37,7 @@ const PerformanceScoring = () => {
     );
   }
   const supabase = useSupabase();
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   const [employees, setEmployees] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [performanceData, setPerformanceData] = useState({

@@ -424,29 +424,43 @@ class LiveDataService {
         throw new Error('Supabase not configured');
       }
 
-      const { data: performanceData, error } = await supabase
+      // First get performance data from monthly_kpi_reports
+      const { data: performanceData, error: perfError } = await supabase
         .from('monthly_kpi_reports')
-        .select(`
-          overall_score,
-          growth_percentage,
-          unified_users!inner(name, role, department)
-        `)
+        .select('employee_id, overall_score, growth_percentage')
         .not('overall_score', 'is', null)
         .order('overall_score', { ascending: false })
         .limit(10);
 
-      if (error) throw error;
+      if (perfError) throw perfError;
 
-      const leaderboard = performanceData?.map((item, index) => ({
-        id: index + 1,
-        name: item.unified_users?.name || 'Unknown',
-        role: item.unified_users?.role || 'Employee',
-        department: item.unified_users?.department || 'General',
-        score: Math.round(item.overall_score || 0),
-        change: item.growth_percentage || 0,
-        trend: item.growth_percentage > 0 ? 'up' : item.growth_percentage < 0 ? 'down' : 'stable',
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(item.unified_users?.name || 'User')}&background=random`
-      })) || [];
+      if (!performanceData || performanceData.length === 0) {
+        throw new Error('No performance data found');
+      }
+
+      // Get user details for the employee IDs
+      const employeeIds = performanceData.map(p => p.employee_id);
+      const { data: userData, error: userError } = await supabase
+        .from('unified_users')
+        .select('id, name, role, department')
+        .in('id', employeeIds);
+
+      if (userError) throw userError;
+
+      // Combine the data manually
+      const leaderboard = performanceData.map((item, index) => {
+        const user = userData?.find(u => u.id === item.employee_id);
+        return {
+          id: index + 1,
+          name: user?.name || 'Unknown',
+          role: user?.role || 'Employee',
+          department: user?.department || 'General',
+          score: Math.round(item.overall_score || 0),
+          change: item.growth_percentage || 0,
+          trend: item.growth_percentage > 0 ? 'up' : item.growth_percentage < 0 ? 'down' : 'stable',
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=random`
+        };
+      }).filter(item => item.name !== 'Unknown'); // Filter out users not found in unified_users
 
       this.setCachedData(cacheKey, leaderboard);
       return leaderboard;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '@/features/auth/useAuth';
+import { useUnifiedAuth } from '@/features/auth/UnifiedAuthContext';
 import { useAppNavigation } from '@/utils/navigation';
 import EmployeeSignupForm from './EmployeeSignupForm';
 import HRApprovalWorkflow from './HRApprovalWorkflow';
@@ -8,7 +8,7 @@ import { EmployeeExitForm } from './EmployeeExitForm';
 import { useModal } from '@/shared/components/ModalContext';
 
 export function EmployeeSignupNavigation() {
-  const { user, userRole } = useAuth();
+  const { user, userCategory: userRole } = useUnifiedAuth();
   const navigation = useAppNavigation();
   const { openModal, closeModal } = useModal();
   const [activeView, setActiveView] = useState('overview');

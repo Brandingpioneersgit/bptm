@@ -201,7 +201,7 @@ class PersonalizedDashboardService {
         .from('employees')
         .select('id')
         .eq('department', department)
-        .eq('active', true);
+        .eq('is_active', true);
       
       if (error) {
         console.error('Error fetching department employee count:', error);
@@ -243,7 +243,7 @@ class PersonalizedDashboardService {
         .from('employees')
         .select('id')
         .eq('department', department)
-        .eq('active', true);
+        .eq('is_active', true);
       
       if (error) {
         console.error('Error fetching active employees:', error);
@@ -299,7 +299,7 @@ class PersonalizedDashboardService {
         .select('id')
         .eq('role', 'Intern')
         .eq('department', department)
-        .eq('active', true);
+        .eq('is_active', true);
       
       if (error) {
         console.error('Error fetching active interns:', error);
@@ -319,7 +319,7 @@ class PersonalizedDashboardService {
         .from('employees')
         .select('id')
         .eq('manager_id', managerId)
-        .eq('active', true);
+        .eq('is_active', true);
       
       if (error) {
         console.error('Error fetching team size:', error);

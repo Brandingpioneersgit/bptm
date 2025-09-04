@@ -167,8 +167,39 @@ const FAQSection = () => {
 };
 
 // Tab Navigation Component
-const TabNavigation = ({ activeTab, setActiveTab, completionStatus, currentUser }) => {
-  const tabs = [
+const TabNavigation = ({ activeTab, setActiveTab, completionStatus, currentUser, dashboardType }) => {
+  // Get role-specific tabs based on dashboard type
+  const getRoleSpecificTabs = () => {
+    if (!dashboardType) return [];
+    
+    switch(dashboardType) {
+      case 'seo':
+        return [
+          { id: 'seo-performance', name: 'SEO Performance', icon: ChartBarIcon, completed: true },
+          { id: 'keyword-tracking', name: 'Keyword Tracking', icon: PresentationChartLineIcon, completed: completionStatus.performance }
+        ];
+      case 'ads':
+        return [
+          { id: 'ads-performance', name: 'Ads Performance', icon: ChartBarIcon, completed: true },
+          { id: 'campaign-metrics', name: 'Campaign Metrics', icon: PresentationChartLineIcon, completed: completionStatus.performance }
+        ];
+      case 'social':
+        return [
+          { id: 'social-engagement', name: 'Social Engagement', icon: ChatBubbleLeftRightIcon, completed: true },
+          { id: 'content-calendar', name: 'Content Calendar', icon: DocumentTextIcon, completed: completionStatus.monthly }
+        ];
+      case 'youtube':
+        return [
+          { id: 'youtube-analytics', name: 'YouTube Analytics', icon: ChartBarIcon, completed: true },
+          { id: 'video-performance', name: 'Video Performance', icon: PresentationChartLineIcon, completed: completionStatus.performance }
+        ];
+      default:
+        return [];
+    }
+  };
+  
+  // Standard tabs for all dashboards
+  const standardTabs = [
     { id: 'profile', name: 'Profile', icon: UserIcon, completed: completionStatus.profile },
     { id: 'monthly', name: 'Monthly Forms', icon: DocumentTextIcon, completed: completionStatus.monthly },
     { id: 'performance', name: 'Performance & KPI', icon: ChartBarIcon, completed: completionStatus.performance },
@@ -177,6 +208,9 @@ const TabNavigation = ({ activeTab, setActiveTab, completionStatus, currentUser 
     { id: 'learning', name: 'Learning & Growth', icon: AcademicCapIcon, completed: completionStatus.learning },
     { id: 'analytics', name: 'Analytics', icon: PresentationChartLineIcon, completed: completionStatus.analytics }
   ];
+  
+  // Combine role-specific tabs with standard tabs
+  const tabs = [...getRoleSpecificTabs(), ...standardTabs];
   
   // Add superadmin tab if user has admin privileges
   if (currentUser?.role === 'superadmin' || currentUser?.is_admin) {
@@ -287,12 +321,27 @@ const QuickStats = ({ employee, stats }) => {
   );
 };
 
-export const EmployeeDashboard = ({ employeeId }) => {
+export const EmployeeDashboard = ({ employeeId, dashboardType }) => {
+  // Log dashboard type for debugging
+  console.log('📊 Loading employee dashboard with type:', dashboardType);
+  
+  // Set default tab based on dashboard type
+  const getDefaultTab = () => {
+    if (!dashboardType) return 'profile';
+    
+    switch(dashboardType) {
+      case 'seo': return 'seo-performance';
+      case 'ads': return 'ads-performance';
+      case 'social': return 'social-engagement';
+      case 'youtube': return 'youtube-analytics';
+      default: return 'profile';
+    }
+  };
   const supabase = useSupabase();
   const { notify } = useToast();
   const [loading, setLoading] = useState(true);
   const [employee, setEmployee] = useState(null);
-  const [activeTab, setActiveTab] = useState('profile');
+  const [activeTab, setActiveTab] = useState(getDefaultTab());
   const [dashboardStats, setDashboardStats] = useState({
     profileCompletion: 0,
     monthlyFormsCompleted: 0,
@@ -313,8 +362,78 @@ export const EmployeeDashboard = ({ employeeId }) => {
     analytics: false
   });
   
+  // Get role-specific sections based on dashboard type
+  const getRoleSpecificSections = () => {
+    switch(dashboardType) {
+      case 'seo':
+        return [
+          {
+            id: 'seo-performance',
+            name: 'SEO Performance',
+            icon: '🔍',
+            completed: true
+          },
+          {
+            id: 'keyword-tracking',
+            name: 'Keyword Tracking',
+            icon: '📈',
+            completed: dashboardStats.kpisTracked > 0
+          }
+        ];
+      case 'ads':
+        return [
+          {
+            id: 'ads-performance',
+            name: 'Ads Performance',
+            icon: '📣',
+            completed: true
+          },
+          {
+            id: 'campaign-metrics',
+            name: 'Campaign Metrics',
+            icon: '📊',
+            completed: dashboardStats.kpisTracked > 0
+          }
+        ];
+      case 'social':
+        return [
+          {
+            id: 'social-engagement',
+            name: 'Social Engagement',
+            icon: '👥',
+            completed: true
+          },
+          {
+            id: 'content-calendar',
+            name: 'Content Calendar',
+            icon: '📅',
+            completed: dashboardStats.monthlyFormsCompleted > 0
+          }
+        ];
+      case 'youtube':
+        return [
+          {
+            id: 'youtube-analytics',
+            name: 'YouTube Analytics',
+            icon: '📹',
+            completed: true
+          },
+          {
+            id: 'video-performance',
+            name: 'Video Performance',
+            icon: '🎬',
+            completed: dashboardStats.kpisTracked > 0
+          }
+        ];
+      default:
+        return [];
+    }
+  };
+  
   // Define dashboard sections
   const sections = useMemo(() => [
+    // Role-specific sections
+    ...(dashboardType ? getRoleSpecificSections() : []),
     {
       id: 'profile',
       name: 'Profile',
@@ -483,12 +602,13 @@ export const EmployeeDashboard = ({ employeeId }) => {
         <ProgressBar sections={sections} currentSection={activeTab} />
         
         {/* Tab Navigation */}
-        <TabNavigation 
-          activeTab={activeTab} 
-          setActiveTab={setActiveTab} 
-          completionStatus={completionStatus}
-          currentUser={employee}
-        />
+          <TabNavigation 
+            activeTab={activeTab} 
+            setActiveTab={setActiveTab} 
+            completionStatus={completionStatus}
+            currentUser={employee}
+            dashboardType={dashboardType}
+          />
         
         {/* Main Content */}
         <div className="space-y-6">

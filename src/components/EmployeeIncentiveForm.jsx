@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSupabase } from './SupabaseProvider';
 import { useToast } from '@/shared/components/Toast';
-import { useAuth } from '@/features/auth/useAuth';
+import { useUnifiedAuth } from '@/features/auth/UnifiedAuthContext';
 import { Section, TextField, TextArea, SelectField } from '@/shared/components/ui';
 
 const INCENTIVE_TYPES = {
@@ -34,7 +34,7 @@ const INCENTIVE_TYPES = {
 const EmployeeIncentiveForm = () => {
   const { supabase } = useSupabase();
   const { showToast } = useToast();
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   
   const [formData, setFormData] = useState({
     incentive_type: '',

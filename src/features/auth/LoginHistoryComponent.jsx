@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DatabaseAuthService } from './DatabaseAuthService';
-import { useAuth } from './AuthProvider';
+import { useUnifiedAuth } from '@/features/auth/UnifiedAuthContext';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,7 @@ import { useToast } from '@/shared/components/Toast';
  * Displays comprehensive login logs with IP addresses and user details
  */
 export function LoginHistoryComponent() {
-  const { user, hasPermission } = useAuth();
+  const { user, hasPermission } = useUnifiedAuth();
   const { notify } = useToast();
   const [loginHistory, setLoginHistory] = useState([]);
   const [loading, setLoading] = useState(false);

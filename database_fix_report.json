@@ -1,0 +1,28 @@
+{
+  "timestamp": "2025-09-04T09:12:10.552Z",
+  "databaseConnection": true,
+  "essentialTables": {
+    "existing": [
+      "unified_users",
+      "clients",
+      "employees",
+      "submissions",
+      "monthly_kpi_reports",
+      "employee_performance",
+      "monthly_form_submissions",
+      "user_accounts"
+    ],
+    "missing": [
+      "employee_kpis",
+      "employee_attendance",
+      "notifications",
+      "system_notifications",
+      "dashboard_configurations",
+      "tools"
+    ]
+  },
+  "recommendations": [
+    "Create missing tables: employee_kpis, employee_attendance, notifications, system_notifications, dashboard_configurations, tools",
+    "Run the create_essential_missing_tables.sql script in Supabase SQL Editor"
+  ]
+}

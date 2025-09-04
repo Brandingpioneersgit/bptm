@@ -1,86 +1,99 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
+import dotenv from 'dotenv'
 
-export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-    },
-  },
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: './src/test/__tests__/setup.test.js',
-  },
-  server: {
-    // Handle client-side routing for React Router
-    historyApiFallback: {
-      index: '/index.html'
-    },
-    // Custom middleware to handle clean URLs
-    middlewareMode: false,
-  },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          // Vendor chunks
-          'react-vendor': ['react', 'react-dom'],
-          'supabase-vendor': ['@supabase/supabase-js'],
-          
-          // Dashboard chunks
-          'manager-dashboard': [
-            './src/components/ManagerDashboard.jsx',
-            './src/components/ManagerEditEmployee.jsx'
-          ],
-          'employee-dashboard': [
-            './src/components/EmployeePersonalDashboard.jsx',
-            './src/components/NewReportDashboard.jsx'
-          ],
-          'intern-dashboard': [
-            './src/components/InternDashboard.jsx'
-          ],
-          'agency-dashboard': [
-            './src/components/AgencyDashboard.jsx'
-          ],
-          'forms': [
-            './src/components/EmployeeForm.jsx',
-            './src/components/EmployeeForm/NewEmployeeForm.jsx'
-          ],
-          'tools': [
-            './src/components/MasterToolsPage.jsx'
-          ],
-          
-          // Feature chunks
-          'auth': [
-            './src/features/auth/AuthContext.jsx',
-            './src/features/auth/UnifiedLoginModal.jsx'
-          ],
-          'clients': [
-            './src/features/clients/components/ClientAdditionForm.jsx',
-            './src/features/clients/components/ClientDashboardView.jsx'
-          ],
-          'employees': [
-            './src/features/employees/components/EmployeeSignupForm.jsx',
-            './src/features/employees/components/EmployeeExitForm.jsx'
-          ],
-          
-          // Shared utilities
-          'shared-ui': [
-            './src/shared/components/ui.jsx',
-            './src/shared/components/Modal.jsx',
-            './src/shared/components/Toast.jsx'
-          ],
-          'shared-services': [
-            './src/shared/services/DataPersistence.js',
-            './src/shared/services/ImageUploadService.js'
-          ]
+// Load environment variables
+dotenv.config()
+
+export default defineConfig(({ mode }) => {
+  // Load env file based on `mode` in the current directory.
+  // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
+  const env = loadEnv(mode, process.cwd(), '')
+  
+  return {
+    plugins: [react()],
+    css: {
+      postcss: './postcss.config.js',
+      preprocessorOptions: {
+        scss: {
+          additionalData: `@import "./src/shared/styles/index.css";`
         }
       }
     },
-    // Increase chunk size warning limit since we're intentionally splitting
-    chunkSizeWarningLimit: 1000
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
+      },
+    },
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: './src/test/__tests__/setup.test.js',
+    },
+    server: {
+      // Handle client-side routing for React Router
+      historyApiFallback: {
+        index: '/index.html'
+      },
+      // Custom middleware to handle clean URLs
+      middlewareMode: false,
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Vendor chunks
+            'react-vendor': ['react', 'react-dom'],
+            'supabase-vendor': ['@supabase/supabase-js'],
+            
+            // Dashboard chunks
+            'manager-dashboard': [
+              './src/components/ManagerDashboard.jsx',
+              './src/components/ManagerEditEmployee.jsx'
+            ],
+            'employee-dashboard': [
+              './src/components/EmployeePersonalDashboard.jsx',
+              './src/components/NewReportDashboard.jsx'
+            ],
+            'intern-dashboard': [
+              './src/components/InternDashboard.jsx'
+            ],
+            'agency-dashboard': [
+              './src/components/AgencyDashboard.jsx'
+            ],
+            'forms': [
+              './src/components/EmployeeForm.jsx',
+              './src/components/EmployeeForm/NewEmployeeForm.jsx'
+            ],
+            'charts': [
+              './src/components/charts/BarChart.jsx',
+              './src/components/charts/LineChart.jsx',
+              './src/components/charts/PieChart.jsx'
+            ],
+            'tables': [
+              './src/components/tables/DataTable.jsx',
+              './src/components/tables/SortableTable.jsx'
+            ],
+            'auth': [
+              './src/features/auth/UnifiedAuthContext.jsx',
+              './src/features/auth/LoginForm.jsx'
+            ],
+            'utils': [
+              './src/utils/formatters.js',
+              './src/utils/validators.js'
+            ]
+          }
+        }
+      },
+      // Increase chunk size warning limit since we're intentionally splitting
+      chunkSizeWarningLimit: 1000
+    },
+    define: {
+      // Explicitly define environment variables to ensure they're available in the browser
+      'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL || env.VITE_SUPABASE_URL),
+      'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY),
+      'import.meta.env.VITE_ADMIN_ACCESS_TOKEN': JSON.stringify(process.env.VITE_ADMIN_ACCESS_TOKEN || env.VITE_ADMIN_ACCESS_TOKEN),
+    }
   }
 })

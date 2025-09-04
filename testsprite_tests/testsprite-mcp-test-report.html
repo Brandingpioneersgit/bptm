@@ -1,0 +1,134 @@
+
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Markdown Preview</title>
+      <style>
+        body {
+          font-family: sans-serif;
+          padding: 40px;
+          line-height: 1.6;
+          background: #fdfdfd;
+          color: #333;
+        }
+        pre {
+          background: #f4f4f4;
+          padding: 10px;
+          border-radius: 5px;
+          overflow-x: auto;
+        }
+        code {
+          font-family: monospace;
+          background: #eee;
+          padding: 2px 4px;
+        }
+        table {
+          border-collapse: collapse;
+          width: 100%;
+          margin-top: 20px;
+        }
+        th, td {
+          border: 1px solid #ccc;
+          padding: 8px 12px;
+          text-align: left;
+        }
+        th {
+          background-color: #f2f2f2;
+          font-weight: bold;
+        }
+      </style>
+    </head>
+    <body>
+      <h1>TestSprite Test Report for BP Agency Dashboard</h1>
+<h2>Test Summary</h2>
+<p>TestSprite has executed automated tests on the BP Agency Dashboard application, focusing on the authentication system, dashboard rendering, and role-based access control as requested. The tests were executed against the frontend application running on port 5173.</p>
+<h2>Key Test Areas</h2>
+<ol>
+<li>
+<p><strong>Authentication System</strong></p>
+<ul>
+<li>Login functionality with valid and invalid credentials</li>
+<li>Session management</li>
+<li>Role-based access control</li>
+</ul>
+</li>
+<li>
+<p><strong>Dashboard Rendering</strong></p>
+<ul>
+<li>Role-specific dashboard loading</li>
+<li>UI component rendering</li>
+<li>Responsive design</li>
+</ul>
+</li>
+<li>
+<p><strong>Role-Based Access Control</strong></p>
+<ul>
+<li>Access restrictions based on user roles</li>
+<li>Protected route functionality</li>
+<li>Redirection for unauthorized access</li>
+</ul>
+</li>
+</ol>
+<h2>Test Results Summary</h2>
+<p>The automated tests identified several areas that require attention:</p>
+<ol>
+<li>
+<p><strong>Authentication Issues</strong></p>
+<ul>
+<li>The login system occasionally returns &quot;Invalid API key&quot; errors</li>
+<li>Session persistence needs improvement</li>
+<li>Error handling for invalid credentials could be enhanced</li>
+</ul>
+</li>
+<li>
+<p><strong>Dashboard Rendering Issues</strong></p>
+<ul>
+<li>Some dashboards have rendering inconsistencies across different screen sizes</li>
+<li>Performance issues with data-heavy dashboards</li>
+<li>Component loading states need improvement</li>
+</ul>
+</li>
+<li>
+<p><strong>Role-Based Access Control Issues</strong></p>
+<ul>
+<li>Some protected routes allow access to unauthorized users</li>
+<li>Role verification logic needs strengthening</li>
+<li>Redirect behavior is inconsistent when accessing restricted areas</li>
+</ul>
+</li>
+</ol>
+<h2>Recommendations</h2>
+<ol>
+<li>
+<p><strong>Authentication Improvements</strong></p>
+<ul>
+<li>Fix the &quot;Invalid API key&quot; error by ensuring proper environment variable loading</li>
+<li>Implement more robust session management</li>
+<li>Enhance error messaging for login failures</li>
+</ul>
+</li>
+<li>
+<p><strong>Dashboard Optimizations</strong></p>
+<ul>
+<li>Implement lazy loading for dashboard components</li>
+<li>Optimize data fetching and rendering for performance</li>
+<li>Improve responsive design for all screen sizes</li>
+</ul>
+</li>
+<li>
+<p><strong>Access Control Enhancements</strong></p>
+<ul>
+<li>Strengthen role verification in ProtectedRoute component</li>
+<li>Implement consistent redirect behavior</li>
+<li>Add comprehensive logging for access attempts</li>
+</ul>
+</li>
+</ol>
+<h2>Conclusion</h2>
+<p>The BP Agency Dashboard application shows promise with its comprehensive feature set, but requires attention to authentication, rendering performance, and access control to ensure a robust user experience. The TestSprite tests provide a foundation for ongoing quality assurance as the application continues to develop.</p>
+
+    </body>
+    </html>
+  

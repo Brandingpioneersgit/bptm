@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TextField, Section, TextArea } from '@/shared/components/ui';
 import { DEPARTMENTS } from '@/shared/lib/constants';
-import { useAuth } from '@/features/auth/useAuth';
+import { useUnifiedAuth } from '@/features/auth/UnifiedAuthContext';
 import { useAutoSave, useAutoSaveKey } from '@/shared/hooks/useAutoSave';
 import { useStandardizedFeedback, FEEDBACK_MESSAGES } from '@/shared/utils/feedbackUtils';
 
@@ -25,7 +25,7 @@ const PERMISSION_OPTIONS = [
 ];
 
 export const LeaveApplicationForm = ({ onSubmit, onCancel }) => {
-  const { currentUser } = useAuth();
+  const { user: currentUser } = useUnifiedAuth();
   const feedback = useStandardizedFeedback();
   const [formData, setFormData] = useState({
     employeeName: currentUser?.name || '',

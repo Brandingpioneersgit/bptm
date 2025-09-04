@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-route
 import { useUnifiedAuth } from "../features/auth/UnifiedAuthContext";
 import { LoadingSpinner } from "@/shared/components/LoadingStates";
 import AgencyDashboard from "@/components/AgencyDashboard";
+import Homepage from "@/components/Homepage";
 import { LoginPage } from "../features/auth/LoginPage";
 import PasswordSetup from "../features/auth/PasswordSetup";
 import ProtectedRoute from "../features/auth/ProtectedRoute";
@@ -29,7 +30,7 @@ const PlaceholderPage = ({ title }) => (
   </div>
 );
 
-// Component to handle login redirect for authenticated users
+// Component to handle login page with redirect for authenticated users
 function LoginPageWithRedirect() {
   const navigate = useNavigate();
   const { authState } = useUnifiedAuth();
@@ -37,9 +38,8 @@ function LoginPageWithRedirect() {
 
   useEffect(() => {
     if (!loading && user) {
-      // User is already authenticated, redirect to dashboard
-      const dashboardPath = getDashboardPath(user.role);
-      navigate(dashboardPath, { replace: true });
+      // User is already authenticated, redirect to homepage
+      navigate('/', { replace: true });
     }
   }, [user, loading, navigate]);
 
@@ -51,7 +51,8 @@ function LoginPageWithRedirect() {
     );
   }
 
-  return user ? null : <LoginPage />;
+  // Show login page for unauthenticated users
+  return <LoginPage />;
 }
 
 // Helper function to get dashboard path based on role
@@ -77,7 +78,7 @@ function getDashboardPath(role) {
     case 'Client':
       return '/client';
     default:
-      return '/';
+      return '/dashboard'; // Default to main dashboard for authenticated users
   }
 }
 
@@ -100,8 +101,27 @@ export default function AppRouter() {
     <BrowserRouter>
       <Routes>
         {/* Public Routes */}
-        <Route path="/" element={<AgencyDashboard />} />
+        <Route path="/" element={<Homepage />} />
         <Route path="/login" element={<LoginPageWithRedirect />} />
+        <Route path="/dashboard" element={
+          <ProtectedRoute allowedRoles={['SEO', 'Ads', 'Social Media', 'YouTube SEO', 'Web Developer', 'Graphic Designer', 'Freelancer', 'Intern', 'Operations Head', 'Manager', 'HR', 'Accountant', 'Sales', 'Super Admin']}>
+            <AgencyDashboard />
+          </ProtectedRoute>
+        } />
+        
+        {/* Default redirect for authenticated users */}
+        <Route path="/auth-redirect" element={
+          <ProtectedRoute>
+            {({ user }) => {
+              const navigate = useNavigate();
+              useEffect(() => {
+                const dashboardPath = getDashboardPath(user.role);
+                navigate(dashboardPath, { replace: true });
+              }, [navigate, user]);
+              return <LoadingSpinner size="lg" />;
+            }}
+          </ProtectedRoute>
+        } />
         <Route path="/password-setup" element={<PasswordSetup />} />
         <Route path="/employee-onboarding" element={<EmployeeOnboardingForm />} />
         <Route path="/client-onboarding" element={<EmployeeOnboardingForm />} />
@@ -168,6 +188,67 @@ export default function AppRouter() {
         <Route path="/super-admin" element={
           <ProtectedRoute allowedRoles={['Super Admin']}>
             <SuperAdminDashboard />
+          </ProtectedRoute>
+        } />
+        
+        {/* Role-specific dashboard routes */}
+        <Route path="/seo-dashboard" element={
+          <ProtectedRoute requiredRole="SEO">
+            <EmployeeDashboard dashboardType="seo" />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/ads-dashboard" element={
+          <ProtectedRoute requiredRole="Ads">
+            <EmployeeDashboard dashboardType="ads" />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/social-media-dashboard" element={
+          <ProtectedRoute requiredRole="Social Media">
+            <EmployeeDashboard dashboardType="social" />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/youtube-seo-dashboard" element={
+          <ProtectedRoute requiredRole="YouTube SEO">
+            <EmployeeDashboard dashboardType="youtube" />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/web-developer-dashboard" element={
+          <ProtectedRoute requiredRole="Web Developer">
+            <EmployeeDashboard dashboardType="dev" />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/graphic-designer-dashboard" element={
+          <ProtectedRoute requiredRole="Graphic Designer">
+            <EmployeeDashboard dashboardType="design" />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/operations-dashboard" element={
+          <ProtectedRoute requiredRole="Operations Head">
+            <ManagerDashboard dashboardType="operations" />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/hr-dashboard" element={
+          <ProtectedRoute requiredRole="HR">
+            <ManagerDashboard dashboardType="hr" />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/accountant-dashboard" element={
+          <ProtectedRoute requiredRole="Accountant">
+            <ManagerDashboard dashboardType="accounting" />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/sales-dashboard" element={
+          <ProtectedRoute requiredRole="Sales">
+            <ManagerDashboard dashboardType="sales" />
           </ProtectedRoute>
         } />
         

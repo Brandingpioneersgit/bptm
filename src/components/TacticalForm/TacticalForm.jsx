@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSupabase } from '../SupabaseProvider';
 import { useToast } from '@/shared/components/Toast';
-import { useAuth } from '@/features/auth/useAuth';
+import { useUnifiedAuth } from '@/features/auth/UnifiedAuthContext';
 import { thisMonthKey, monthLabel, DEPARTMENTS } from '@/shared/lib/constants';
 import { Section, TextField, NumField, TextArea } from '@/shared/components/ui';
 import EmployeeDropdown from '@/shared/components/EmployeeDropdown';
@@ -11,7 +11,7 @@ import ClientDropdown from '@/shared/components/ClientDropdown';
 export function TacticalForm({ onBack = null, existingSubmission = null }) {
   const supabase = useSupabase();
   const { notify } = useToast();
-  const { user } = useAuth();
+  const { user } = useUnifiedAuth();
   
   // Core form state
   const [formData, setFormData] = useState({
