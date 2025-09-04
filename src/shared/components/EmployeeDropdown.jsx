@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useEmployeeSync } from '@/features/employees/context/EmployeeSyncContext';
-import { MultiSelect } from './ui';
+import SearchableDropdown from './SearchableDropdown';
 
 const EmployeeDropdown = ({ 
   value = '', 
@@ -91,12 +91,17 @@ const EmployeeDropdown = ({
   }, [employees, onChange, onEmployeeSelect]);
 
   // Create new employee when needed
-  const handleCreateEmployee = useCallback(async (employeeData) => {
-    if (!allowCreate) return null;
+  const handleCreateEmployee = useCallback(async (name) => {
+    if (!allowCreate || !name.trim()) return null;
     
     setIsCreatingNew(true);
     try {
-      const newEmployee = await addEmployee(employeeData);
+      const newEmployee = await addEmployee({
+        name: name.trim(),
+        department: 'Unassigned',
+        role: 'Employee',
+        status: 'Active'
+      });
       if (newEmployee) {
         setSelectedEmployee(newEmployee);
         setSearchTerm(newEmployee.name);
@@ -150,10 +155,23 @@ const EmployeeDropdown = ({
       )}
       
       <div className="relative">
-        <MultiSelect
+        <SearchableDropdown
           options={filteredOptions}
-          value={selectedEmployee ? `${selectedEmployee.name}|${selectedEmployee.phone}` : ''}
-          onChange={handleEmployeeSelect}
+          value={selectedEmployee ? selectedEmployee.name : ''}
+          onChange={(selectedValue) => {
+            // If it's a new employee name (string), create it
+            if (typeof selectedValue === 'string' && !employeeOptions.find(opt => opt.value === selectedValue)) {
+              if (allowCreate) {
+                handleCreateEmployee(selectedValue);
+              }
+            } else {
+              // Find the employee from the selected option
+              const selectedOption = employeeOptions.find(opt => opt.value === selectedValue || opt.label === selectedValue);
+              if (selectedOption) {
+                handleEmployeeSelect(selectedOption.value);
+              }
+            }
+          }}
           onInputChange={handleInputChange}
           placeholder={placeholder}
           disabled={disabled || loading}
@@ -161,6 +179,7 @@ const EmployeeDropdown = ({
           creatable={allowCreate}
           isLoading={loading || isCreatingNew}
           className="w-full"
+          onCreateNew={allowCreate ? handleCreateEmployee : undefined}
         />
         
         {/* Employee info display */}

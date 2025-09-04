@@ -101,11 +101,36 @@ export function LeaderboardView({ allSubmissions }) {
   }, [allSubmissions]);
 
   const getBadge = (score, submissionCount) => {
-    if (score >= 9 && submissionCount >= 6) return { type: 'gold', icon: '🥇', label: 'Gold Champion' };
-    if (score >= 8 && submissionCount >= 4) return { type: 'silver', icon: '🥈', label: 'Silver Star' };
-    if (score >= 7 && submissionCount >= 2) return { type: 'bronze', icon: '🥉', label: 'Bronze Achiever' };
-    if (score >= 6) return { type: 'rising', icon: '🌟', label: 'Rising Star' };
-    return { type: 'participant', icon: '💪', label: 'Active' };
+    if (score >= 9 && submissionCount >= 6) return { 
+      type: 'gold', 
+      icon: '🥇', 
+      label: 'Gold Champion',
+      className: 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-white border-yellow-500'
+    };
+    if (score >= 8 && submissionCount >= 4) return { 
+      type: 'silver', 
+      icon: '🥈', 
+      label: 'Silver Star',
+      className: 'bg-gradient-to-r from-gray-300 to-gray-500 text-white border-gray-400'
+    };
+    if (score >= 7 && submissionCount >= 2) return { 
+      type: 'bronze', 
+      icon: '🥉', 
+      label: 'Bronze Achiever',
+      className: 'bg-gradient-to-r from-orange-400 to-orange-600 text-white border-orange-500'
+    };
+    if (score >= 6) return { 
+      type: 'rising', 
+      icon: '🌟', 
+      label: 'Rising Star',
+      className: 'bg-gradient-to-r from-purple-400 to-purple-600 text-white border-purple-500'
+    };
+    return { 
+      type: 'participant', 
+      icon: '💪', 
+      label: 'Active',
+      className: 'bg-gradient-to-r from-blue-400 to-blue-600 text-white border-blue-500'
+    };
   };
 
   return (
@@ -287,14 +312,8 @@ export function LeaderboardView({ allSubmissions }) {
                       {employee.totalHours.toFixed(1)}h
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        employee.badge.type === 'gold' ? 'bg-yellow-100 text-yellow-800' :
-                        employee.badge.type === 'silver' ? 'bg-gray-100 text-gray-800' :
-                        employee.badge.type === 'bronze' ? 'bg-orange-100 text-orange-800' :
-                        employee.badge.type === 'rising' ? 'bg-green-100 text-green-800' :
-                        'bg-blue-100 text-blue-800'
-                      }`}>
-                        <span className="mr-1">{employee.badge.icon}</span>
+                      <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-default ${employee.badge.className}`}>
+                        <span className="mr-1.5 text-sm">{employee.badge.icon}</span>
                         {employee.badge.label}
                       </span>
                     </td>
@@ -308,3 +327,5 @@ export function LeaderboardView({ allSubmissions }) {
     </div>
   );
 }
+
+export default LeaderboardView;

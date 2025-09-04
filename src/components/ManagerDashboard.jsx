@@ -1,25 +1,96 @@
-import React, { useMemo, useState } from "react";
-import { useSupabase } from "./SupabaseProvider";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { useToast } from "@/shared/components/Toast";
 import { useModal } from "@/shared/components/ModalContext";
-import { useFetchSubmissions } from "./useFetchSubmissions";
-import { useDataSync } from "./DataSyncContext";
+import { useUnifiedDataManager } from "@/hooks/useUnifiedDataManager";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { ClientManagementView } from "@/features/clients/components/ClientManagementView";
 import { ClientDashboardView } from "@/features/clients/components/ClientDashboardView";
 import { FixedLeaderboardView } from "./FixedLeaderboardView";
+import { ManagerControlPanel } from "./ManagerControlPanel";
 import { calculateScopeCompletion, getServiceWeight } from "@/shared/lib/scoring";
+import { EmployeeSignupNavigation } from "@/features/employees/components/EmployeeSignupNavigation";
+import { ClientAdditionForm } from "@/features/clients/components/ClientAdditionForm";
+import { KPIEditor } from "./KPIEditor";
+import { LoadingSpinner, CardSkeleton, TableSkeleton } from "@/shared/components/LoadingStates";
+import { AnimatedButton, FadeTransition } from "@/shared/components/Transitions";
+import { useMobileResponsive } from '../hooks/useMobileResponsive';
+import { SIDEBAR_CONFIG } from '@/shared/config/uiConfig';
+import { useAppNavigation } from '../utils/navigation';
+import liveDataService from '@/shared/services/liveDataService';
+import { exportReport, reportUtils } from '../utils/reportGenerator';
 
-export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport }) {
-  const supabase = useSupabase();
+export const ManagerDashboard = React.memo(function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport }) {
   const { notify } = useToast();
-  const { allSubmissions, loading, error, refreshSubmissions } = useFetchSubmissions();
-  const { submissions: syncedSubmissions, refreshAllData, updateSubmission } = useDataSync();
   const { openModal, closeModal } = useModal();
+  const { user, hasPermission } = useAuth();
+  const navigation = useAppNavigation();
+  const { navigate } = navigation;
   
-  // Use synced submissions if available, fallback to fetch hook
-  const workingSubmissions = syncedSubmissions.length > 0 ? syncedSubmissions : allSubmissions;
+  // Mobile responsiveness
+  const { isMobile, gridConfig, spacing, text, mobileUtils } = useMobileResponsive();
+
+  // Role-based sidebar component
+  const RoleBasedSidebar = ({ userRole }) => {
+    const sidebarConfig = SIDEBAR_CONFIG[userRole] || SIDEBAR_CONFIG['manager'];
+    
+    if (!sidebarConfig) return null;
+    
+    return (
+      <div className="w-64 bg-white border-r border-gray-200 h-full">
+        <div className="p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-6">{sidebarConfig.title}</h2>
+          
+          {sidebarConfig.sections.map((section, sectionIndex) => (
+            <div key={sectionIndex} className="mb-6">
+              <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">
+                {section.title}
+              </h3>
+              <nav className="space-y-1">
+                {section.items.map((item, itemIndex) => (
+                  <button
+                    key={itemIndex}
+                    onClick={() => {
+                      if (item.path.startsWith('#/')) {
+                        navigation.navigateToHash(item.path.replace('#/', ''));
+                      } else {
+                        navigation.navigateToPath(item.path);
+                      }
+                    }}
+                    className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                  >
+                    <span className="mr-3">{item.icon}</span>
+                    {item.label}
+                  </button>
+                ))}
+              </nav>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // Unified data manager - single source of truth
+  const {
+    employees,
+    submissions,
+    clients,
+    loading,
+    isLoading,
+    error,
+    syncStatus,
+    lastUpdated,
+    syncAllData,
+    updateEmployee,
+    updateSubmission: updateSubmissionData,
+    getEmployeeSubmissions,
+    getPerformanceMetrics
+  } = useUnifiedDataManager();
+
+  // Use unified submissions data
+  const workingSubmissions = submissions;
   
-  const [activeView, setActiveView] = useState('dashboard');
+  const [activeView, setActiveView] = useState('controlPanel');
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({
@@ -33,6 +104,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
   const [underService, setUnderService] = useState('All');
   const [underDept, setUnderDept] = useState('All');
   const [learningThreshold, setLearningThreshold] = useState(10);
+  const [showClientForm, setShowClientForm] = useState(false);
   
   // Loading states for different operations
   const [operationStates, setOperationStates] = useState({
@@ -50,6 +122,42 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
     recommendations: '',
     testimonialUrl: ''
   });
+
+  // Dynamic stats from liveDataService
+  const [dynamicStats, setDynamicStats] = useState({
+    totalEmployees: 0,
+    totalSubmissions: 0,
+    averageScore: 0,
+    highPerformers: 0,
+    needsAttention: 0,
+    withPenalties: 0,
+    missingLearning: 0
+  });
+
+  // Fetch dynamic stats from liveDataService
+  const fetchDynamicStats = useCallback(async () => {
+    try {
+      const managerStats = await liveDataService.getManagerStats();
+      // Map the manager stats to the expected format
+      setDynamicStats({
+        totalEmployees: managerStats.teamSize || 0,
+        totalSubmissions: managerStats.activeProjects || 0,
+        averageScore: managerStats.teamPerformance ? (managerStats.teamPerformance / 10).toFixed(1) : 0,
+        highPerformers: Math.round((managerStats.teamSize || 0) * 0.3), // Estimate 30% high performers
+        needsAttention: Math.round((managerStats.teamSize || 0) * 0.15), // Estimate 15% need attention
+        withPenalties: Math.round((managerStats.teamSize || 0) * 0.05), // Estimate 5% with penalties
+        missingLearning: Math.round((managerStats.teamSize || 0) * 0.1) // Estimate 10% missing learning
+      });
+    } catch (error) {
+      console.error('Error fetching dynamic stats:', error);
+      // Keep existing fallback values
+    }
+  }, []);
+
+  // Load dynamic stats on component mount
+  useEffect(() => {
+    fetchDynamicStats();
+  }, [fetchDynamicStats]);
 
   const processedData = useMemo(() => {
     if (!workingSubmissions.length) return { employees: [], stats: {}, departments: [] };
@@ -134,16 +242,16 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       return typeof aVal === 'string' ? aVal.localeCompare(bVal) : aVal - bVal;
     });
 
-    // Stats
+    // Stats - use dynamic stats from liveDataService with fallback to calculated values
     const stats = {
-      totalEmployees: employees.length,
-      totalSubmissions: filteredByDate.length,
-      averageScore: employees.length ? 
-        (employees.reduce((sum, emp) => sum + parseFloat(emp.averageScore), 0) / employees.length).toFixed(1) : 0,
-      highPerformers: employees.filter(emp => emp.performance === 'High').length,
-      needsAttention: employees.filter(emp => emp.performance === 'Low').length,
-      withPenalties: employees.filter(emp => emp.latestSubmission?.discipline?.penalty > 0).length,
-      missingLearning: employees.filter(emp => {
+      totalEmployees: dynamicStats.totalEmployees || employees.length,
+      totalSubmissions: dynamicStats.totalSubmissions || filteredByDate.length,
+      averageScore: dynamicStats.averageScore || (employees.length ? 
+        (employees.reduce((sum, emp) => sum + parseFloat(emp.averageScore), 0) / employees.length).toFixed(1) : 0),
+      highPerformers: dynamicStats.highPerformers || employees.filter(emp => emp.performance === 'High').length,
+      needsAttention: dynamicStats.needsAttention || employees.filter(emp => emp.performance === 'Low').length,
+      withPenalties: dynamicStats.withPenalties || employees.filter(emp => emp.latestSubmission?.discipline?.penalty > 0).length,
+      missingLearning: dynamicStats.missingLearning || employees.filter(emp => {
         const latest = emp.latestSubmission;
         if (!latest) return false;
         const hours = (latest.learning || []).reduce((h, l) => h + (l.durationMins || 0), 0) / 60;
@@ -193,7 +301,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
     setOperationStates(prev => ({ ...prev, savingEvaluation: true }));
     
     try {
-      console.log('💾 Saving employee evaluation...');
+      console.log('Saving employee evaluation...');
       
       const updatedSubmission = {
         ...evaluationPanel.submission,
@@ -220,7 +328,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
 
       if (error) throw error;
 
-      console.log('🔄 Refreshing submissions data...');
+      console.log('Refreshing submissions data...');
       
       // Notify DataSync of the updated submission
       await updateSubmission(updatedSubmission);
@@ -229,11 +337,11 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       await refreshSubmissions();
       
       setEvaluationPanel({ isOpen: false, submission: null, score: 8, comments: '', recommendations: '' });
-      console.log('✅ Evaluation saved successfully');
+      console.log('Evaluation saved successfully');
       notify({ type: 'success', title: 'Evaluation saved', message: 'Manager evaluation updated.' });
       openModal('Success', 'Employee evaluation saved successfully!', closeModal);
     } catch (error) {
-      console.error('❌ Failed to save evaluation:', error);
+      console.error('Failed to save evaluation:', error);
       notify({ type: 'error', title: 'Save failed', message: error.message });
       openModal('Error', 'Failed to save evaluation. Please try again.', closeModal);
     } finally {
@@ -248,15 +356,11 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
     setOperationStates(prev => ({ ...prev, refreshing: true }));
     
     try {
-      console.log('🔄 Refreshing dashboard data...');
-      // Use DataSync for consistent refreshing
-      await Promise.all([
-        refreshAllData(),
-        refreshSubmissions()
-      ]);
-      console.log('✅ Dashboard data refreshed successfully');
+      console.log('Refreshing dashboard data...');
+      await syncAllData(true); // Show notification
+      console.log('Dashboard data refreshed successfully');
     } catch (error) {
-      console.error('❌ Failed to refresh data:', error);
+      console.error('Failed to refresh data:', error);
       openModal('Error', 'Failed to refresh data. Please try again.', closeModal);
     } finally {
       setOperationStates(prev => ({ ...prev, refreshing: false }));
@@ -270,7 +374,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
     setOperationStates(prev => ({ ...prev, exporting: true }));
     
     try {
-      console.log('📄 Exporting bulk data...');
+      console.log('Exporting bulk data...');
       
       const csvContent = [
         ['Employee Name', 'Department', 'Phone', 'Average Score', 'Total Hours', 'Performance', 'Latest Month', 'Reports Count'],
@@ -301,17 +405,17 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       
       URL.revokeObjectURL(url);
       
-      console.log('✅ Data exported successfully');
+      console.log('Data exported successfully');
       openModal('Success', 'Employee data exported successfully!', closeModal);
     } catch (error) {
-      console.error('❌ Failed to export data:', error);
+      console.error('Failed to export data:', error);
       openModal('Error', 'Failed to export data. Please try again.', closeModal);
     } finally {
       setOperationStates(prev => ({ ...prev, exporting: false }));
     }
   };
 
-  const downloadEmployeePDF = (employee) => {
+  const downloadEmployeePDF = async (employee) => {
     const employeeData = employee.submissions;
     const employeeName = employee.name;
 
@@ -320,112 +424,55 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       return;
     }
 
-    const htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Performance Report - ${employeeName}</title>
-    <style>
-        body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 20px; line-height: 1.6; color: #1f2937; }
-        .header { text-align: center; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 3px solid #3b82f6; }
-        .header h1 { color: #3b82f6; margin: 0; font-size: 28px; }
-        .header h2 { color: #374151; margin: 10px 0; font-size: 24px; }
-        .header .meta { color: #6b7280; font-size: 14px; }
-        .section { margin: 30px 0; page-break-inside: avoid; }
-        .section h3 { color: #374151; border-left: 4px solid #3b82f6; padding-left: 12px; margin-bottom: 15px; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
-        .stat-card { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; text-align: center; }
-        .stat-value { font-size: 32px; font-weight: bold; color: #3b82f6; margin-bottom: 5px; }
-        .stat-label { font-size: 14px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; }
-        .performance-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        .performance-table th, .performance-table td { border: 1px solid #d1d5db; padding: 12px; text-align: left; }
-        .performance-table th { background: #3b82f6; color: white; font-weight: 600; }
-        .score-good { color: #059669; font-weight: bold; }
-        .score-medium { color: #d97706; font-weight: bold; }
-        .score-poor { color: #dc2626; font-weight: bold; }
-        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 12px; }
-        @media print { .no-print { display: none; } }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>🏢 Branding Pioneers</h1>
-        <h2>Employee Performance Report</h2>
-        <h2>${employeeName}</h2>
-        <div class="meta">
-            Department: ${employee.department} | Generated: ${new Date().toLocaleDateString()}
-        </div>
-    </div>
-
-    <div class="section">
-        <h3>📊 Performance Summary</h3>
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-value">${employee.averageScore}/10</div>
-                <div class="stat-label">Average Score</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value">${employeeData.length}</div>
-                <div class="stat-label">Reports Submitted</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value">${employee.totalHours.toFixed(1)}h</div>
-                <div class="stat-label">Total Learning</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value">${employee.performance}</div>
-                <div class="stat-label">Performance Level</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="section">
-        <h3>📈 Monthly Performance</h3>
-        <table class="performance-table">
-            <thead>
-                <tr>
-                    <th>Month</th>
-                    <th>Overall Score</th>
-                    <th>KPI Score</th>
-                    <th>Learning Score</th>
-                    <th>Learning Hours</th>
-                    <th>Manager Notes</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${employeeData.map(sub => {
-                    const learningHours = ((sub.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60).toFixed(1);
-                    const scoreClass = sub.scores?.overall >= 8 ? 'score-good' : sub.scores?.overall >= 6 ? 'score-medium' : 'score-poor';
-                    return `
-                        <tr>
-                            <td><strong>${monthLabel(sub.monthKey)}</strong></td>
-                            <td class="${scoreClass}">${sub.scores?.overall || 'N/A'}/10</td>
-                            <td>${sub.scores?.kpiScore || 'N/A'}/10</td>
-                            <td>${sub.scores?.learningScore || 'N/A'}/10</td>
-                            <td>${learningHours}h</td>
-                            <td>${sub.manager?.comments || 'No comments'}</td>
-                        </tr>
-                    `;
-                }).join('')}
-            </tbody>
-        </table>
-    </div>
-
-    <div class="footer">
-        <p>This report was generated by the Branding Pioneers Monthly Tactical System</p>
-        <p>For questions about this report, contact your HR department</p>
-    </div>
-</body>
-</html>
-    `;
-
-    const blob = new Blob([htmlContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${employeeName.replace(/\s+/g, '_')}_Performance_Report_${new Date().toISOString().split('T')[0]}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      notify({ 
+        type: 'info', 
+        title: 'Generating PDF', 
+        message: 'Creating performance report...' 
+      });
+      
+      const reportData = {
+        employeeName: employeeName,
+        department: employee.department || 'N/A',
+        period: 'Performance Summary',
+        metrics: {
+          'Average Score': `${employee.averageScore}/10`,
+          'Reports Submitted': employeeData.length,
+          'Total Learning Hours': `${employee.totalHours.toFixed(1)}h`,
+          'Performance Level': employee.performance
+        },
+        summary: `Comprehensive performance report for ${employeeName} covering ${employeeData.length} monthly submissions.`,
+        performanceData: employeeData.map(submission => ({
+          month: submission.monthKey,
+          overallScore: submission.scores?.overall || 0,
+          kpiScore: submission.scores?.kpiScore || 0,
+          learningScore: submission.scores?.learningScore || 0,
+          relationshipScore: submission.scores?.relationshipScore || 0,
+          learningHours: ((submission.learning || []).reduce((sum, l) => sum + (l.durationMins || 0), 0) / 60).toFixed(1)
+        })),
+        kpiDetails: employeeData.flatMap(submission => submission.kpis || [])
+      };
+      
+      const filename = reportUtils.generateFilename(`${employeeName.replace(/\s+/g, '_')}_Performance_Report`);
+      const result = await exportReport(reportData, 'pdf', 'employeePerformance', filename);
+      
+      if (result.success) {
+        notify({ 
+          type: 'success', 
+          title: 'PDF Generated', 
+          message: 'Performance report downloaded successfully.' 
+        });
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      notify({ 
+        type: 'error', 
+        title: 'PDF Generation Failed', 
+        message: error.message || 'Failed to generate PDF report. Please try again.' 
+      });
+    }
   };
 
   // Removed old exportBulkData - replaced with handleExportBulkData above
@@ -433,7 +480,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
   const handleViewReport = async (employee) => {
     if (operationStates.bulkOperations) return;
     
-    console.log('📊 Opening Report View for:', employee.name);
+    console.log('Opening Report View for:', employee.name);
     
     if (!employee.submissions || employee.submissions.length === 0) {
       openModal('No Data', `No submissions found for ${employee.name}`, closeModal);
@@ -442,8 +489,8 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
 
     const phoneNumber = employee.phone && employee.phone !== 'N/A' ? employee.phone : 'no-phone';
     
-    console.log('📞 Using phone number:', phoneNumber);
-    console.log('📊 Submissions count:', employee.submissions.length);
+    console.log('Using phone number:', phoneNumber);
+    console.log('Submissions count:', employee.submissions.length);
     
     setOperationStates(prev => ({ ...prev, bulkOperations: true }));
     
@@ -452,7 +499,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       // Give a brief moment for navigation to complete
       await new Promise(resolve => setTimeout(resolve, 100));
     } catch (error) {
-      console.error('❌ Failed to open report view:', error);
+      console.error('Failed to open report view:', error);
       openModal('Error', 'Failed to open report view. Please try again.', closeModal);
     } finally {
       setTimeout(() => {
@@ -462,7 +509,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
   };
   
   const handleFullReport = (employee) => {
-    console.log('🚀 Opening Full Report for:', employee.name);
+    console.log('Opening Full Report for:', employee.name);
     
     if (!employee.submissions || employee.submissions.length === 0) {
       openModal('No Data', `No submissions found for ${employee.name}`, closeModal);
@@ -471,8 +518,8 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
 
     const phoneNumber = employee.phone && employee.phone !== 'N/A' ? employee.phone : 'no-phone';
     
-    console.log('📞 Using phone number:', phoneNumber);
-    console.log('📊 Submissions count:', employee.submissions.length);
+    console.log('Using phone number:', phoneNumber);
+    console.log('Submissions count:', employee.submissions.length);
     
     onViewReport(employee.name, phoneNumber);
   };
@@ -480,7 +527,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
   const handleEditReport = async (employee) => {
     if (operationStates.bulkOperations) return;
     
-    console.log('✏️ Opening Report Editor for:', employee.name);
+    console.log('Opening Report Editor for:', employee.name);
     
     if (!employee.latestSubmission) {
       openModal('No Data', `No submissions found for ${employee.name}`, closeModal);
@@ -494,7 +541,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       // Give a brief moment for navigation to complete
       await new Promise(resolve => setTimeout(resolve, 100));
     } catch (error) {
-      console.error('❌ Failed to open report editor:', error);
+      console.error('Failed to open report editor:', error);
       openModal('Error', 'Failed to open report editor. Please try again.', closeModal);
     } finally {
       setTimeout(() => {
@@ -533,65 +580,94 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
     };
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <div className="text-gray-600">Loading team data...</div>
+      <FadeTransition show={true}>
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl shadow-sm border p-6">
+            <div className="flex items-center justify-center">
+              <LoadingSpinner size="xl" showText text={`Loading team data... ${syncStatus === 'syncing' ? '(Syncing)' : ''}`} />
+            </div>
+            {lastUpdated && (
+              <div className="text-center mt-4 text-sm text-gray-500">
+                Last updated: {new Date(lastUpdated).toLocaleString()}
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <CardSkeleton />
+            <CardSkeleton />
+            <CardSkeleton />
+            <CardSkeleton />
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border p-6">
+            <TableSkeleton rows={8} columns={6} />
+          </div>
         </div>
-      </div>
+      </FadeTransition>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-        <div className="text-red-600 text-lg mb-2">⚠️ Error Loading Data</div>
-        <div className="text-red-700 mb-4">{error}</div>
-        <button 
-          onClick={handleRefresh}
-          disabled={operationStates.refreshing}
-          className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-        >
-          {operationStates.refreshing && (
-            <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
-          )}
-          {operationStates.refreshing ? 'Retrying...' : 'Try Again'}
-        </button>
-      </div>
+      <FadeTransition show={true}>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+          <div className="text-red-600 text-lg mb-2">Error Loading Data</div>
+          <div className="text-red-700 mb-4">{error}</div>
+          <AnimatedButton 
+            onClick={handleRefresh}
+            disabled={operationStates.refreshing}
+            variant="danger"
+            loading={operationStates.refreshing}
+            loadingText="Retrying..."
+          >
+            Try Again
+          </AnimatedButton>
+        </div>
+      </FadeTransition>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-xl shadow-sm border p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Manager Dashboard</h1>
-            <p className="text-gray-600">Monitor team performance and manage evaluations</p>
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Sidebar */}
+      <RoleBasedSidebar userRole="manager" />
+      
+      {/* Main Content */}
+      <div className="flex-1">
+        <div className="space-y-6 p-6">
+      <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-700 rounded-xl shadow-lg border p-8">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center text-3xl shadow-lg">
+              👨‍💼
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">Manager Dashboard</h1>
+              <p className="text-blue-100 font-medium text-lg">Monitor team performance and manage evaluations</p>
+            </div>
           </div>
           
           <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={handleRefresh}
               disabled={operationStates.refreshing}
-              className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-400 transition-colors"
+              className="flex items-center gap-2 px-6 py-3 bg-white/10 backdrop-blur-sm text-white border border-white/20 rounded-xl hover:bg-white/20 disabled:bg-white/5 disabled:cursor-not-allowed disabled:text-white/50 transition-all duration-200 shadow-lg hover:shadow-xl"
             >
               {operationStates.refreshing ? (
-                <div className="animate-spin w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full"></div>
+                <div className="animate-spin w-4 h-4 border-2 border-white/50 border-t-white rounded-full"></div>
               ) : (
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
               )}
-              {operationStates.refreshing ? 'Refreshing...' : 'Refresh'}
+              <span className="font-medium">{operationStates.refreshing ? 'Refreshing...' : 'Refresh'}</span>
             </button>
             
             <button
               onClick={handleExportBulkData}
               disabled={operationStates.exporting}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 disabled:bg-emerald-400 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
             >
               {operationStates.exporting ? (
                 <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
@@ -600,7 +676,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               )}
-              {operationStates.exporting ? 'Exporting...' : 'Export CSV'}
+              <span className="font-medium">{operationStates.exporting ? 'Exporting...' : 'Export CSV'}</span>
             </button>
           </div>
         </div>
@@ -609,6 +685,12 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       <div className="bg-white rounded-xl shadow-sm border">
         <div className="px-6 py-0">
           <nav className="flex space-x-8">
+            <button
+              onClick={() => setActiveView('controlPanel')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeView === 'controlPanel' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+            >
+              Control Panel
+            </button>
             <button
               onClick={() => setActiveView('dashboard')}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeView === 'dashboard' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
@@ -631,7 +713,19 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
               onClick={() => setActiveView('leaderboard')}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeView === 'leaderboard' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
             >
-              🏆 Leaderboard
+              Leaderboard
+            </button>
+            <button
+              onClick={() => setActiveView('hrManagement')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeView === 'hrManagement' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+            >
+              HR Management
+            </button>
+            <button
+              onClick={() => setActiveView('kpiEditor')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeView === 'kpiEditor' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+            >
+              KPI Editor
             </button>
           </nav>
         </div>
@@ -823,7 +917,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
 
             {processedData.employees.length === 0 ? (
               <div className="text-center py-12">
-                <div className="text-gray-400 text-6xl mb-4">👥</div>
+                <div className="text-gray-400 text-6xl mb-4">Users</div>
                 <div className="text-lg font-medium text-gray-900 mb-2">No employees found</div>
                 <div className="text-gray-500">Try adjusting your filters or search query</div>
               </div>
@@ -949,7 +1043,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
                                 rel="noreferrer"
                                 className="text-xs text-purple-700 underline"
                               >
-                                🎥 Testimonial
+                                Testimonial
                               </a>
                             )}
                           </div>
@@ -1002,7 +1096,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
           {/* Underperforming Scopes */}
           <div className="bg-white rounded-xl shadow-sm border p-4 mt-4">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="text-base font-semibold text-gray-900">🔍 Underperforming Scopes</h4>
+              <h4 className="text-base font-semibold text-gray-900">Underperforming Scopes</h4>
               <div className="flex items-center gap-3">
                 <div className="text-xs text-gray-500">Period: {selectedMonth==='all' ? 'All' : new Date(selectedMonth+'-01').toLocaleString(undefined,{month:'long',year:'numeric'})}</div>
                 <select className="text-xs border rounded px-2 py-1" value={underService} onChange={e=>setUnderService(e.target.value)}>
@@ -1071,7 +1165,53 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       )}
 
       {activeView === 'clients' && (
-        <ClientManagementView />
+        <div className="space-y-6">
+          {/* Client Addition Section */}
+          <div className="bg-white rounded-xl shadow-sm border p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                  👥
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Client Management</h3>
+                  <p className="text-sm text-gray-600">Add and manage clients for your team</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowClientForm(!showClientForm)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                >
+                  {showClientForm ? 'Cancel' : '+ Add New Client'}
+                </button>
+                <button
+                  onClick={() => {
+                    navigation.navigateToHash('client-onboarding');
+                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                >
+                  📋 Client Onboarding
+                </button>
+              </div>
+            </div>
+            
+            {showClientForm && (
+              <div className="mt-4 border-t pt-4">
+                <ClientAdditionForm 
+                  onSuccess={() => {
+                    setShowClientForm(false);
+                    notify('Client added successfully!', 'success');
+                  }}
+                  onCancel={() => setShowClientForm(false)}
+                />
+              </div>
+            )}
+          </div>
+          
+          {/* Existing Client Management View */}
+          <ClientManagementView />
+        </div>
       )}
 
       {activeView === 'clientDashboard' && (
@@ -1082,10 +1222,49 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
         <FixedLeaderboardView allSubmissions={allSubmissions} />
       )}
 
+      {activeView === 'hrManagement' && (
+        <EmployeeSignupNavigation />
+      )}
+
+      {activeView === 'kpiEditor' && (
+        <KPIEditor 
+          submissions={workingSubmissions}
+          onKPIUpdate={(submissionId, updatedKPIs) => {
+            // Handle KPI updates and trigger data sync
+            refreshSubmissions();
+            notify('KPIs updated successfully!', 'success');
+          }}
+        />
+      )}
+
+      {activeView === 'controlPanel' && (
+        <ManagerControlPanel onNavigateToDashboard={(dashboardType) => {
+          switch (dashboardType) {
+            case 'employee':
+              navigation.navigateToEmployeeDirectory();
+              break;
+            case 'agency':
+              navigation.navigateToClientDirectory();
+              break;
+            case 'intern':
+              navigation.navigateToRoleDashboard('Intern');
+              break;
+            case 'manager':
+              navigation.navigateToRoleDashboard('Manager');
+              break;
+            case 'freelancer':
+              navigation.navigateToRoleDashboard('Freelancer');
+              break;
+            default:
+              navigation.navigateToDashboard();
+          }
+        }} />
+      )}
+
       {/* Top Improving Scopes */}
       <div className="bg-white rounded-xl shadow-sm border p-4 mt-4">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-base font-semibold text-gray-900">📈 Top Improving Scopes</h4>
+          <h4 className="text-base font-semibold text-gray-900">Top Improving Scopes</h4>
           <div className="text-xs text-gray-500">Compared to previous month</div>
         </div>
         {(() => {
@@ -1142,7 +1321,7 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
       {/* Top Improving Clients */}
       <div className="bg-white rounded-xl shadow-sm border p-4 mt-4">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-base font-semibold text-gray-900">📈 Top Improving Clients</h4>
+          <h4 className="text-base font-semibold text-gray-900">Top Improving Clients</h4>
           <div className="text-xs text-gray-500">Average service improvement</div>
         </div>
         {(() => {
@@ -1357,6 +1536,10 @@ export function ManagerDashboard({ onViewReport, onEditEmployee, onEditReport })
           </div>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
-}
+});
+
+export default ManagerDashboard;

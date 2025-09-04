@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Test</title>
+</head>
+<body>
+    <h1>Simple Test Page</h1>
+    <script>
+        console.log('Simple test script loaded successfully');
+        
+        // Test fetch to main app
+        fetch('/src/main.jsx')
+            .then(response => {
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers.get('content-type'));
+                return response.text();
+            })
+            .then(text => {
+                console.log('First 200 chars:', text.substring(0, 200));
+                if (text.includes('<')) {
+                    console.error('ERROR: JavaScript file contains HTML!');
+                } else {
+                    console.log('SUCCESS: JavaScript file looks correct');
+                }
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+            });
+    </script>
+</body>
+</html>

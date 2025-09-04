@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug BPTM App</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .error { color: red; background: #ffe6e6; padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .info { color: blue; background: #e6f3ff; padding: 10px; margin: 10px 0; border-radius: 4px; }
+        #app-container { border: 2px solid #ccc; min-height: 400px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>BPTM App Debug Page</h1>
+    <div id="error-log"></div>
+    <div id="info-log"></div>
+    
+    <h2>Application Container:</h2>
+    <div id="app-container">
+        <div id="root"></div>
+    </div>
+
+    <script type="module">
+        const errorLog = document.getElementById('error-log');
+        const infoLog = document.getElementById('info-log');
+        
+        function logError(message) {
+            console.error(message);
+            const div = document.createElement('div');
+            div.className = 'error';
+            div.textContent = 'ERROR: ' + message;
+            errorLog.appendChild(div);
+        }
+        
+        function logInfo(message) {
+            console.log(message);
+            const div = document.createElement('div');
+            div.className = 'info';
+            div.textContent = 'INFO: ' + message;
+            infoLog.appendChild(div);
+        }
+        
+        // Capture all errors
+        window.addEventListener('error', (e) => {
+            logError(`Global Error: ${e.message} at ${e.filename}:${e.lineno}:${e.colno}`);
+        });
+        
+        window.addEventListener('unhandledrejection', (e) => {
+            logError(`Unhandled Promise Rejection: ${e.reason}`);
+        });
+        
+        logInfo('Starting to load main application...');
+        
+        try {
+            // Try to load the main application
+            import('/src/main.jsx').then(() => {
+                logInfo('Main application loaded successfully!');
+            }).catch((error) => {
+                logError(`Failed to load main.jsx: ${error.message}`);
+                logError(`Error stack: ${error.stack}`);
+            });
+        } catch (error) {
+            logError(`Immediate error loading main.jsx: ${error.message}`);
+        }
+    </script>
+</body>
+</html>

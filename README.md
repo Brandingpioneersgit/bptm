@@ -1,4 +1,4 @@
-# Branding Pioneers – Codex (Monthly Tactical MVP)
+# BP Agency Dashboard
 
 [![Netlify Status](https://api.netlify.com/api/v1/badges/dfcaf2a4-e2a5-4e74-a3e2-eb5423ad8267/deploy-status)](https://app.netlify.com/projects/bptm/deploys)
 

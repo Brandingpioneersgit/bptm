@@ -13,8 +13,45 @@ export const CLIENT_SERVICES = [
   "Lead Generation",
   "E-commerce Management",
   "Technical Support",
-  "Consulting"
+  "Consulting",
+  "AI Tools"
 ];
+
+// Team-based service configurations
+export const TEAM_SERVICES = {
+  "Web": [
+    "Website Development",
+    "Website Maintenance",
+    "AI Tools",
+    "Technical Support",
+    "E-commerce Management",
+    "SEO",
+    "Analytics & Reporting"
+  ],
+  "Marketing": [
+    "Website Development",
+    "SEO",
+    "Google Ads",
+    "Meta Ads",
+    "Social Media Management",
+    "Content Creation",
+    "Graphic Design",
+    "Video Production",
+    "Email Marketing",
+    "Analytics & Reporting",
+    "Lead Generation"
+  ],
+  "Website": [
+    "Website Development",
+    "Website Maintenance",
+    "Technical Support"
+  ]
+};
+
+// Get available services for a specific team
+export const getServicesForTeam = (team) => {
+  return TEAM_SERVICES[team] || CLIENT_SERVICES;
+};
 
 export const DELIVERY_FREQUENCIES = [
   "Daily",
@@ -42,7 +79,8 @@ export const SERVICE_FREQUENCY_DEFAULTS = {
   "Lead Generation": "Weekly",
   "E-commerce Management": "Daily",
   "Technical Support": "As needed",
-  "Consulting": "As needed"
+  "Consulting": "As needed",
+  "AI Tools": "Monthly"
 };
 
 export const EMPTY_CLIENT = {

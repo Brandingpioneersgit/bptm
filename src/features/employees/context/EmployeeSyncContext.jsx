@@ -1,9 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useSupabase } from '@/components/SupabaseProvider';
 import { ensureEmployeesTableExists, getAllEmployees, getOrCreateEmployee, getEmployeeByIdentity } from '@/utils/createEmployeesTable.js';
+import { createErrorHandler } from '@/shared/utils/errorHandler';
+import { useToast } from '@/shared/components/Toast';
 
 const EmployeeSyncContext = createContext(null);
 
+// Custom hook - must be exported before the component for Fast Refresh compatibility
 export const useEmployeeSync = () => {
   const context = useContext(EmployeeSyncContext);
   if (!context) {
@@ -12,18 +15,117 @@ export const useEmployeeSync = () => {
   return context;
 };
 
-export const EmployeeSyncProvider = ({ children }) => {
-  const supabase = useSupabase();
+export const EmployeeSyncProvider = React.memo(({ children }) => {
+  const { supabase } = useSupabase();
+  const { notify } = useToast();
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(Date.now());
+  const [errorHandler, setErrorHandler] = useState(null);
+  
+  // Initialize error handler when supabase is available
+  useEffect(() => {
+    if (supabase && notify) {
+      setErrorHandler(createErrorHandler(supabase, notify));
+    }
+  }, [supabase, notify]);
 
   const fetchEmployees = useCallback(async (force = false, retryCount = 0) => {
     if (!supabase) {
       // Running in local mode - load from localStorage
       try {
         const localData = localStorage.getItem('codex_employees') || '[]';
-        const employees = JSON.parse(localData);
+        let employees = JSON.parse(localData);
+        
+        // If no employees found, populate with test data
+        if (employees.length === 0) {
+          console.log('No employees found in localStorage, populating with test data...');
+          const testEmployees = [
+            {
+              id: 'emp_001',
+              full_name: 'Jessica Martinez',
+              name: 'Jessica Martinez',
+              phone: '5551234567',
+              email: 'jessica.martinez@company.com',
+              department: 'Web',
+              role: ['Developer', 'Designer'],
+              status: 'Active',
+              hire_date: '2023-01-15',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            },
+            {
+              id: 'emp_002',
+              full_name: 'David Thompson',
+              name: 'David Thompson',
+              phone: '5551234568',
+              email: 'david.thompson@company.com',
+              department: 'Marketing',
+              role: ['Marketing Manager', 'Content Creator'],
+              status: 'Active',
+                hire_date: '2023-02-20',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            },
+            {
+              id: 'emp_003',
+              full_name: 'Sarah Chen',
+              name: 'Sarah Chen',
+              phone: '5551234569',
+              email: 'sarah.chen@company.com',
+              department: 'Sales',
+              role: ['Sales Executive', 'Client Manager'],
+              status: 'Active',
+                hire_date: '2023-03-10',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            },
+            {
+              id: 'emp_004',
+              full_name: 'Michael Rodriguez',
+              name: 'Michael Rodriguez',
+              phone: '5551234570',
+              email: 'michael.rodriguez@company.com',
+              department: 'HR',
+              role: ['HR Manager'],
+              status: 'Active',
+                hire_date: '2023-04-05',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            },
+            {
+              id: 'emp_005',
+              full_name: 'Emily Johnson',
+              name: 'Emily Johnson',
+              phone: '5551234571',
+              email: 'emily.johnson@company.com',
+              department: 'Web',
+              role: ['Full Stack Developer'],
+              status: 'Active',
+                hire_date: '2023-05-12',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            },
+            {
+              id: 'emp_006',
+              full_name: 'Alex Williams',
+              name: 'Alex Williams',
+              phone: '5551234572',
+              email: 'alex.williams@company.com',
+              department: 'Marketing',
+              role: ['Digital Marketing Specialist'],
+              status: 'Active',
+                hire_date: '2023-06-18',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }
+          ];
+          
+          localStorage.setItem('codex_employees', JSON.stringify(testEmployees));
+          employees = testEmployees;
+          console.log('✅ Populated localStorage with', testEmployees.length, 'test employees');
+        }
+        
         setEmployees(employees);
         setLoading(false);
         return employees;
@@ -55,15 +157,50 @@ export const EmployeeSyncProvider = ({ children }) => {
       
     } catch (error) {
       console.error('Error fetching employees in sync context:', error);
+      
+      if (errorHandler) {
+        await errorHandler.database.handleError(error, 'fetch employees');
+      } else {
+        console.warn('Error handler not available, using fallback');
+      }
+      
       setEmployees([]);
       setLoading(false);
       return [];
     }
   }, [supabase]);
 
+  // Real-time subscription for employees table
   useEffect(() => {
+    if (!supabase) {
+      // In local mode, just fetch once
+      fetchEmployees(true);
+      return;
+    }
+
+    console.log('👥 Setting up real-time employee subscriptions...');
+
+    // Subscribe to employees table changes
+    const employeesSubscription = supabase
+      .channel('employees_changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'employees' },
+        (payload) => {
+          console.log('👥 Real-time employees update:', payload.eventType);
+          // Refresh employees data when changes occur
+          fetchEmployees(true);
+        }
+      )
+      .subscribe();
+
+    // Initial fetch
     fetchEmployees(true);
-  }, [fetchEmployees]);
+
+    return () => {
+      console.log('👥 Cleaning up employee subscriptions...');
+      employeesSubscription.unsubscribe();
+    };
+  }, [supabase, fetchEmployees]);
 
   const addEmployee = useCallback(async (employeeData) => {
     if (!supabase) {
@@ -103,6 +240,18 @@ export const EmployeeSyncProvider = ({ children }) => {
       return employee;
     } catch (error) {
       console.error('Error adding employee:', error);
+      
+      if (errorHandler) {
+        await errorHandler.database.handleError(error, 'add employee', { employeeData });
+      } else {
+        notify({
+          type: 'error',
+          title: 'Failed to Add Employee',
+          message: 'Unable to add employee. Please try again.',
+          duration: 5000
+        });
+      }
+      
       return null;
     }
   }, [supabase]);
@@ -139,6 +288,18 @@ export const EmployeeSyncProvider = ({ children }) => {
       return data;
     } catch (error) {
       console.error('Error updating employee:', error);
+      
+      if (errorHandler) {
+        await errorHandler.database.handleError(error, 'update employee', { employeeData });
+      } else {
+        notify({
+          type: 'error',
+          title: 'Failed to Update Employee',
+          message: 'Unable to update employee. Please try again.',
+          duration: 5000
+        });
+      }
+      
       return null;
     }
   }, [supabase]);
@@ -206,18 +367,34 @@ export const EmployeeSyncProvider = ({ children }) => {
 
   const employeeExists = useCallback((name, phone) => {
     if (!name || !phone) return false;
-    return employees.some(employee => 
-      employee.name.trim().toLowerCase() === name.trim().toLowerCase() &&
-      employee.phone.trim() === phone.trim()
-    );
+    
+    // Normalize the input phone number (remove +91- prefix if present)
+    const normalizedInputPhone = phone.trim().replace(/^\+91-?/, '');
+    
+    return employees.some(employee => {
+      // Normalize the employee phone number for comparison
+      const normalizedEmployeePhone = employee.phone.trim().replace(/^\+91-?/, '');
+      
+      return employee.name.trim().toLowerCase() === name.trim().toLowerCase() &&
+        (normalizedEmployeePhone === normalizedInputPhone ||
+         employee.phone.trim() === phone.trim());
+    });
   }, [employees]);
 
   const findEmployeeByIdentity = useCallback((name, phone) => {
     if (!name || !phone) return null;
-    return employees.find(employee => 
-      employee.name.trim().toLowerCase() === name.trim().toLowerCase() &&
-      employee.phone.trim() === phone.trim()
-    );
+    
+    // Normalize the input phone number (remove +91- prefix if present)
+    const normalizedInputPhone = phone.trim().replace(/^\+91-?/, '');
+    
+    return employees.find(employee => {
+      // Normalize the employee phone number for comparison
+      const normalizedEmployeePhone = employee.phone.trim().replace(/^\+91-?/, '');
+      
+      return employee.name.trim().toLowerCase() === name.trim().toLowerCase() &&
+        (normalizedEmployeePhone === normalizedInputPhone ||
+         employee.phone.trim() === phone.trim());
+    });
   }, [employees]);
 
   const getEmployeeByIdentity = useCallback(async (name, phone) => {
@@ -251,7 +428,7 @@ export const EmployeeSyncProvider = ({ children }) => {
     return null;
   }, [supabase, findEmployeeByIdentity]);
 
-  const value = {
+  const value = useMemo(() => ({
     employees,
     loading,
     lastRefresh,
@@ -266,11 +443,11 @@ export const EmployeeSyncProvider = ({ children }) => {
     employeeExists,
     findEmployeeByIdentity,
     getEmployeeByIdentity
-  };
+  }), [employees, loading, lastRefresh, addEmployee, updateEmployee, removeEmployee, refreshEmployees, getEmployeesByDepartment, getEmployeesByStatus, getActiveEmployees, getEmployeeOptions, employeeExists, findEmployeeByIdentity, getEmployeeByIdentity]);
 
   return (
     <EmployeeSyncContext.Provider value={value}>
       {children}
     </EmployeeSyncContext.Provider>
   );
-};
+});

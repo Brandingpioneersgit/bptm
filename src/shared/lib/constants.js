@@ -64,7 +64,127 @@ export function daysInMonth(monthKey) {
   return new Date(y, m, 0).getDate();
 }
 
-export const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_ACCESS_TOKEN || "admin";
+// Indian holidays by month (common national holidays)
+const INDIAN_HOLIDAYS = {
+  // Fixed date holidays
+  '01-26': 'Republic Day',
+  '08-15': 'Independence Day',
+  '10-02': 'Gandhi Jayanti',
+  '12-25': 'Christmas Day',
+  
+  // Variable holidays (approximate dates - in real implementation, use a proper holiday API)
+  // These are common dates, but actual dates vary by year
+  '01-14': 'Makar Sankranti',
+  '03-08': 'Holi (approx)',
+  '04-14': 'Ram Navami (approx)',
+  '05-01': 'Labour Day',
+  '08-19': 'Janmashtami (approx)',
+  '09-02': 'Ganesh Chaturthi (approx)',
+  '10-24': 'Dussehra (approx)',
+  '11-12': 'Diwali (approx)',
+  '11-19': 'Guru Nanak Jayanti (approx)'
+};
+
+/**
+ * Calculate working days in a month excluding:
+ * - All Sundays
+ * - Alternate 2nd and 4th Saturdays
+ * - Indian national holidays
+ * 
+ * @param {string} monthKey - Format: "YYYY-MM"
+ * @returns {number} Number of working days
+ */
+export function workingDaysInMonth(monthKey) {
+  const [y, m] = (monthKey || "").split("-").map(Number);
+  if (!y || !m) return 22; // Default fallback
+  
+  const totalDays = new Date(y, m, 0).getDate();
+  let workingDays = 0;
+  
+  // Track which Saturdays we've encountered
+  let saturdayCount = 0;
+  
+  for (let day = 1; day <= totalDays; day++) {
+    const date = new Date(y, m - 1, day);
+    const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+    
+    // Skip Sundays
+    if (dayOfWeek === 0) {
+      continue;
+    }
+    
+    // Handle alternate Saturdays (2nd and 4th)
+    if (dayOfWeek === 6) {
+      saturdayCount++;
+      // Skip 2nd and 4th Saturdays (alternate Saturdays)
+      if (saturdayCount === 2 || saturdayCount === 4) {
+        continue;
+      }
+    }
+    
+    // Check for Indian holidays
+    const monthDay = `${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    if (INDIAN_HOLIDAYS[monthDay]) {
+      continue;
+    }
+    
+    // If we reach here, it's a working day
+    workingDays++;
+  }
+  
+  return workingDays;
+}
+
+/**
+ * Get working days information for a month
+ * @param {string} monthKey - Format: "YYYY-MM"
+ * @returns {object} Object with working days details
+ */
+export function getWorkingDaysInfo(monthKey) {
+  const [y, m] = (monthKey || "").split("-").map(Number);
+  if (!y || !m) return { total: 31, working: 22, holidays: [], weekends: [] };
+  
+  const totalDays = new Date(y, m, 0).getDate();
+  const holidays = [];
+  const weekends = [];
+  let saturdayCount = 0;
+  
+  for (let day = 1; day <= totalDays; day++) {
+    const date = new Date(y, m - 1, day);
+    const dayOfWeek = date.getDay();
+    const monthDay = `${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    
+    // Track Sundays
+    if (dayOfWeek === 0) {
+      weekends.push({ day, type: 'Sunday' });
+    }
+    
+    // Track alternate Saturdays
+    if (dayOfWeek === 6) {
+      saturdayCount++;
+      if (saturdayCount === 2 || saturdayCount === 4) {
+        weekends.push({ day, type: `${saturdayCount === 2 ? '2nd' : '4th'} Saturday` });
+      }
+    }
+    
+    // Track holidays
+    if (INDIAN_HOLIDAYS[monthDay]) {
+      holidays.push({ day, name: INDIAN_HOLIDAYS[monthDay] });
+    }
+  }
+  
+  return {
+    total: totalDays,
+    working: workingDaysInMonth(monthKey),
+    holidays,
+    weekends
+  };
+}
+
+// DEPRECATED: Use secureConfig.validateAdminToken() instead
+// This is kept for backward compatibility only
+import { ADMIN_TOKEN as SECURE_ADMIN_TOKEN } from '../config/secureConfig.js';
+export const ADMIN_TOKEN = SECURE_ADMIN_TOKEN;
 
 export const EMPTY_SUBMISSION = {
   monthKey: prevMonthKey(thisMonthKey()),

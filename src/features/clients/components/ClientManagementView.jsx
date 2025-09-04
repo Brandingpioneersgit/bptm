@@ -1,16 +1,17 @@
 import React, { useMemo, useEffect, useState, useCallback } from "react";
 import { useSupabase } from "@/components/SupabaseProvider";
-import { CLIENT_SERVICES, DELIVERY_FREQUENCIES, createServiceObject, EMPTY_CLIENT } from "@/shared/services/clientServices";
-import { getClientRepository } from "@/shared/services/ClientRepository";
+import { CLIENT_SERVICES, DELIVERY_FREQUENCIES, createServiceObject, EMPTY_CLIENT } from "@/features/clients/services/clientServices";
+import { getClientRepository } from "@/features/clients/services/ClientRepository";
 import { 
   useEnhancedClientCreation, 
   ClientCreationStatus, 
   DuplicateNameChecker 
 } from "@/components/ClientCreationEnhancements";
 import { useDataSync } from "@/components/DataSyncContext";
-import { ImageUpload } from "@/components/ImageUpload";
+// import { ImageUpload } from "@/components/ImageUpload"; // Component not found
 import { ClientLogo } from "@/shared/components/ImageDisplay";
 import { useToast } from "@/shared/components/Toast";
+import { useAutoSave, useAutoSaveKey } from "@/shared/hooks/useAutoSave";
 
 export function ClientManagementView() {
   const supabase = useSupabase();
@@ -42,6 +43,28 @@ export function ClientManagementView() {
   const [newClient, setNewClient] = useState({
     ...EMPTY_CLIENT
   });
+
+  // Auto-save functionality for client creation form
+  const autoSaveKey = useAutoSaveKey('client_form', {
+    name: newClient.name,
+    team: newClient.team || 'new'
+  });
+  
+  const {
+    lastSaved,
+    isSaving,
+    hasUnsavedChanges,
+    saveNow,
+    loadSavedData,
+    clearSavedData
+  } = useAutoSave(
+    newClient,
+    autoSaveKey,
+    showCreateForm && (newClient.name || newClient.scope_notes), // Only auto-save when form is open and has data
+    2000, // 2 second debounce
+    (savedData) => console.log('💾 Client form auto-saved'),
+    (error) => notify({ type: 'error', title: 'Auto-save failed', message: error.message })
+  );
 
   const [editingClient, setEditingClient] = useState(null);
   const [showServicesModal, setShowServicesModal] = useState(false);
@@ -119,7 +142,7 @@ export function ClientManagementView() {
     try {
       // Basic validation
       if (!newClient.name || !newClient.name.trim()) {
-        alert('Please enter a client name');
+        notify({ type: 'error', title: 'Validation Error', message: 'Please enter a client name' });
         return;
       }
 
@@ -143,12 +166,45 @@ export function ClientManagementView() {
         setShowCreateForm(false);
         setNewClient({ ...EMPTY_CLIENT });
         setSelectedServices([]);
+        
+        // Clear auto-saved data after successful creation
+        clearSavedData();
+        
         notify({ type: 'success', title: 'Client created', message: created.name });
       }
     } catch (error) {
       notify({ type: 'error', title: 'Client create failed', message: error.message });
     }
   };
+
+  // Load saved draft when form opens
+  useEffect(() => {
+    if (showCreateForm && autoSaveKey) {
+      const savedData = loadSavedData();
+      if (savedData && (savedData.name || savedData.scope_notes)) {
+        // Only load if there's meaningful data
+        setNewClient(savedData);
+        notify({ 
+          type: 'info', 
+          title: 'Draft restored', 
+          message: 'Your previous work has been restored' 
+        });
+      }
+    }
+  }, [showCreateForm, autoSaveKey, loadSavedData, notify]);
+
+  // Clear draft when form is closed without saving
+  const handleCancelCreate = useCallback(() => {
+    if (hasUnsavedChanges) {
+      const shouldDiscard = window.confirm('You have unsaved changes. Discard them?');
+      if (!shouldDiscard) return;
+    }
+    
+    setShowCreateForm(false);
+    setNewClient({ ...EMPTY_CLIENT });
+    setSelectedServices([]);
+    clearSavedData();
+  }, [hasUnsavedChanges, clearSavedData]);
 
   const handleUpdateClient = async (client) => {
     try {
@@ -241,6 +297,7 @@ export function ClientManagementView() {
               >
                 <option>Web</option>
                 <option>Marketing</option>
+                <option>Website</option>
               </select>
             </div>
             <div>
@@ -283,10 +340,47 @@ export function ClientManagementView() {
             </div>
           </div>
 
+          {/* Auto-save status */}
+          {autoSaveKey && (
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                {isSaving ? (
+                  <div className="flex items-center gap-2 text-yellow-600">
+                    <div className="animate-spin w-3 h-3 border-2 border-yellow-600 border-t-transparent rounded-full"></div>
+                    <span>Saving...</span>
+                  </div>
+                ) : lastSaved ? (
+                  <div className="flex items-center gap-2 text-green-600">
+                    <div className="w-3 h-3 bg-green-600 rounded-full"></div>
+                    <span>Saved {new Date().getTime() - lastSaved.getTime() < 10000 ? 'just now' : 'automatically'}</span>
+                  </div>
+                ) : hasUnsavedChanges ? (
+                  <div className="flex items-center gap-2 text-orange-600">
+                    <div className="w-3 h-3 bg-orange-600 rounded-full"></div>
+                    <span>Unsaved changes</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                    <span>Ready</span>
+                  </div>
+                )}
+              </div>
+              {hasUnsavedChanges && (
+                <button
+                  onClick={saveNow}
+                  className="text-blue-600 hover:text-blue-800 underline"
+                >
+                  Save Now
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="flex justify-end gap-2">
             <button
               className="rounded-xl px-4 py-2 border"
-              onClick={() => setShowCreateForm(false)}
+              onClick={handleCancelCreate}
             >
               Cancel
             </button>

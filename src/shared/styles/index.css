@@ -2,3 +2,171 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Brand Colors */
+:root {
+  --brand-primary: #2563eb; /* Blue-600 */
+  --brand-primary-light: #3b82f6; /* Blue-500 */
+  --brand-primary-dark: #1d4ed8; /* Blue-700 */
+  --brand-secondary: #64748b; /* Slate-500 */
+  --brand-accent: #06b6d4; /* Cyan-500 */
+  --brand-success: #10b981; /* Emerald-500 */
+  --brand-warning: #f59e0b; /* Amber-500 */
+  --brand-error: #ef4444; /* Red-500 */
+  --brand-surface: #ffffff;
+  --brand-surface-secondary: #f8fafc; /* Slate-50 */
+  --brand-text: #0f172a; /* Slate-900 */
+  --brand-text-secondary: #475569; /* Slate-600 */
+}
+
+/* Dark mode base styles */
+@layer base {
+  html {
+    @apply transition-colors duration-300;
+  }
+  
+  html.dark {
+    color-scheme: dark;
+    --brand-surface: #0f172a; /* Slate-900 */
+    --brand-surface-secondary: #1e293b; /* Slate-800 */
+    --brand-text: #f1f5f9; /* Slate-100 */
+    --brand-text-secondary: #cbd5e1; /* Slate-300 */
+  }
+  
+  html.light {
+    color-scheme: light;
+  }
+  
+  body {
+    @apply bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100;
+  }
+}
+
+/* News Ticker Animation */
+@keyframes scroll {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-scroll {
+  animation: scroll 30s linear infinite;
+}
+
+/* Custom scrollbar for dark mode */
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    @apply bg-gray-100 dark:bg-dark-800;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-dark-600 rounded-full;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-dark-500;
+  }
+}
+
+/* Brand utility classes */
+@layer components {
+  .theme-transition {
+    @apply transition-colors duration-300 ease-in-out;
+  }
+  
+  /* Brand Colors */
+  .bg-brand-primary {
+    background-color: var(--brand-primary);
+  }
+  
+  .bg-brand-primary-light {
+    background-color: var(--brand-primary-light);
+  }
+  
+  .bg-brand-surface {
+    background-color: var(--brand-surface);
+  }
+  
+  .bg-brand-surface-secondary {
+    background-color: var(--brand-surface-secondary);
+  }
+  
+  .text-brand-primary {
+    color: var(--brand-primary);
+  }
+  
+  .text-brand-text {
+    color: var(--brand-text);
+  }
+  
+  .text-brand-text-secondary {
+    color: var(--brand-text-secondary);
+  }
+  
+  .border-brand-primary {
+    border-color: var(--brand-primary);
+  }
+  
+  /* Button Styles */
+  .btn-brand-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200;
+  }
+  
+  .btn-brand-secondary {
+    @apply bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium transition-colors duration-200;
+  }
+  
+  .btn-brand-outline {
+    @apply border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200;
+  }
+  
+  /* Card Styles */
+  .card-brand {
+    @apply bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm theme-transition;
+  }
+  
+  .card-brand-elevated {
+    @apply bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg theme-transition;
+  }
+  
+  /* Legacy theme classes for compatibility */
+  .text-theme {
+    @apply text-slate-900 dark:text-slate-100 theme-transition;
+  }
+  
+  .text-theme-secondary {
+    @apply text-slate-600 dark:text-slate-300 theme-transition;
+  }
+  
+  .text-theme-muted {
+    @apply text-slate-500 dark:text-slate-400 theme-transition;
+  }
+  
+  .bg-theme {
+    @apply bg-slate-50 dark:bg-slate-900 theme-transition;
+  }
+  
+  .bg-theme-secondary {
+    @apply bg-slate-100 dark:bg-slate-800 theme-transition;
+  }
+  
+  .border-theme {
+    @apply border-slate-200 dark:border-slate-600 theme-transition;
+  }
+  
+  .shadow-theme {
+    @apply shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50 theme-transition;
+  }
+}
+

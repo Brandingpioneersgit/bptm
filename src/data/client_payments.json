@@ -1,0 +1,191 @@
+[
+  {
+    "client_id": "0376529f-a354-43b1-8153-01b22dfbe7d5",
+    "payment_month": "2025-08-01",
+    "amount": 12000,
+    "payment_date": null,
+    "bank": null,
+    "status": "Pending",
+    "remarks": "",
+    "payment_type": "recurring"
+  },
+  {
+    "client_id": "8445b03d-c165-46f3-8474-a2fa658cefe9",
+    "payment_month": "2025-08-01",
+    "amount": 8500,
+    "payment_date": null,
+    "bank": null,
+    "status": "Pending",
+    "remarks": "",
+    "payment_type": "recurring"
+  },
+  {
+    "client_id": "0fb54da0-ba21-42fe-b390-3ff96fd32335",
+    "payment_month": "2025-08-01",
+    "amount": 15000,
+    "payment_date": null,
+    "bank": null,
+    "status": "Overdue",
+    "remarks": "Payment delayed",
+    "payment_type": "recurring"
+  },
+  {
+    "client_id": "39bca38f-5421-4fc3-bfb9-94dadd6f4503",
+    "payment_month": "2025-08-01",
+    "amount": 4500,
+    "payment_date": null,
+    "bank": null,
+    "status": "Overdue",
+    "remarks": "Payment delayed",
+    "payment_type": "recurring"
+  },
+  {
+    "client_id": "bf24f877-1d1e-42c3-b81f-a93a130c0583",
+    "payment_month": "2025-08-01",
+    "amount": 3800,
+    "payment_date": null,
+    "bank": null,
+    "status": "Pending",
+    "remarks": "",
+    "payment_type": "recurring"
+  },
+  {
+    "client_id": "7161b898-a401-4d8c-9820-8aab52a3ffcc",
+    "payment_month": "2025-08-01",
+    "amount": 18000,
+    "payment_date": "2025-07-31",
+    "bank": "HDFC - Medappz",
+    "status": "Paid",
+    "remarks": "Full payment received",
+    "payment_type": "recurring"
+  },
+  {
+    "client_id": "c5cde897-4cb8-4dd8-bf7f-1a7d73651eab",
+    "payment_month": "2025-08-01",
+    "amount": 5103.75,
+    "payment_date": "2025-08-01",
+    "bank": "Kotak BP",
+    "status": "Partial",
+    "remarks": "Partial payment received"
+  },
+  {
+    "client_id": "89016200-ac0f-45c3-8e1c-f23dc74f7ab6",
+    "payment_month": "2025-08-01",
+    "amount": 7200,
+    "payment_date": "2025-08-16",
+    "bank": "Kotak BP",
+    "status": "Paid",
+    "remarks": "Full payment received"
+  },
+  {
+    "client_id": "f2b29ed5-6b08-46c7-88ce-5112c5722d94",
+    "payment_month": "2025-08-01",
+    "amount": 11000,
+    "payment_date": null,
+    "bank": null,
+    "status": "Pending",
+    "remarks": ""
+  },
+  {
+    "client_id": "c6d9fb14-9ccf-4b7d-a5d6-80c6cbb167c3",
+    "payment_month": "2025-08-01",
+    "amount": 0,
+    "payment_date": null,
+    "bank": null,
+    "status": "Pending",
+    "remarks": ""
+  },
+  {
+    "client_id": "0376529f-a354-43b1-8153-01b22dfbe7d5",
+    "payment_month": "2025-07-01",
+    "amount": 12000,
+    "payment_date": "2025-07-03",
+    "bank": "HDFC BP",
+    "status": "Paid",
+    "remarks": "Full payment received"
+  },
+  {
+    "client_id": "8445b03d-c165-46f3-8474-a2fa658cefe9",
+    "payment_month": "2025-07-01",
+    "amount": 8500,
+    "payment_date": "2025-07-13",
+    "bank": "Kotak BP",
+    "status": "Paid",
+    "remarks": "Full payment received"
+  },
+  {
+    "client_id": "0fb54da0-ba21-42fe-b390-3ff96fd32335",
+    "payment_month": "2025-07-01",
+    "amount": 15000,
+    "payment_date": "2025-07-23",
+    "bank": "AXIS BP",
+    "status": "Paid",
+    "remarks": "Full payment received"
+  },
+  {
+    "client_id": "39bca38f-5421-4fc3-bfb9-94dadd6f4503",
+    "payment_month": "2025-07-01",
+    "amount": 4500,
+    "payment_date": "2025-07-06",
+    "bank": "AXIS BP",
+    "status": "Paid",
+    "remarks": "Full payment received"
+  },
+  {
+    "client_id": "bf24f877-1d1e-42c3-b81f-a93a130c0583",
+    "payment_month": "2025-07-01",
+    "amount": 3800,
+    "payment_date": "2025-07-18",
+    "bank": "HDFC BP",
+    "status": "Paid",
+    "remarks": "Full payment received"
+  },
+  {
+    "client_id": "7161b898-a401-4d8c-9820-8aab52a3ffcc",
+    "payment_month": "2025-07-01",
+    "amount": 18000,
+    "payment_date": "2025-07-17",
+    "bank": "Kotak BP",
+    "status": "Paid",
+    "remarks": "Full payment received"
+  },
+  {
+    "client_id": "c5cde897-4cb8-4dd8-bf7f-1a7d73651eab",
+    "payment_month": "2025-07-01",
+    "amount": 9500,
+    "payment_date": null,
+    "bank": null,
+    "status": "Overdue",
+    "remarks": "Payment delayed"
+  },
+  {
+    "client_id": "89016200-ac0f-45c3-8e1c-f23dc74f7ab6",
+    "payment_month": "2025-07-01",
+    "amount": 4476.93,
+    "payment_date": "2025-07-15",
+    "bank": "AXIS BP",
+    "status": "Partial",
+    "remarks": "Partial payment received"
+  },
+  {
+    "client_id": "f2b29ed5-6b08-46c7-88ce-5112c5722d94",
+    "payment_month": "2025-07-01",
+    "amount": 11000,
+    "payment_date": "2025-07-19",
+    "bank": "Kotak BP",
+    "status": "Paid",
+    "remarks": "Full payment received"
+  },
+  {
+    "client_id": "c6d9fb14-9ccf-4b7d-a5d6-80c6cbb167c3",
+    "payment_month": "2025-07-01",
+    "amount": 25000,
+    "payment_date": "2025-07-12",
+    "bank": "Kotak BP",
+    "status": "Partial",
+    "payment_type": "web",
+    "advance_amount": 25000,
+    "pending_amount": 25000,
+    "remarks": "Advance payment received"
+  }
+]

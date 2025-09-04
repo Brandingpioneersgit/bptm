@@ -10,93 +10,30 @@
  */
 
 import React, { useState, useCallback, useRef } from 'react';
+import { unifiedValidator } from '@/shared/utils/unifiedValidation.js';
 
-// Validation utilities
+// Legacy validation utilities - use unifiedValidator for new code
 export const ClientValidation = {
   validateClientName: (name) => {
-    const errors = [];
-    if (!name || !name.trim()) {
-      errors.push('Client name is required');
-    } else if (name.trim().length < 2) {
-      errors.push('Client name must be at least 2 characters');
-    } else if (name.trim().length > 100) {
-      errors.push('Client name cannot exceed 100 characters');
-    } else if (!/^[a-zA-Z0-9\s&.,'-]+$/.test(name.trim())) {
-      errors.push('Client name contains invalid characters');
-    }
-    return errors;
+    const result = unifiedValidator.validateField('client.name', name);
+    return result.isValid ? [] : result.errors;
   },
 
   validateServices: (services) => {
-    const errors = [];
-    if (!services || services.length === 0) {
-      errors.push('At least one service must be selected');
-    } else if (services.length > 10) {
-      errors.push('Maximum 10 services can be selected');
-    }
-    return errors;
+    const result = unifiedValidator.validateField('client.services', services);
+    return result.isValid ? [] : result.errors;
   },
 
   validateClientData: (clientData, existingClients = []) => {
-    const errors = {};
-    const warnings = [];
-
-    // Name validation
-    const nameErrors = ClientValidation.validateClientName(clientData.name);
-    if (nameErrors.length > 0) {
-      errors.name = nameErrors[0];
-    }
-
-    // Duplicate name check
-    if (clientData.name && existingClients.some(c => 
-      c.name.toLowerCase().trim() === clientData.name.toLowerCase().trim()
-    )) {
-      errors.name = 'A client with this name already exists';
-    }
-
-    // Team validation
-    if (!clientData.team) {
-      errors.team = 'Team assignment is required';
-    }
-
-    // Client type validation
-    if (!clientData.client_type) {
-      errors.client_type = 'Client type must be selected';
-    }
-
-    // Services validation (if provided)
-    if (clientData.services && clientData.services.length > 0) {
-      const serviceErrors = ClientValidation.validateServices(clientData.services);
-      if (serviceErrors.length > 0) {
-        errors.services = serviceErrors[0];
-      }
-    } else {
-      warnings.push('No services selected - you can add them later');
-    }
-
-    // Contact email validation (if provided)
-    if (clientData.contact_email && clientData.contact_email.trim()) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(clientData.contact_email.trim())) {
-        errors.contact_email = 'Please enter a valid email address';
-      }
-    }
-
-    // Contact phone validation (if provided)
-    if (clientData.contact_phone && clientData.contact_phone.trim()) {
-      const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-      if (!phoneRegex.test(clientData.contact_phone.replace(/\s|-|\(|\)/g, ''))) {
-        errors.contact_phone = 'Please enter a valid phone number';
-      }
-    }
-
+    const validation = unifiedValidator.validateClientData(clientData, existingClients);
     return {
-      errors,
-      warnings,
-      isValid: Object.keys(errors).length === 0
+      errors: validation.errors,
+      warnings: validation.warnings
     };
   }
 };
+
+// Note: Validation logic has been moved to unifiedValidation.js
 
 // Enhanced client creation hook
 export const useEnhancedClientCreation = (supabase, onSuccess, onError) => {

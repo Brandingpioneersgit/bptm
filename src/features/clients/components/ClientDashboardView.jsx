@@ -74,7 +74,10 @@ export function ClientDashboardView() {
     return clients.filter(client => client.team === selectedTeam);
   }, [clients, selectedTeam]);
 
-  const clientOptions = filteredClients.map(c => ({ label: c.name, value: c.id }));
+  const clientOptions = useMemo(() => 
+    filteredClients.map(c => ({ label: c.name, value: c.id })),
+    [filteredClients]
+  );
 
   const selectedClientData = useMemo(() => {
     if (!selectedClient) return null;
@@ -85,7 +88,11 @@ export function ClientDashboardView() {
     const submissionsForClient = (allSubmissions || []).filter(s => 
       (s.clients || []).some(c => c.name === client.name)
     );
-    const latestSubmission = [...submissionsForClient].sort((a,b) => b.monthKey.localeCompare(a.monthKey))[0] || null;
+    const latestSubmission = submissionsForClient.length > 0 
+      ? submissionsForClient.reduce((latest, current) => 
+          current.monthKey > latest.monthKey ? current : latest
+        )
+      : null;
     return {
       client,
       submissions: submissionsForClient,

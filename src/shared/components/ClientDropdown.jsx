@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useClientSync } from '@/features/clients/context/ClientSyncContext';
-import { MultiSelect } from './ui';
+import { useDataSync } from '@/components/DataSyncContext';
+import SearchableDropdown from './SearchableDropdown';
+import ClientDataPriorityIndicator from '@/components/ClientDataPriorityIndicator';
 
 const ClientDropdown = ({ 
   value = '', 
@@ -17,10 +18,28 @@ const ClientDropdown = ({
   const { 
     clients, 
     loading, 
-    getClientOptions, 
-    findClientByName, 
     addClient 
-  } = useClientSync();
+  } = useDataSync();
+  
+  // Helper functions to match ClientSyncContext API
+  const getClientOptions = () => {
+    const activeClients = clients.filter(client => client.status === 'Active');
+    return activeClients.map(client => ({
+      value: client.name,
+      label: client.name,
+      name: client.name,
+      id: client.id,
+      services: client.services || [],
+      team: client.team,
+      client_type: client.client_type
+    }));
+  };
+  
+  const findClientByName = (clientName) => {
+    if (!clientName || !clientName.trim()) return null;
+    const normalizedName = clientName.trim().toLowerCase();
+    return clients.find(client => client.name.toLowerCase().trim() === normalizedName);
+  };
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState(null);
@@ -95,12 +114,17 @@ const ClientDropdown = ({
   }, [clients, onChange, onClientSelect]);
 
   // Create new client when needed
-  const handleCreateClient = useCallback(async (clientData) => {
-    if (!allowCreate) return null;
+  const handleCreateClient = useCallback(async (clientName) => {
+    if (!allowCreate || !clientName.trim()) return null;
     
     setIsCreatingNew(true);
     try {
-      const newClient = await addClient(clientData);
+      const newClient = await addClient({
+        name: clientName.trim(),
+        status: 'Active',
+        team: team || 'General',
+        client_type: 'Standard'
+      });
       if (newClient) {
         setSelectedClient(newClient);
         setSearchTerm(newClient.name);
@@ -119,7 +143,7 @@ const ClientDropdown = ({
     } finally {
       setIsCreatingNew(false);
     }
-  }, [allowCreate, addClient, onClientSelect, onChange]);
+  }, [allowCreate, addClient, onClientSelect, onChange, team]);
 
   // Update search term when value prop changes
   useEffect(() => {
@@ -154,47 +178,63 @@ const ClientDropdown = ({
       )}
       
       <div className="relative">
-        <MultiSelect
+        <SearchableDropdown
           options={filteredOptions}
-          value={selectedClient ? selectedClient.name : ''}
-          onChange={handleClientSelect}
+          value={selectedClient ? selectedClient.name : searchTerm}
+          onChange={(selectedValue) => {
+            // If it's a new client name (string), create it
+            if (typeof selectedValue === 'string' && !clientOptions.find(opt => opt.value === selectedValue)) {
+              if (allowCreate) {
+                handleCreateClient(selectedValue);
+              }
+            } else {
+              // Handle existing client selection
+              handleClientSelect(selectedValue);
+            }
+          }}
           onInputChange={handleInputChange}
           placeholder={placeholder}
           disabled={disabled || loading}
-          searchable
+          searchable={true}
           creatable={allowCreate}
           isLoading={loading || isCreatingNew}
           className="w-full"
+          onCreateNew={allowCreate ? handleCreateClient : undefined}
         />
         
         {/* Client info display */}
         {selectedClient && (
-          <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-900">
-                  {selectedClient.name}
-                </p>
-                <p className="text-xs text-green-700">
-                  {selectedClient.team} • {selectedClient.status}
-                </p>
-                {selectedClient.services && selectedClient.services.length > 0 && (
-                  <p className="text-xs text-green-600 mt-1">
-                    Services: {Array.isArray(selectedClient.services) 
-                      ? selectedClient.services.join(', ') 
-                      : selectedClient.services}
+          <div className="mt-2 space-y-2">
+            <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-green-900">
+                    {selectedClient.name}
                   </p>
-                )}
-                {selectedClient.scope_of_work && (
-                  <p className="text-xs text-green-600 mt-1">
-                    Scope: {selectedClient.scope_of_work}
+                  <p className="text-xs text-green-700">
+                    {selectedClient.team} • {selectedClient.status}
                   </p>
-                )}
-              </div>
-              <div className="text-xs text-green-500">
-                Auto-populated
+                  {selectedClient.services && selectedClient.services.length > 0 && (
+                    <p className="text-xs text-green-600 mt-1">
+                      Services: {Array.isArray(selectedClient.services) 
+                        ? selectedClient.services.join(', ') 
+                        : selectedClient.services}
+                    </p>
+                  )}
+                  {selectedClient.scope_of_work && (
+                    <p className="text-xs text-green-600 mt-1">
+                      Scope: {selectedClient.scope_of_work}
+                    </p>
+                  )}
+                </div>
+                <div className="text-xs text-green-500">
+                  Auto-populated
+                </div>
               </div>
             </div>
+            
+            {/* Client Data Priority Information */}
+            <ClientDataPriorityIndicator clientName={selectedClient.name} />
           </div>
         )}
         

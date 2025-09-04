@@ -1,0 +1,95 @@
+[
+  {
+    "id": "0376529f-a354-43b1-8153-01b22dfbe7d5",
+    "name": "TechCorp Solutions",
+    "monthly_retainer": 12000,
+    "contract_start_date": null,
+    "due_day": 27,
+    "plan_amount": 12000,
+    "client_type": "recurring"
+  },
+  {
+    "id": "8445b03d-c165-46f3-8474-a2fa658cefe9",
+    "name": "E-Commerce Plus",
+    "monthly_retainer": 8500,
+    "contract_start_date": null,
+    "due_day": 9,
+    "plan_amount": 8500,
+    "client_type": "recurring"
+  },
+  {
+    "id": "0fb54da0-ba21-42fe-b390-3ff96fd32335",
+    "name": "Digital Marketing Pro",
+    "monthly_retainer": 15000,
+    "contract_start_date": null,
+    "due_day": 20,
+    "plan_amount": 15000,
+    "client_type": "recurring"
+  },
+  {
+    "id": "39bca38f-5421-4fc3-bfb9-94dadd6f4503",
+    "name": "Local Restaurant Chain",
+    "monthly_retainer": 4500,
+    "contract_start_date": null,
+    "due_day": 1,
+    "plan_amount": 4500,
+    "client_type": "recurring"
+  },
+  {
+    "id": "bf24f877-1d1e-42c3-b81f-a93a130c0583",
+    "name": "Fitness Studio Network",
+    "monthly_retainer": 3800,
+    "contract_start_date": null,
+    "due_day": 12,
+    "plan_amount": 3800,
+    "client_type": "recurring"
+  },
+  {
+    "id": "7161b898-a401-4d8c-9820-8aab52a3ffcc",
+    "name": "B2B Software Solutions",
+    "monthly_retainer": 18000,
+    "contract_start_date": null,
+    "due_day": 12,
+    "plan_amount": 18000,
+    "client_type": "recurring"
+  },
+  {
+    "id": "c5cde897-4cb8-4dd8-bf7f-1a7d73651eab",
+    "name": "Supply Chain Logistics",
+    "monthly_retainer": 9500,
+    "contract_start_date": null,
+    "due_day": 26,
+    "plan_amount": 9500,
+    "client_type": "recurring"
+  },
+  {
+    "id": "89016200-ac0f-45c3-8e1c-f23dc74f7ab6",
+    "name": "Corporate HR Services",
+    "monthly_retainer": 7200,
+    "contract_start_date": null,
+    "due_day": 4,
+    "plan_amount": 7200,
+    "client_type": "recurring"
+  },
+  {
+    "id": "f2b29ed5-6b08-46c7-88ce-5112c5722d94",
+    "name": "Financial Advisory Group",
+    "monthly_retainer": 11000,
+    "contract_start_date": null,
+    "due_day": 13,
+    "plan_amount": 11000,
+    "client_type": "recurring"
+  },
+  {
+    "id": "c6d9fb14-9ccf-4b7d-a5d6-80c6cbb167c3",
+    "name": "Test Client Fixed",
+    "monthly_retainer": null,
+    "contract_start_date": "2024-01-15",
+    "due_day": 14,
+    "plan_amount": 50000,
+    "client_type": "web",
+    "total_amount": 50000,
+    "advance_amount": 25000,
+    "pending_amount": 25000
+  }
+]

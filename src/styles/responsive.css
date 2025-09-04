@@ -1,0 +1,196 @@
+/* Mobile-First Responsive Dashboard Styles */
+
+/* Container utilities for consistent spacing */
+.dashboard-container {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+.dashboard-spacing {
+  @apply space-y-4 sm:space-y-6;
+}
+
+/* Responsive Grid Systems */
+.dashboard-grid {
+  @apply grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6;
+}
+
+.metrics-grid {
+  @apply grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4;
+}
+
+.stats-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4;
+}
+
+.quick-actions-grid {
+  @apply grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3;
+}
+
+/* Card layouts */
+.dashboard-card {
+  @apply bg-white rounded-lg shadow-sm border p-4 sm:p-6;
+}
+
+.metric-card {
+  @apply bg-white rounded-lg shadow-sm border p-3 sm:p-4;
+}
+
+/* Header responsive patterns */
+.dashboard-header {
+  @apply bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-lg text-white;
+}
+
+.dashboard-header-content {
+  @apply p-4 sm:p-6;
+}
+
+.dashboard-header-flex {
+  @apply flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4;
+}
+
+.dashboard-title {
+  @apply text-2xl sm:text-3xl font-bold mb-2;
+}
+
+.dashboard-subtitle {
+  @apply text-blue-100 text-sm sm:text-base;
+}
+
+/* Button responsive patterns */
+.mobile-button {
+  @apply px-3 py-2 text-sm sm:px-4 sm:py-2 sm:text-base;
+}
+
+.responsive-button {
+  @apply flex items-center gap-2 px-3 py-2 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg transition-colors;
+}
+
+/* Navigation and tab patterns */
+.mobile-tabs {
+  @apply flex overflow-x-auto scrollbar-hide gap-1 sm:gap-2 p-1;
+}
+
+.mobile-tab {
+  @apply px-3 py-2 text-xs sm:text-sm whitespace-nowrap rounded-lg transition-colors;
+}
+
+/* Modal and overlay patterns */
+@media (max-width: 640px) {
+  .mobile-modal {
+    @apply fixed inset-x-0 bottom-0 top-auto rounded-t-lg;
+  }
+  
+  .mobile-drawer {
+    @apply fixed inset-y-0 left-0 w-full max-w-sm z-50;
+  }
+}
+
+/* Table responsive patterns */
+.responsive-table-container {
+  @apply overflow-x-auto -mx-4 sm:mx-0;
+}
+
+.responsive-table {
+  @apply min-w-full divide-y divide-gray-200;
+}
+
+/* Hide/show patterns */
+.mobile-hidden {
+  @apply hidden sm:block;
+}
+
+.mobile-only {
+  @apply block sm:hidden;
+}
+
+.tablet-hidden {
+  @apply hidden md:block;
+}
+
+.desktop-only {
+  @apply hidden lg:block;
+}
+
+/* Touch-friendly sizing */
+.touch-target {
+  @apply min-h-[44px] min-w-[44px];
+}
+
+/* Form responsive patterns */
+.responsive-form {
+  @apply space-y-4 sm:space-y-6;
+}
+
+.responsive-form-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6;
+}
+
+.responsive-input {
+  @apply w-full px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+}
+
+/* Status indicators */
+.mobile-status {
+  @apply px-2 py-1 text-xs rounded-full;
+}
+
+.responsive-badge {
+  @apply inline-flex items-center px-2 py-1 text-xs sm:text-sm font-medium rounded-full;
+}
+
+/* Loading states */
+.mobile-spinner {
+  @apply w-5 h-5 sm:w-6 sm:h-6;
+}
+
+/* Utility classes for common mobile patterns */
+.safe-area-inset {
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Scrolling improvements for mobile */
+.mobile-scroll {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.mobile-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Focus states optimized for mobile */
+.mobile-focus {
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1;
+}
+
+/* Animation performance optimizations */
+.will-change-transform {
+  will-change: transform;
+}
+
+.hardware-accelerate {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .dashboard-container {
+    max-width: none;
+    padding: 0;
+  }
+  
+  .dashboard-card {
+    box-shadow: none;
+    border: 1px solid #e5e7eb;
+    break-inside: avoid;
+  }
+}

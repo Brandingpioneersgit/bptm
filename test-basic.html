@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Basic Test</title>
+</head>
+<body style="background: white; padding: 20px; font-family: Arial;">
+  <h1 style="color: black;">Basic HTML Test</h1>
+  <div id="root" style="border: 2px solid red; padding: 10px; margin: 10px 0;">
+    <p style="color: black;">Root div exists</p>
+  </div>
+  <div id="test-output" style="color: black;"></div>
+  
+  <script>
+    console.log('Basic JavaScript is working');
+    document.getElementById('test-output').innerHTML = 'JavaScript executed successfully!';
+    
+    // Test if we can access the root element
+    const root = document.getElementById('root');
+    if (root) {
+      root.innerHTML += '<p style="color: green;">Root element found and accessible!</p>';
+    } else {
+      document.getElementById('test-output').innerHTML += '<br>ERROR: Root element not found!';
+    }
+  </script>
+  
+  <script type="module">
+    console.log('ES6 modules are working');
+    document.getElementById('test-output').innerHTML += '<br>ES6 modules working!';
+  </script>
+</body>
+</html>

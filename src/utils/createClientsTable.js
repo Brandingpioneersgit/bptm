@@ -20,7 +20,7 @@ export async function ensureClientsTableExists(supabase) {
     if (error.code === 'PGRST205') {
       console.log('⚠️  Clients table does not exist in the database.');
       console.log('📋 Please create the clients table manually in your Supabase dashboard.');
-      console.log('💡 You can use the SQL from /sql/create_clients_table.sql');
+      console.log('💡 You can use the SQL from database/schemas/create_clients_table.sql');
       
       // Return empty array instead of failing
       return [];

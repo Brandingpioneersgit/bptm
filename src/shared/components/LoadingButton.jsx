@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { LoadingSpinner } from './LoadingStates';
+import { AnimatedButton } from './Transitions';
 
 export const LoadingButton = ({ 
   children, 
@@ -51,7 +53,7 @@ export const LoadingButton = ({
 
   const renderIcon = () => {
     if (isLoading) {
-      return loadingIcon || (<div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full" />);
+      return loadingIcon || <LoadingSpinner size="small" />;
     }
     return icon;
   };
@@ -59,16 +61,18 @@ export const LoadingButton = ({
   const renderText = () => (isLoading && loadingText ? loadingText : children);
 
   return (
-    <button
+    <AnimatedButton
       {...props}
       onClick={handleClick}
       disabled={isDisabled}
-      className={`${baseClasses} ${variantClasses} ${sizeClasses} ${className} ${isLoading ? 'animate-pulse' : ''}`}
-      style={{ transform: isClicked ? 'scale(0.98)' : 'scale(1)', transition: 'transform 0.1s ease-in-out, background-color 0.2s ease-in-out' }}
+      loading={isLoading}
+      variant={variant}
+      size={size}
+      className={className}
     >
       {renderIcon()}
       {renderText()}
-    </button>
+    </AnimatedButton>
   );
 };
 
@@ -113,7 +117,7 @@ export const IconButton = ({
       style={{ transform: isClicked ? 'scale(0.95)' : 'scale(1)', transition: 'transform 0.1s ease-in-out, background-color 0.2s ease-in-out' }}
     >
       {isLoading ? (
-        <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full" />
+        <LoadingSpinner size="small" />
       ) : (
         icon
       )}

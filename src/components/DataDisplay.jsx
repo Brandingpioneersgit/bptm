@@ -1,244 +1,400 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useUnifiedAuth } from '@/features/auth/UnifiedAuthContext';
+import { useToast } from '@/shared/components/Toast';
 
-/**
- * Enhanced data display component that distinguishes between missing and zero values
- * Provides clear visual indicators and helpful messaging
- */
-
-// Utility function to determine data state
-export const getDataState = (value, fieldName) => {
-  // Check if value is explicitly zero
-  if (value === 0 || value === '0') {
-    return {
-      state: 'zero',
-      displayValue: '0',
-      message: `No ${fieldName.toLowerCase()} recorded this period`,
-      color: 'text-gray-600',
-      bgColor: 'bg-gray-50',
-      icon: '📊'
-    };
-  }
-  
-  // Check if value is missing/null/undefined/empty
-  if (value === null || value === undefined || value === '' || 
-      (Array.isArray(value) && value.length === 0) ||
-      (typeof value === 'object' && Object.keys(value).length === 0)) {
-    return {
-      state: 'missing',
-      displayValue: '—',
-      message: `No ${fieldName.toLowerCase()} data submitted yet`,
-      color: 'text-yellow-600',
-      bgColor: 'bg-yellow-50',
-      icon: '⚠️'
-    };
-  }
-  
-  // Has actual data
-  return {
-    state: 'hasData',
-    displayValue: value,
-    message: null,
-    color: 'text-gray-900',
-    bgColor: 'bg-white',
-    icon: '✓'
+// Data Card Component
+export const DataCard = ({ title, value, subtitle, icon, color = 'blue', trend = null, onClick = null }) => {
+  const colorClasses = {
+    blue: 'bg-blue-50 border-blue-200 text-blue-800',
+    green: 'bg-green-50 border-green-200 text-green-800',
+    yellow: 'bg-yellow-50 border-yellow-200 text-yellow-800',
+    red: 'bg-red-50 border-red-200 text-red-800',
+    purple: 'bg-purple-50 border-purple-200 text-purple-800',
+    indigo: 'bg-indigo-50 border-indigo-200 text-indigo-800'
   };
-};
 
-// Main data display component
-export function SmartDataDisplay({ 
-  value, 
-  fieldName, 
-  unit = '', 
-  className = '',
-  showIcon = true,
-  showTooltip = true,
-  size = 'normal' // normal, large, small
-}) {
-  const dataState = getDataState(value, fieldName);
-  
-  const sizeClasses = {
-    small: 'text-sm',
-    normal: 'text-base',
-    large: 'text-lg font-semibold'
+  const trendColors = {
+    up: 'text-green-600',
+    down: 'text-red-600',
+    neutral: 'text-gray-600'
+  };
+
+  const trendIcons = {
+    up: '↗️',
+    down: '↘️',
+    neutral: '→'
   };
 
   return (
-    <div className={`inline-flex items-center gap-2 ${className}`}>
-      {showIcon && (
-        <span className="text-sm" title={dataState.message}>
-          {dataState.icon}
-        </span>
-      )}
-      
-      <span className={`${sizeClasses[size]} ${dataState.color}`}>
-        {dataState.displayValue}{unit}
-      </span>
-      
-      {showTooltip && dataState.message && (
-        <div className="group relative">
-          <span className="cursor-help text-gray-400 hover:text-gray-600">ⓘ</span>
-          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-            {dataState.message}
-            <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+    <div 
+      className={`p-6 rounded-lg border-2 transition-all duration-200 ${
+        colorClasses[color] || colorClasses.blue
+      } ${
+        onClick ? 'cursor-pointer hover:shadow-lg transform hover:-translate-y-1' : ''
+      }`}
+      onClick={onClick}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <div className="flex items-center space-x-2 mb-2">
+            {icon && <span className="text-2xl">{icon}</span>}
+            <h3 className="text-sm font-medium text-gray-600">{title}</h3>
           </div>
+          
+          <div className="text-3xl font-bold mb-1">{value}</div>
+          
+          {subtitle && (
+            <p className="text-sm text-gray-500">{subtitle}</p>
+          )}
+          
+          {trend && (
+            <div className={`flex items-center space-x-1 mt-2 text-sm ${
+              trendColors[trend.direction] || trendColors.neutral
+            }`}>
+              <span>{trendIcons[trend.direction] || trendIcons.neutral}</span>
+              <span>{trend.value}</span>
+              <span className="text-gray-500">{trend.period}</span>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
-}
+};
 
-// Card component for displaying data with clear missing/zero distinction
-export function DataCard({ 
-  title, 
-  value, 
-  unit = '', 
-  previousValue = null,
-  icon = '📊',
-  className = '' 
-}) {
-  const dataState = getDataState(value, title);
-  const prevDataState = previousValue !== null ? getDataState(previousValue, title) : null;
-  
-  // Calculate change if both current and previous values exist
-  const change = (dataState.state === 'hasData' && prevDataState?.state === 'hasData') 
-    ? Number(value) - Number(previousValue) 
-    : null;
+// Metric Row Component
+export const MetricRow = ({ label, value, unit = '', progress = null, status = null, actions = null }) => {
+  const statusColors = {
+    success: 'text-green-600 bg-green-100',
+    warning: 'text-yellow-600 bg-yellow-100',
+    error: 'text-red-600 bg-red-100',
+    info: 'text-blue-600 bg-blue-100'
+  };
+
+  const getProgressColor = (progress) => {
+    if (progress >= 90) return 'bg-green-500';
+    if (progress >= 70) return 'bg-blue-500';
+    if (progress >= 50) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
 
   return (
-    <div className={`rounded-xl border p-4 ${dataState.bgColor} ${className}`}>
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">{icon}</span>
-          <h3 className="text-sm font-medium text-gray-600">{title}</h3>
-        </div>
-        
-        {dataState.state !== 'hasData' && (
-          <div className="text-xs px-2 py-1 rounded-full bg-white/50 border">
-            {dataState.state === 'zero' ? 'Zero Value' : 'No Data'}
-          </div>
-        )}
-      </div>
-      
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <span className={`text-2xl font-bold ${dataState.color}`}>
-            {dataState.displayValue}
-          </span>
-          {unit && dataState.state === 'hasData' && (
-            <span className="text-sm text-gray-500">{unit}</span>
+    <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
+      <div className="flex-1">
+        <div className="flex items-center space-x-3">
+          <span className="text-sm font-medium text-gray-700">{label}</span>
+          
+          {status && (
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+              statusColors[status.type] || statusColors.info
+            }`}>
+              {status.text}
+            </span>
           )}
         </div>
         
-        {dataState.message && (
-          <p className="text-xs text-gray-600 italic">
-            {dataState.message}
-          </p>
-        )}
-        
-        {change !== null && (
-          <div className={`text-xs flex items-center gap-1 ${
-            change > 0 ? 'text-green-600' : 
-            change < 0 ? 'text-red-600' : 
-            'text-gray-600'
-          }`}>
-            <span>{change > 0 ? '↗️' : change < 0 ? '↘️' : '➡️'}</span>
-            <span>
-              {change >= 0 ? '+' : ''}{change} from last period
-            </span>
+        {progress !== null && (
+          <div className="mt-2">
+            <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <span>Progress</span>
+              <span>{progress}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  getProgressColor(progress)
+                }`}
+                style={{ width: `${Math.min(progress, 100)}%` }}
+              ></div>
+            </div>
           </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Metric row component for tables/lists
-export function MetricRow({ 
-  label, 
-  currentValue, 
-  previousValue, 
-  unit = '',
-  target = null 
-}) {
-  const currentState = getDataState(currentValue, label);
-  const previousState = previousValue !== null ? getDataState(previousValue, label) : null;
-
-  return (
-    <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-      <div className="flex-1">
-        <h4 className="text-sm font-medium text-gray-900">{label}</h4>
-        {target && (
-          <p className="text-xs text-gray-500">Target: {target}{unit}</p>
         )}
       </div>
       
-      <div className="flex items-center gap-4">
-        {/* Previous Value */}
-        {previousState && (
-          <div className="text-right">
-            <p className="text-xs text-gray-500 mb-1">Previous</p>
-            <SmartDataDisplay 
-              value={previousValue}
-              fieldName={label}
-              unit={unit}
-              size="small"
-              showTooltip={false}
-            />
+      <div className="flex items-center space-x-4">
+        <div className="text-right">
+          <div className="text-lg font-semibold text-gray-900">
+            {value} {unit && <span className="text-sm text-gray-500">{unit}</span>}
+          </div>
+        </div>
+        
+        {actions && (
+          <div className="flex space-x-2">
+            {actions.map((action, index) => (
+              <button
+                key={index}
+                onClick={action.onClick}
+                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                  action.variant === 'primary' ? 'bg-blue-600 text-white hover:bg-blue-700' :
+                  action.variant === 'danger' ? 'bg-red-600 text-white hover:bg-red-700' :
+                  'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+                disabled={action.disabled}
+              >
+                {action.label}
+              </button>
+            ))}
           </div>
         )}
-        
-        {/* Arrow */}
-        {previousState && (
-          <span className="text-gray-400">→</span>
-        )}
-        
-        {/* Current Value */}
-        <div className="text-right min-w-[80px]">
-          <p className="text-xs text-gray-500 mb-1">Current</p>
-          <SmartDataDisplay 
-            value={currentValue}
-            fieldName={label}
-            unit={unit}
-            size="normal"
-            showTooltip={true}
-          />
-        </div>
       </div>
     </div>
   );
-}
+};
 
-// Helper component for arrays/lists with proper empty state handling
-export function ListDisplay({ 
-  items, 
-  fieldName, 
-  renderItem, 
-  emptyMessage = null,
-  className = '' 
-}) {
-  const dataState = getDataState(items, fieldName);
-  
-  if (dataState.state === 'hasData' && Array.isArray(items) && items.length > 0) {
+// Smart Data Display Component
+export const SmartDataDisplay = ({ 
+  data = [], 
+  title = 'Data Overview', 
+  type = 'cards', // 'cards', 'table', 'metrics'
+  columns = null,
+  onItemClick = null,
+  loading = false,
+  error = null,
+  emptyMessage = 'No data available',
+  searchable = false,
+  filterable = false,
+  sortable = false
+}) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortField, setSortField] = useState('');
+  const [sortDirection, setSortDirection] = useState('asc');
+  const [filterField, setFilterField] = useState('');
+  const [filterValue, setFilterValue] = useState('');
+  const { notify } = useToast();
+
+  // Filter and sort data
+  const processedData = React.useMemo(() => {
+    let filtered = [...data];
+
+    // Apply search
+    if (searchable && searchTerm) {
+      filtered = filtered.filter(item => 
+        Object.values(item).some(value => 
+          String(value).toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      );
+    }
+
+    // Apply filter
+    if (filterable && filterField && filterValue) {
+      filtered = filtered.filter(item => 
+        String(item[filterField]).toLowerCase().includes(filterValue.toLowerCase())
+      );
+    }
+
+    // Apply sort
+    if (sortable && sortField) {
+      filtered.sort((a, b) => {
+        const aVal = a[sortField];
+        const bVal = b[sortField];
+        
+        if (typeof aVal === 'number' && typeof bVal === 'number') {
+          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        }
+        
+        const aStr = String(aVal).toLowerCase();
+        const bStr = String(bVal).toLowerCase();
+        
+        if (sortDirection === 'asc') {
+          return aStr.localeCompare(bStr);
+        } else {
+          return bStr.localeCompare(aStr);
+        }
+      });
+    }
+
+    return filtered;
+  }, [data, searchTerm, sortField, sortDirection, filterField, filterValue, searchable, filterable, sortable]);
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  if (loading) {
     return (
-      <div className={className}>
-        {items.map((item, index) => renderItem(item, index))}
+      <div className="card-brand p-6">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 rounded mb-4 w-1/4"></div>
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-4 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
-  
-  return (
-    <div className={`p-4 rounded-lg ${dataState.bgColor} border border-dashed ${className}`}>
-      <div className="text-center">
-        <span className="text-2xl mb-2 block">{dataState.icon}</span>
-        <p className={`text-sm font-medium ${dataState.color}`}>
-          {emptyMessage || dataState.message}
-        </p>
-        {dataState.state === 'zero' && (
-          <p className="text-xs text-gray-500 mt-1">
-            This indicates zero items, not missing data
-          </p>
-        )}
+
+  if (error) {
+    return (
+      <div className="card-brand p-6">
+        <div className="text-center">
+          <div className="text-red-500 text-4xl mb-4">⚠️</div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Data</h3>
+          <p className="text-gray-500">{error}</p>
+        </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="card-brand p-6">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-bold text-brand-text">{title}</h2>
+        
+        <div className="flex space-x-4">
+          {searchable && (
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          )}
+          
+          {filterable && (
+            <div className="flex space-x-2">
+              <select
+                value={filterField}
+                onChange={(e) => setFilterField(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Filter by...</option>
+                {columns && columns.map(col => (
+                  <option key={col.key} value={col.key}>{col.label}</option>
+                ))}
+              </select>
+              
+              {filterField && (
+                <input
+                  type="text"
+                  placeholder="Filter value..."
+                  value={filterValue}
+                  onChange={(e) => setFilterValue(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Content */}
+      {processedData.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="text-gray-400 text-6xl mb-4">📊</div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No Data</h3>
+          <p className="text-gray-500">{emptyMessage}</p>
+        </div>
+      ) : (
+        <div>
+          {type === 'cards' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {processedData.map((item, index) => (
+                <DataCard
+                  key={item.id || index}
+                  title={item.title || item.name}
+                  value={item.value || item.count}
+                  subtitle={item.subtitle || item.description}
+                  icon={item.icon}
+                  color={item.color}
+                  trend={item.trend}
+                  onClick={onItemClick ? () => onItemClick(item) : null}
+                />
+              ))}
+            </div>
+          )}
+
+          {type === 'metrics' && (
+            <div className="space-y-1">
+              {processedData.map((item, index) => (
+                <MetricRow
+                  key={item.id || index}
+                  label={item.label || item.name}
+                  value={item.value}
+                  unit={item.unit}
+                  progress={item.progress}
+                  status={item.status}
+                  actions={item.actions}
+                />
+              ))}
+            </div>
+          )}
+
+          {type === 'table' && (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {columns && columns.map(col => (
+                      <th
+                        key={col.key}
+                        className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${
+                          sortable ? 'cursor-pointer hover:bg-gray-100' : ''
+                        }`}
+                        onClick={sortable ? () => handleSort(col.key) : undefined}
+                      >
+                        <div className="flex items-center space-x-1">
+                          <span>{col.label}</span>
+                          {sortable && sortField === col.key && (
+                            <span className="text-blue-500">
+                              {sortDirection === 'asc' ? '↑' : '↓'}
+                            </span>
+                          )}
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {processedData.map((item, index) => (
+                    <tr 
+                      key={item.id || index}
+                      className={onItemClick ? 'cursor-pointer hover:bg-gray-50' : ''}
+                      onClick={onItemClick ? () => onItemClick(item) : undefined}
+                    >
+                      {columns && columns.map(col => (
+                        <td key={col.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {col.render ? col.render(item[col.key], item) : item[col.key]}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Footer */}
+      {processedData.length > 0 && (
+        <div className="mt-6 flex justify-between items-center text-sm text-gray-500">
+          <span>Showing {processedData.length} of {data.length} items</span>
+          
+          {(searchTerm || filterValue) && (
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setFilterValue('');
+                setFilterField('');
+              }}
+              className="text-blue-600 hover:text-blue-800"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
-}
+};
+
+export default { DataCard, MetricRow, SmartDataDisplay };

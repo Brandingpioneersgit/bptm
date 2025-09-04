@@ -1,5 +1,6 @@
 /**
  * Comprehensive Data Persistence System
+ * Updated with getUserDrafts method fix
  */
 
 const STORAGE_KEYS = {
@@ -71,6 +72,8 @@ class DataPersistenceService {
   }
   flushPendingSaves() { this.pendingSaves.forEach((data, key)=>{ this.storage.setItem(key, data); this.notify('save', data);}); this.pendingSaves.clear(); this.autoSaveTimer = null; }
   getDraft(name, phone, monthKey) { const id=generateDraftId(name, phone, monthKey); return this.storage.getItem(STORAGE_KEYS.DRAFT_PREFIX+id); }
+  getUserDrafts(name, phone) { const index=this.getDraftIndex(); return Object.values(index).filter(d => d.draftId.includes(`${name?.toLowerCase()?.replace(/\s+/g, '_')}_${phone}`)).map(i=>({ ...i, data: this.storage.getItem(i.storageKey), completionPercentage: this.calculateCompletionPercentage(this.storage.getItem(i.storageKey)), currentStep: this.storage.getItem(i.storageKey)?.currentStep || 1 })).filter(Boolean); }
+  calculateCompletionPercentage(data) { if (!data) return 0; let completed = 0; let total = 5; if (data.employee?.name) completed++; if (data.meta?.attendance) completed++; if (data.clients?.length) completed++; if (data.learning?.length) completed++; if (data.feedback?.company) completed++; return Math.round((completed / total) * 100); }
   getAllDrafts() { const index=this.getDraftIndex(); return Object.values(index).map(i=>({ ...i, data: this.storage.getItem(i.storageKey) })).filter(Boolean); }
   deleteDraft(name, phone, monthKey) { const id=generateDraftId(name, phone, monthKey); const key=STORAGE_KEYS.DRAFT_PREFIX+id; this.storage.removeItem(key); this.removeFromDraftIndex(id); this.notify('delete', { id, storageKey: key }); }
   clearAllDrafts() { const idx=this.getDraftIndex(); Object.values(idx).forEach(d=> this.storage.removeItem(d.storageKey)); this.storage.removeItem(STORAGE_KEYS.DRAFT_INDEX); this.notify('clear', null); }

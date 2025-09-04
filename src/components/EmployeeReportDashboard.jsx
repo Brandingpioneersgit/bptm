@@ -1,11 +1,11 @@
 import React, { useMemo, useEffect, useState } from "react";
-import { useFetchSubmissions } from "./useFetchSubmissions";
 import { useModal } from "@/shared/components/ModalContext";
 import { Section } from "@/shared/components/ui";
 import { PerformanceChart } from "./PerformanceChart";
 import { PDFDownloadButton } from "./PDFDownloadButton";
 import { generateSummary } from "@/shared/lib/scoring";
 import { monthLabel, round1 } from "@/shared/lib/constants";
+import { EmployeeReportService } from "../services/employeeReportService";
 
 function SummarySection({ title, items }) {
   return (
@@ -25,27 +25,47 @@ function SummarySection({ title, items }) {
 }
 
 export function EmployeeReportDashboard({ employeeName, employeePhone, onBack }) {
-  const { allSubmissions, loading } = useFetchSubmissions();
   const { openModal, closeModal } = useModal();
   const [selectedReportId, setSelectedReportId] = useState(null);
+  const [reportData, setReportData] = useState({
+    submissions: [],
+    loading: true,
+    error: null
+  });
 
   if (!employeeName) {
     return <div className="p-8 text-red-600">Error: No employee name provided</div>;
   }
 
 
-  const employeeSubmissions = useMemo(() => {
-
-    const filtered = allSubmissions.filter(s => {
-      const submissionName = (s.employee?.name || '').trim().toLowerCase();
-      const searchName = (employeeName || '').trim().toLowerCase();
-      const nameMatch = submissionName === searchName;
+  // Fetch employee submissions on component mount and when employee changes
+  useEffect(() => {
+    const fetchEmployeeData = async () => {
+      if (!employeeName) return;
       
-      return nameMatch;
-    }).sort((a, b) => a.monthKey.localeCompare(b.monthKey));
-
-    return filtered;
-  }, [allSubmissions, employeePhone, employeeName]);
+      setReportData(prev => ({ ...prev, loading: true, error: null }));
+      
+      try {
+        const submissions = await EmployeeReportService.getEmployeeSubmissions(employeeName, employeePhone);
+        setReportData({
+          submissions,
+          loading: false,
+          error: null
+        });
+      } catch (error) {
+        console.error('Error fetching employee submissions:', error);
+        setReportData({
+          submissions: [],
+          loading: false,
+          error: error.message
+        });
+      }
+    };
+    
+    fetchEmployeeData();
+  }, [employeeName, employeePhone]);
+  
+  const employeeSubmissions = reportData.submissions;
 
   const selectedReport = useMemo(() => {
     return employeeSubmissions.find(s => s.id === selectedReportId) || null;
@@ -57,40 +77,7 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
   }, [selectedReport]);
 
   const yearlySummary = useMemo(() => {
-    if (!employeeSubmissions.length) {
-      return null;
-    }
-
-    let totalKpi = 0;
-    let totalLearning = 0;
-    let totalRelationship = 0;
-    let totalOverall = 0;
-    let monthsWithLearningShortfall = 0;
-
-    employeeSubmissions.forEach(s => {
-      totalKpi += s.scores?.kpiScore || 0;
-      totalLearning += s.scores?.learningScore || 0;
-      totalRelationship += s.scores?.relationshipScore || 0;
-      totalOverall += s.scores?.overall || 0;
-      if ((s.learning || []).reduce((sum, e) => sum + (e.durationMins || 0), 0) < 360) {
-        monthsWithLearningShortfall++;
-      }
-    });
-
-    const totalMonths = employeeSubmissions.length;
-    const avgKpi = round1(totalKpi / totalMonths);
-    const avgLearning = round1(totalLearning / totalMonths);
-    const avgRelationship = round1(totalRelationship / totalMonths);
-    const avgOverall = round1(totalOverall / totalMonths);
-
-    return {
-      avgKpi,
-      avgLearning,
-      avgRelationship,
-      avgOverall,
-      totalMonths,
-      monthsWithLearningShortfall
-    };
+    return EmployeeReportService.calculateYearlySummary(employeeSubmissions);
   }, [employeeSubmissions]);
 
   useEffect(() => {
@@ -99,8 +86,27 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
     }
   }, [employeeSubmissions]);
 
-  if (loading) {
+  if (reportData.loading) {
     return <div className="text-center p-8">Loading employee report...</div>;
+  }
+  
+  if (reportData.error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Report for {employeeName}</h1>
+          <button onClick={onBack} className="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-xl px-4 py-2">
+            &larr; Back to Dashboard
+          </button>
+        </div>
+        <Section title="Error Loading Report">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <h4 className="font-medium text-red-800 mb-2">Failed to load employee report</h4>
+            <p className="text-sm text-red-600">{reportData.error}</p>
+          </div>
+        </Section>
+      </div>
+    );
   }
 
 
@@ -120,36 +126,16 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
             <div className="text-sm space-y-1">
               <div><strong>Employee Name:</strong> "{employeeName}"</div>
               <div><strong>Employee Phone:</strong> "{employeePhone}"</div>
-              <div><strong>Total Submissions in Database:</strong> {allSubmissions.length}</div>
-              <div><strong>Loading:</strong> {loading ? 'Yes' : 'No'}</div>
+              <div><strong>Total Submissions Found:</strong> {employeeSubmissions.length}</div>
+              <div><strong>Loading:</strong> {reportData.loading ? 'Yes' : 'No'}</div>
             </div>
             
-            <h4 className="font-medium text-yellow-800 mt-4 mb-3">Available Employees:</h4>
-            <div className="text-xs space-y-1 max-h-40 overflow-y-auto">
-              {allSubmissions.length === 0 ? (
-                <div className="text-gray-500 italic">No submissions found in database</div>
-              ) : (
-                allSubmissions.map((s, i) => (
-                  <div key={i} className="flex justify-between">
-                    <span>"{s.employee?.name}"</span>
-                    <span>"{s.employee?.phone || 'No phone'}"</span>
-                  </div>
-                ))
-              )}
-            </div>
-            
-            <h4 className="font-medium text-yellow-800 mt-4 mb-3">Name Matching Test:</h4>
+            <h4 className="font-medium text-yellow-800 mt-4 mb-3">Search Details:</h4>
             <div className="text-xs space-y-1">
-              {allSubmissions.map((s, i) => {
-                const submissionName = (s.employee?.name || '').trim().toLowerCase();
-                const searchName = (employeeName || '').trim().toLowerCase();
-                const nameMatch = submissionName === searchName;
-                return (
-                  <div key={i} className={nameMatch ? 'text-green-600' : 'text-red-600'}>
-                    "{s.employee?.name}" vs "{employeeName}" = {nameMatch ? 'MATCH' : 'NO MATCH'}
-                  </div>
-                );
-              })}
+              <div><strong>Search performed for:</strong> "{employeeName}"</div>
+              <div><strong>Phone filter:</strong> {employeePhone || 'None'}</div>
+              <div><strong>Service used:</strong> EmployeeReportService</div>
+              <div><strong>Data sources:</strong> monthly_form_submissions, unified_users, submissions (legacy)</div>
             </div>
           </div>
         </Section>
@@ -228,25 +214,7 @@ export function EmployeeReportDashboard({ employeeName, employeePhone, onBack })
   };
 
   const getImprovementRecommendations = () => {
-    const learningShortfall = yearlySummary?.monthsWithLearningShortfall > 0;
-    const lowKPIScore = yearlySummary?.avgKpi < 7;
-    const lowRelationshipScore = yearlySummary?.avgRelationship < 7;
-
-    let recommendations = [];
-    if (learningShortfall) {
-      recommendations.push("Focus on dedicating at least 6 hours per month to learning to avoid appraisal delays.");
-    }
-    if (lowKPIScore) {
-      recommendations.push("Review KPI performance to identify areas for improvement and focus on key metrics.");
-    }
-    if (lowRelationshipScore) {
-      recommendations.push("Improve client relationship management by scheduling more regular check-ins and proactively addressing issues.");
-    }
-
-    if (recommendations.length === 0) {
-      return "No specific recommendations at this time. Keep up the great work!";
-    }
-    return recommendations.map((r, i) => `${i + 1}. ${r}`).join('\n');
+    return EmployeeReportService.getImprovementRecommendations(yearlySummary);
   };
 
 

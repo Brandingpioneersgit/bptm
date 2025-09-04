@@ -1,11 +1,11 @@
 import React from "react";
 import { AppProviders } from "@/app/AppProviders";
-import { AppContent } from "./components/AppShell";
+import AppRouter from "./components/Router";
 
 export default function App() {
   return (
     <AppProviders>
-      <AppContent />
+      <AppRouter />
     </AppProviders>
   );
 }
