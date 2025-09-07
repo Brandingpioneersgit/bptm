@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .result { margin: 10px 0; padding: 10px; background: #f5f5f5; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        button { padding: 10px 20px; margin: 5px; }
+        input { padding: 8px; margin: 5px; width: 200px; }
+    </style>
+</head>
+<body>
+    <h1>Authentication Debug Tool</h1>
+    
+    <div class="test-section">
+        <h3>Environment Variables Check</h3>
+        <div id="env-check"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Supabase Connection Test</h3>
+        <button onclick="testSupabaseConnection()">Test Connection</button>
+        <div id="connection-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Database Query Test</h3>
+        <button onclick="testDatabaseQuery()">Test User Query</button>
+        <div id="query-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Login Test</h3>
+        <input type="text" id="firstName" placeholder="First Name" value="John">
+        <input type="text" id="phone" placeholder="Phone" value="9876543210">
+        <button onclick="testLogin()">Test Login</button>
+        <div id="login-result"></div>
+    </div>
+    
+    <script type="module">
+        import { supabase } from './src/shared/lib/supabase.js';
+        import { authenticateUser } from './src/api/authApi.js';
+        
+        window.supabase = supabase;
+        window.authenticateUser = authenticateUser;
+        
+        // Check environment variables
+        function checkEnvironment() {
+            const envDiv = document.getElementById('env-check');
+            const env = {
+                VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
+                VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Set' : 'Missing',
+                VITE_ADMIN_ACCESS_TOKEN: import.meta.env.VITE_ADMIN_ACCESS_TOKEN ? 'Set' : 'Missing'
+            };
+            
+            envDiv.innerHTML = `
+                <div class="result">
+                    <strong>Environment Variables:</strong><br>
+                    VITE_SUPABASE_URL: ${env.VITE_SUPABASE_URL || 'Missing'}<br>
+                    VITE_SUPABASE_ANON_KEY: ${env.VITE_SUPABASE_ANON_KEY}<br>
+                    VITE_ADMIN_ACCESS_TOKEN: ${env.VITE_ADMIN_ACCESS_TOKEN}<br>
+                    Supabase Client: ${supabase ? 'Available' : 'Not Available'}
+                </div>
+            `;
+        }
+        
+        window.testSupabaseConnection = async function() {
+            const resultDiv = document.getElementById('connection-result');
+            resultDiv.innerHTML = '<div class="result">Testing connection...</div>';
+            
+            try {
+                if (!supabase) {
+                    throw new Error('Supabase client not available');
+                }
+                
+                const { data, error } = await supabase.from('unified_users').select('count');
+                
+                if (error) {
+                    throw error;
+                }
+                
+                resultDiv.innerHTML = `<div class="result success">✅ Connection successful! Query returned: ${JSON.stringify(data)}</div>`;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Connection failed: ${error.message}</div>`;
+            }
+        };
+        
+        window.testDatabaseQuery = async function() {
+            const resultDiv = document.getElementById('query-result');
+            resultDiv.innerHTML = '<div class="result">Querying users...</div>';
+            
+            try {
+                if (!supabase) {
+                    throw new Error('Supabase client not available');
+                }
+                
+                const { data, error } = await supabase
+                    .from('unified_users')
+                    .select('id, name, phone, role, status')
+                    .eq('status', 'active')
+                    .limit(5);
+                
+                if (error) {
+                    throw error;
+                }
+                
+                resultDiv.innerHTML = `
+                    <div class="result success">
+                        ✅ Found ${data.length} active users:<br>
+                        ${data.map(user => `${user.name} (${user.phone}) - ${user.role}`).join('<br>')}
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Query failed: ${error.message}</div>`;
+            }
+        };
+        
+        window.testLogin = async function() {
+            const resultDiv = document.getElementById('login-result');
+            const firstName = document.getElementById('firstName').value;
+            const phone = document.getElementById('phone').value;
+            
+            resultDiv.innerHTML = '<div class="result">Testing login...</div>';
+            
+            try {
+                const result = await authenticateUser(firstName, phone);
+                
+                if (result.success) {
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            ✅ Login successful!<br>
+                            User: ${result.user.name}<br>
+                            Role: ${result.user.role}<br>
+                            Token: ${result.token.substring(0, 20)}...
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">❌ Login failed: ${result.error}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Login error: ${error.message}</div>`;
+            }
+        };
+        
+        // Run environment check on load
+        checkEnvironment();
+    </script>
+</body>
+</html>

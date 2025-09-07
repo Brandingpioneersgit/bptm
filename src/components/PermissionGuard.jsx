@@ -5,17 +5,17 @@ import { useToast } from '@/shared/components/Toast';
 // Permission levels for different roles
 const ROLE_PERMISSIONS = {
   'Super Admin': ['all'],
-  'Operations Head': ['marketing', 'operations', 'employees', 'reports'],
+  'Operations Head': ['marketing', 'operations', 'employees', 'clients', 'reports'],
   'HR': ['hr_employees', 'hr_reports', 'hr_onboarding', 'hr_performance', 'reports'],
   'Sales': ['sales', 'clients', 'reports'],
-  'Accountant': ['finance', 'reports'],
-  'SEO': ['seo', 'reports'],
-  'Ads': ['ads', 'reports'],
-  'Social Media': ['social', 'reports'],
-  'YouTube SEO': ['youtube', 'seo', 'reports'],
-  'Web Developer': ['development', 'reports'],
-  'Graphic Designer': ['design', 'reports'],
-  'Freelancer': ['freelance', 'reports'],
+  'Accountant': ['finance', 'clients', 'reports'],
+  'SEO': ['seo', 'clients', 'reports'],
+  'Ads': ['ads', 'clients', 'reports'],
+  'Social Media': ['social', 'clients', 'reports'],
+  'YouTube SEO': ['youtube', 'seo', 'clients', 'reports'],
+  'Web Developer': ['development', 'clients', 'reports'],
+  'Graphic Designer': ['design', 'clients', 'reports'],
+  'Freelancer': ['freelance', 'clients', 'reports'],
   'Intern': ['intern', 'reports']
 };
 
@@ -45,7 +45,7 @@ export const PermissionGuard = ({
   showError = true 
 }) => {
   const { authState } = useUnifiedAuth();
-  const { user } = authState;
+  const user = authState.user;
   const { notify } = useToast();
 
   // Check if user is authenticated
@@ -105,7 +105,7 @@ export const DashboardGuard = ({
   fallback = null 
 }) => {
   const { authState } = useUnifiedAuth();
-  const { user } = authState;
+  const user = authState.user;
 
   if (!user || !user.role) {
     return (
@@ -156,7 +156,7 @@ export const RoleGuard = ({
   showError = true 
 }) => {
   const { authState } = useUnifiedAuth();
-  const { user } = authState;
+  const user = authState.user;
 
   if (!user || !user.role) {
     if (showError) {

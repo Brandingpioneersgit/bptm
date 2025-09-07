@@ -456,6 +456,27 @@ class MonthlyOSApi {
         throw new Error(editCheck.reason);
       }
 
+      // Validate payment proof URLs if payment status is being updated
+      if (updates.paymentStatus && updates.paymentProofUrl) {
+        const paymentValidationErrors = [];
+        Object.keys(updates.paymentStatus).forEach(clientId => {
+          const status = updates.paymentStatus[clientId];
+          const proofUrl = updates.paymentProofUrl[clientId] || '';
+          
+          if ((status === 'completed' || status === 'partial')) {
+            if (!proofUrl.trim()) {
+              paymentValidationErrors.push(`Client ${clientId}: Payment proof URL is required for ${status} status`);
+            } else if (!/https?:\/\/(drive|docs)\.google\.com\//i.test(proofUrl)) {
+              paymentValidationErrors.push(`Client ${clientId}: Payment proof must be a valid Google Drive URL`);
+            }
+          }
+        });
+        
+        if (paymentValidationErrors.length > 0) {
+          throw new Error(`Payment validation failed: ${paymentValidationErrors.join('; ')}`);
+        }
+      }
+
       // Sanitize updates
       const sanitizedUpdates = {
         ...updates,

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import { AuthProvider } from '../features/auth/AuthContext';
+import { UnifiedAuthProvider } from '../features/auth/UnifiedAuthContext';
 import { DataSyncProvider } from '../components/DataSyncContext';
 
 /**
@@ -23,13 +23,13 @@ export const renderWithProviders = (ui, options = {}) => {
   const AllTheProviders = ({ children }) => {
     return (
       <DataSyncProvider>
-        <AuthProvider>
+        <UnifiedAuthProvider>
           <MemoryRouter>
             <div data-testid="test-wrapper">
               {children}
             </div>
           </MemoryRouter>
-        </AuthProvider>
+        </UnifiedAuthProvider>
       </DataSyncProvider>
     );
   };

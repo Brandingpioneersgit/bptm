@@ -38,6 +38,14 @@ export default defineConfig(({ mode }) => {
       },
       // Custom middleware to handle clean URLs
       middlewareMode: false,
+      // Proxy API requests to backend server
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+          secure: false
+        }
+      }
     },
     build: {
       rollupOptions: {

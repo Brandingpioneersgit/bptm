@@ -3,7 +3,7 @@ import { useSupabase } from './SupabaseProvider';
 import { useToast } from '@/shared/components/Toast';
 import { LoadingSpinner } from '@/shared/components/LoadingStates';
 import { Section } from '@/shared/components/ui';
-import { thisMonthKey, monthLabel, prevMonthKey } from '@/shared/lib/constants';
+import { thisMonthKey, monthLabel, prevMonthKey, isDriveUrl } from '@/shared/lib/constants';
 import { useDraftPersistence } from '@/shared/services/DataPersistence';
 import { useStandardizedFeedback, FEEDBACK_MESSAGES } from '@/shared/utils/feedbackUtils';
 
@@ -128,7 +128,23 @@ const MASHAccountability = ({ role, formData, onChange, clients = [] }) => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Payment Status</label>
               <select
                 value={formData.paymentStatus?.[client.id] || 'pending'}
-                onChange={(e) => onChange('paymentStatus', { ...formData.paymentStatus, [client.id]: e.target.value })}
+                onChange={(e) => {
+                  const newStatus = e.target.value;
+                  const currentProofUrl = formData.paymentProofUrl?.[client.id] || '';
+                  
+                  // Validate proof URL requirement for completed/partial payments
+                  if ((newStatus === 'completed' || newStatus === 'partial') && !currentProofUrl.trim()) {
+                    alert(`Payment proof URL is required when marking payment as ${newStatus}. Please add a proof URL first.`);
+                    return;
+                  }
+                  
+                  if ((newStatus === 'completed' || newStatus === 'partial') && currentProofUrl && !isDriveUrl(currentProofUrl)) {
+                    alert('Payment proof must be a valid Google Drive URL.');
+                    return;
+                  }
+                  
+                  onChange('paymentStatus', { ...formData.paymentStatus, [client.id]: newStatus });
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="pending">Pending</option>
@@ -172,6 +188,32 @@ const MASHAccountability = ({ role, formData, onChange, clients = [] }) => {
                 step="0.01"
               />
             </div>
+          </div>
+          
+          {/* Payment Proof URL Field */}
+          <div className="mt-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Payment Proof URL 
+              {(formData.paymentStatus?.[client.id] === 'completed' || formData.paymentStatus?.[client.id] === 'partial') && 
+                <span className="text-red-500">*</span>
+              }
+            </label>
+            <input
+              type="url"
+              value={formData.paymentProofUrl?.[client.id] || ''}
+              onChange={(e) => {
+                const url = e.target.value;
+                onChange('paymentProofUrl', { ...formData.paymentProofUrl, [client.id]: url });
+              }}
+              placeholder="https://drive.google.com/..."
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                (formData.paymentStatus?.[client.id] === 'completed' || formData.paymentStatus?.[client.id] === 'partial') 
+                  ? 'border-red-300' : 'border-gray-300'
+              }`}
+            />
+            {(formData.paymentStatus?.[client.id] === 'completed' || formData.paymentStatus?.[client.id] === 'partial') && 
+              <p className="text-xs text-red-600 mt-1">Required: Google Drive URL for payment proof</p>
+            }
           </div>
         </div>
       ))}
@@ -636,6 +678,30 @@ export const MonthlyFormWorkflow = ({ employee, onSubmit }) => {
   const handleSave = async () => {
     setLoading(true);
     try {
+      // Validate payment proof URLs before submission
+      const paymentValidationErrors = [];
+      if (formData.paymentStatus && formData.paymentProofUrl) {
+        Object.keys(formData.paymentStatus).forEach(clientId => {
+          const status = formData.paymentStatus[clientId];
+          const proofUrl = formData.paymentProofUrl[clientId] || '';
+          const client = clients.find(c => c.id === clientId);
+          const clientName = client?.name || `Client ${clientId}`;
+          
+          if ((status === 'completed' || status === 'partial')) {
+            if (!proofUrl.trim()) {
+              paymentValidationErrors.push(`${clientName}: Payment proof URL is required for ${status} status`);
+            } else if (!isDriveUrl(proofUrl)) {
+              paymentValidationErrors.push(`${clientName}: Payment proof must be a valid Google Drive URL`);
+            }
+          }
+        });
+      }
+      
+      if (paymentValidationErrors.length > 0) {
+        feedback.showFormError(null, `Payment validation failed:\n${paymentValidationErrors.join('\n')}`);
+        return;
+      }
+      
       const submissionData = {
         ...formData,
         employee_name: employee.name,

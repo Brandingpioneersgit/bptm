@@ -1,438 +1,410 @@
 [
   {
     "id": "TC001",
-    "title": "Successful Login with Valid Credentials",
-    "description": "Verify that a user can log in successfully using a valid phone number and password through the unified authentication system.",
+    "title": "Successful login with valid credentials",
+    "description": "Test that users across all roles can log in successfully with correct username/email and password using the unified authentication system.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to the login page."
+        "description": "Navigate to the login page"
       },
       {
         "type": "action",
-        "description": "Enter a valid phone number and corresponding password."
+        "description": "Input valid username/email and password"
       },
       {
         "type": "action",
-        "description": "Click on the login button."
+        "description": "Click the login button"
       },
       {
         "type": "assertion",
-        "description": "Confirm that the user is authenticated and redirected to their role-specific dashboard."
+        "description": "Verify user is redirected to the appropriate role-based dashboard"
       },
       {
         "type": "assertion",
-        "description": "Verify session is initiated and maintained using Supabase session management."
+        "description": "Verify session is initialized and role information is correctly set"
       }
     ]
   },
   {
     "id": "TC002",
-    "title": "Login Failure with Invalid Credentials",
-    "description": "Verify that login fails when invalid phone number or password is provided and appropriate error messages appear.",
+    "title": "Login failure with invalid credentials",
+    "description": "Verify login fails when users enter incorrect username/email or password and proper error messages are shown.",
     "category": "error handling",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to the login page."
+        "description": "Navigate to the login page"
       },
       {
         "type": "action",
-        "description": "Enter an invalid phone number or incorrect password."
+        "description": "Input invalid username/email and/or password"
       },
       {
         "type": "action",
-        "description": "Click on the login button."
+        "description": "Click the login button"
       },
       {
         "type": "assertion",
-        "description": "Confirm that login is rejected."
+        "description": "Verify login is rejected"
       },
       {
         "type": "assertion",
-        "description": "Verify that an error message indicating invalid credentials is displayed."
-      },
-      {
-        "type": "assertion",
-        "description": "Ensure no session is created after failed login attempt."
+        "description": "Verify appropriate error message about invalid credentials is displayed"
       }
     ]
   },
   {
     "id": "TC003",
-    "title": "Role-based Access Control Enforcement",
-    "description": "Verify that after login, users only have access to functionalities and dashboard views specific to their assigned role.",
+    "title": "Role-based dashboard access control",
+    "description": "Ensure that users can only access dashboards corresponding to their roles and are prevented from accessing unauthorized dashboards.",
     "category": "security",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Log in as a user with the role of Employee."
-      },
-      {
-        "type": "assertion",
-        "description": "Confirm that the employee dashboard is displayed."
-      },
-      {
-        "type": "assertion",
-        "description": "Attempt to access admin-only pages and verify access is denied."
+        "description": "Login as a user with a specific role (e.g., Manager)"
       },
       {
         "type": "action",
-        "description": "Log out, then log in as a user with Admin role."
+        "description": "Attempt to navigate manually or by URL to other role-specific dashboards such as Super Admin or SEO team dashboard"
       },
       {
         "type": "assertion",
-        "description": "Confirm that the admin dashboard and admin features are accessible."
+        "description": "Verify access is denied and redirection or error message occurs"
+      },
+      {
+        "type": "action",
+        "description": "Logout and login as another role (e.g., SEO employee)"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to access Manager or Administrator dashboards"
       },
       {
         "type": "assertion",
-        "description": "Ensure employee-only pages are not accessible beyond their role permissions."
+        "description": "Verify access restrictions are enforced consistently"
       }
     ]
   },
   {
     "id": "TC004",
-    "title": "Employee KPI Tracking and Performance Leaderboard Accuracy",
-    "description": "Validate that employees’ KPIs are tracked correctly, performance data is updated in real-time, and leaderboard rankings reflect accurate calculations monthly.",
+    "title": "Employee onboarding form validation and submission",
+    "description": "Verify employee onboarding process enforces field validations, disallows duplicates, and accepts valid data submissions.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Log in as an employee."
-      },
-      {
-        "type": "assertion",
-        "description": "View the KPI dashboard and verify KPI metrics match recorded performance data."
+        "description": "Navigate to Employee Onboarding form as Admin"
       },
       {
         "type": "action",
-        "description": "Update employee performance data through the scoring interface."
+        "description": "Leave required fields empty and attempt to submit"
       },
       {
         "type": "assertion",
-        "description": "Verify that changes reflect immediately on KPI dashboard and the leaderboard."
+        "description": "Verify validation errors are shown for required fields"
+      },
+      {
+        "type": "action",
+        "description": "Input duplicate employee email or ID and attempt submit"
       },
       {
         "type": "assertion",
-        "description": "Check leaderboard rankings to ensure correct order according to KPI scores."
+        "description": "Verify duplicate entry errors are shown preventing submission"
+      },
+      {
+        "type": "action",
+        "description": "Fill form with valid new employee data including required proofs and submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify employee is successfully onboarded and visible in employee list"
       }
     ]
   },
   {
     "id": "TC005",
-    "title": "Comprehensive Client Management CRUD Operations",
-    "description": "Ensure client information can be created, viewed, updated, and deleted through the client management modules without errors.",
+    "title": "Client onboarding with proof upload and validation",
+    "description": "Confirm client onboarding form validates all required fields and enforces mandatory proof document uploads before submission.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Log in as a manager or admin."
+        "description": "Navigate to Client Onboarding form as Admin"
       },
       {
         "type": "action",
-        "description": "Open the client onboarding form and create a new client with valid data."
+        "description": "Attempt to submit the form without uploading required proof documents"
       },
       {
         "type": "assertion",
-        "description": "Confirm the client appears in the client directory."
+        "description": "Verify submission is blocked with appropriate validation messages"
       },
       {
         "type": "action",
-        "description": "Edit client details and save the changes."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify that client information is updated correctly in all relevant views."
+        "description": "Fill all required fields and upload valid proof documents"
       },
       {
         "type": "action",
-        "description": "Delete the client entry from the system."
+        "description": "Submit the form"
       },
       {
         "type": "assertion",
-        "description": "Confirm the client record is removed from all directories and dashboards."
+        "description": "Verify client is added successfully and reflected in Client Dashboard"
       }
     ]
   },
   {
     "id": "TC006",
-    "title": "Employee Management Including Onboarding and Performance Reviews",
-    "description": "Validate the employee onboarding process, directory updates, and performance review entries function correctly with proper validations.",
+    "title": "Employee monthly tactical form validation including client duplicates",
+    "description": "Ensure monthly tactical submission form validates required KPIs, proof URLs, and disallows duplicate client selections in dropdown.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Log in as an admin or manager."
+        "description": "Login as employee and navigate to monthly tactical form"
       },
       {
         "type": "action",
-        "description": "Access the employee onboarding form and register a new employee with all required details."
+        "description": "Attempt to submit form with missing KPIs and no proof URLs"
       },
       {
         "type": "assertion",
-        "description": "Verify the new employee appears in the employee directory."
+        "description": "Verify validation errors prevent submission"
       },
       {
         "type": "action",
-        "description": "Perform a performance review entry for the employee."
+        "description": "Select the same client multiple times in dropdowns"
       },
       {
         "type": "assertion",
-        "description": "Confirm the review is saved and visible in employee performance views."
+        "description": "Verify form prevents duplicate client selection"
       },
       {
         "type": "action",
-        "description": "Edit employee details and save."
+        "description": "Fill all mandatory data with valid proof URLs and unique clients"
+      },
+      {
+        "type": "action",
+        "description": "Submit form"
       },
       {
         "type": "assertion",
-        "description": "Ensure updates are reflected immediately across all relevant views."
+        "description": "Verify submission succeeds and data is stored"
       }
     ]
   },
   {
     "id": "TC007",
-    "title": "SEO Module Data Entry and Reporting Functionality",
-    "description": "Test that SEO team members can enter SEO data accurately, generate reports, and appraisals are calculated and displayed correctly.",
+    "title": "Automatic appraisal delay triggered by insufficient learning hours",
+    "description": "Verify that employees logging less than 6 learning hours in their monthly report trigger appraisal delay and scoring penalties.",
     "category": "functional",
-    "priority": "High",
+    "priority": "Medium",
     "steps": [
       {
         "type": "action",
-        "description": "Log in as an SEO team member."
+        "description": "Login as employee and navigate to monthly form"
       },
       {
         "type": "action",
-        "description": "Open the SEO data entry form and submit valid SEO metrics."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the data is saved and visible in the SEO reporting dashboard."
+        "description": "Enter learning hours less than 6"
       },
       {
         "type": "action",
-        "description": "Generate an SEO appraisal report."
+        "description": "Complete other mandatory fields and submit"
       },
       {
         "type": "assertion",
-        "description": "Confirm that appraisal scores reflect entered data accurately."
+        "description": "Verify system flags appraisal delay and applies scoring penalties"
+      },
+      {
+        "type": "action",
+        "description": "Submit another form with learning hours equal or greater than 6"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify appraisal processing continues without penalties"
       }
     ]
   },
   {
     "id": "TC008",
-    "title": "Reporting System Generates Accurate Monthly and Growth Reports",
-    "description": "Validate that monthly, growth, and department-specific reports are generated correctly with accurate analytics data.",
+    "title": "Client project tracking and payment proof enforcement",
+    "description": "Verify client projects display correct statuses and payment tracking requires mandatory proof URLs before status updates.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Log in as a manager or admin."
+        "description": "Navigate to a client's project dashboard as Manager"
       },
       {
         "type": "action",
-        "description": "Navigate to the reporting dashboards."
-      },
-      {
-        "type": "action",
-        "description": "Generate a monthly performance report selecting a specific month."
+        "description": "Attempt to mark project payment as complete without uploading proof URL"
       },
       {
         "type": "assertion",
-        "description": "Verify report data matches actual stored KPID and performance metrics."
+        "description": "Verify action is disallowed with appropriate error message"
       },
       {
         "type": "action",
-        "description": "Generate a growth report over a defined time period."
+        "description": "Upload valid payment proof and update payment status to complete"
       },
       {
         "type": "assertion",
-        "description": "Confirm that data trends and growth calculations are accurate."
-      },
-      {
-        "type": "action",
-        "description": "Generate department-specific analytics."
-      },
-      {
-        "type": "assertion",
-        "description": "Validate that analytics data is properly segmented per department."
+        "description": "Verify payment status update is successful and reflected in dashboard"
       }
     ]
   },
   {
     "id": "TC009",
-    "title": "Arcade Gamification Point Earning and Redemption",
-    "description": "Verify that users can earn and redeem points correctly within the arcade system, and admins can manage point controls effectively.",
+    "title": "Sales pipeline lead stage tracking and conversion analytics accuracy",
+    "description": "Confirm sales team can drag-and-drop leads between stages in Kanban UI and conversion metrics reflect accurate lead counts and rates.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Log in as an employee."
+        "description": "Login as sales team member and open sales pipeline dashboard"
       },
       {
         "type": "action",
-        "description": "Perform activities eligible for earning arcade points."
+        "description": "Drag a lead from one stage to another on Kanban board"
       },
       {
         "type": "assertion",
-        "description": "Confirm points are added to the user’s arcade point balance."
+        "description": "Verify lead stage updates and persists correctly"
       },
       {
         "type": "action",
-        "description": "Redeem points for rewards through the arcade redemption interface."
+        "description": "Add multiple leads from various sources and progress them through stages"
       },
       {
         "type": "assertion",
-        "description": "Validate that points are deducted correctly and reward redemption is processed."
-      },
-      {
-        "type": "action",
-        "description": "Log in as an admin."
-      },
-      {
-        "type": "action",
-        "description": "Access the arcade admin panel and adjust point earning and redemption rules."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify that rule changes take effect immediately across all users."
+        "description": "Verify lead counts and conversion metrics update accurately on analytics views"
       }
     ]
   },
   {
     "id": "TC010",
-    "title": "Session Management and Logout Functionality",
-    "description": "Validate that user sessions are accurately managed and users can effectively log out, clearing session data securely.",
+    "title": "Accounts dashboard retainer vs one-time payment workflow and bulk update support",
+    "description": "Validate accounts dashboard distinguishes retainer and one-time payments, shows status visibility, and supports bulk payment status updating.",
     "category": "functional",
-    "priority": "High",
+    "priority": "Medium",
     "steps": [
       {
         "type": "action",
-        "description": "Log in successfully as any user."
+        "description": "Login as accountant and open accounts dashboard"
       },
       {
         "type": "assertion",
-        "description": "Confirm session is created and maintained during navigation."
+        "description": "Verify payments are categorized correctly as retainer or one-time with clear status indicators"
       },
       {
         "type": "action",
-        "description": "Perform logout action from any dashboard."
+        "description": "Select multiple payments and perform bulk payment status update"
       },
       {
         "type": "assertion",
-        "description": "Ensure session is terminated and user is redirected to the login page."
-      },
-      {
-        "type": "action",
-        "description": "Attempt to access any dashboard page without logging in."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify that the user is blocked and redirected to login due to no valid session."
+        "description": "Verify bulk updates apply successfully and correct statuses are displayed"
       }
     ]
   },
   {
     "id": "TC011",
-    "title": "Frontend Responsiveness Across Supported Devices",
-    "description": "Verify that the dashboard UI components render correctly and user interactions function seamlessly on various screen sizes and device types.",
-    "category": "ui",
-    "priority": "Medium",
+    "title": "PDF and CSV reporting generation performance and data accuracy",
+    "description": "Ensure that generated tactical, quarterly, and performance reports export to PDF and CSV formats within 10 seconds and contain complete accurate data.",
+    "category": "functional",
+    "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Access the application on desktop web browsers."
-      },
-      {
-        "type": "assertion",
-        "description": "Confirm UI components render properly without layout issues."
+        "description": "Login as Super Admin and navigate to report generation module"
       },
       {
         "type": "action",
-        "description": "Access the application on tablet and mobile devices."
+        "description": "Generate monthly tactical report PDF for a team"
       },
       {
         "type": "assertion",
-        "description": "Verify responsive layout adjustments occur."
+        "description": "Verify report is generated and downloaded within 10 seconds"
       },
       {
         "type": "assertion",
-        "description": "Ensure all interactive elements such as forms, buttons, dropdowns, and navigation menus are fully functional."
+        "description": "Verify report content includes all expected KPIs, client feedback, and appraisal data accurately"
+      },
+      {
+        "type": "action",
+        "description": "Generate quarterly strategic report CSV for an individual employee"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify CSV file is generated quickly and contains comprehensive, correct data"
       }
     ]
   },
   {
     "id": "TC012",
-    "title": "Error Handling on Invalid Form Submissions",
-    "description": "Verify that all forms in the system provide proper validation feedback and handle erroneous or incomplete inputs gracefully.",
-    "category": "error handling",
-    "priority": "High",
+    "title": "Notification delivery and alert accuracy",
+    "description": "Confirm notification system reliably delivers alerts to appropriate users about submissions deadlines, payment dues, and compliance risks.",
+    "category": "functional",
+    "priority": "Medium",
     "steps": [
       {
         "type": "action",
-        "description": "Attempt to submit client onboarding, employee onboarding, and SEO data entry forms with missing mandatory fields."
+        "description": "Trigger a submission deadline alert by simulating an overdue monthly form"
       },
       {
         "type": "assertion",
-        "description": "Validate that required field error messages are displayed."
+        "description": "Verify employee receives notification about submission deadline"
       },
       {
         "type": "action",
-        "description": "Submit forms with invalid data formats such as phone number or email."
+        "description": "Update a payment status that is past due to trigger alert"
       },
       {
         "type": "assertion",
-        "description": "Confirm that format validation errors are shown and submission is blocked."
+        "description": "Verify accountant and relevant managers receive payment due notification"
       },
       {
         "type": "action",
-        "description": "Submit forms with extremely large inputs or boundary values."
+        "description": "Simulate appraisal risks due to missing feedback or proof documents"
       },
       {
         "type": "assertion",
-        "description": "Ensure system handles input gracefully and displays appropriate messages or truncates if necessary."
+        "description": "Verify notifications are delivered to Super Admin and involved employees"
       }
     ]
   },
   {
     "id": "TC013",
-    "title": "Access Control for Protected API Services",
-    "description": "Verify that API services related to authentication, scoring, SEO, and attendance enforce role-based access control and handle unauthorized requests properly.",
+    "title": "Audit log immutable recording of data accesses and changes",
+    "description": "Verify that audit logs capture all user accesses, data modifications, and system events immutably as per specification.",
     "category": "security",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Attempt to access protected API endpoints without authentication token."
+        "description": "Perform data create, update, and delete operations across various modules (employee, client, payments)"
       },
       {
         "type": "assertion",
-        "description": "Confirm the API returns unauthorized error."
+        "description": "Verify corresponding immutable entries captured in the audit logs with correct timestamps, user IDs, and change details"
       },
       {
         "type": "action",
-        "description": "Access APIs with user credentials having limited roles trying to perform actions outside their permissions."
+        "description": "Attempt to modify or delete audit log entries"
       },
       {
         "type": "assertion",
-        "description": "Verify access is denied and appropriate error messages are returned."
-      },
-      {
-        "type": "action",
-        "description": "Access APIs with correct role-based authorization tokens."
-      },
-      {
-        "type": "assertion",
-        "description": "Confirm permitted actions succeed with correct data responses."
+        "description": "Verify audit logs are protected and cannot be altered or removed"
       }
     ]
   }

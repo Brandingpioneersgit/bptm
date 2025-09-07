@@ -88,12 +88,13 @@ const DashboardHeader = ({
                 <button
                   key={index}
                   onClick={action.onClick}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors cursor-pointer ${
                     action.variant === 'primary' 
-                      ? 'bg-blue-600 text-white hover:bg-blue-700'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
                   }`}
                   title={action.tooltip}
+                  style={{ pointerEvents: 'auto', zIndex: 10 }}
                 >
                   {action.icon && <span className="text-sm">{action.icon}</span>}
                   <span className="text-sm font-medium">{action.label}</span>

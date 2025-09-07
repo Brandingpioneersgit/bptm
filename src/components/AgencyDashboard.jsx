@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useFetchSubmissions } from './useFetchSubmissions';
 import { useSupabase } from './SupabaseProvider';
 import { useUnifiedAuth } from '@/features/auth/UnifiedAuthContext';
@@ -8,7 +8,7 @@ import { LoadingSpinner, CardSkeleton, TableSkeleton } from '@/shared/components
 import MonthlyFormPrompt from './MonthlyFormPrompt';
 import QuoteOfTheDay from './QuoteOfTheDay';
 import { ClientAdditionForm } from '@/features/clients/components/ClientAdditionForm';
-import { CrudHandlers, FormHandlers } from '@/shared/utils/handlerUtils';
+
 import LeaveApplicationForm from './LeaveApplicationForm';
 import DepartmentTargetBar from './DepartmentTargetBar';
 import { getCardClasses, getButtonClasses } from '@/shared/styles/designSystem';
@@ -21,14 +21,16 @@ import DashboardHeader from './shared/DashboardHeader';
 import ClientPaymentStatus from './ClientPaymentStatus';
 import ClientProjects from './ClientProjects';
 
+
+
 const NewsTicker = ({ news, isManager, onUpdateNews }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedNews, setEditedNews] = useState(news);
 
   const handleSave = () => {
     onUpdateNews(editedNews);
-    setIsEditing(false);
-  };
+      setIsEditing(false);
+   };
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
@@ -378,12 +380,16 @@ const ConsolidatedEventsUpdates = ({ isManager, events, updates, onUpdateEvents,
 
 const AgencyDashboard = ({ userType, currentUser, onNavigateToProfile }) => {
   const { supabase } = useSupabase();
-  const { authState } = useUnifiedAuth();
-  const { user, isLoading: loading } = authState;
+  const { authState, user, isLoading: loading } = useUnifiedAuth();
   const { submissions: allSubmissions, loading: submissionsLoading } = useFetchSubmissions();
   const navigation = useAppNavigation();
   const { notify } = useToast();
   
+  // Determine manager status from authenticated user
+  const isManager = useMemo(() => {
+    return user?.role === 'Operations Head' || user?.role === 'Manager' || user?.role === 'Super Admin' || userType === 'manager';
+  }, [user?.role, userType]);
+     
   // Debug logging for authentication state
   useEffect(() => {
     console.log('🏢 AgencyDashboard - Auth State:', {
@@ -536,10 +542,12 @@ const AgencyDashboard = ({ userType, currentUser, onNavigateToProfile }) => {
     loadDashboardContent();
   }, [notify]);
 
-  // Load workspace configuration
+  // Load workspace configuration - only for authenticated users
   useEffect(() => {
     const loadWorkspaces = async () => {
       if (!user || !user.role) {
+        // For public access, show empty workspaces without error
+        setWorkspaces({});
         setIsLoadingWorkspaces(false);
         return;
       }
@@ -564,49 +572,36 @@ const AgencyDashboard = ({ userType, currentUser, onNavigateToProfile }) => {
     };
 
     loadWorkspaces();
-   }, [user]);
+   }, [user, notify]);
   
-  // Show loading state while config is loading
-  if (!agencyDashboard) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 flex items-center justify-center">
-        <div className="text-center">
-          <LoadingSpinner size="xl" showText text="Loading dashboard..." />
-        </div>
-      </div>
-    );
-  }
-  
-  const isManager = userType === 'manager';
-  
-  const handleUpdateNews = async (newNews) => {
+  const handleUpdateNews = useCallback(async (newNews) => {
     try {
       await liveDataService.updateNews(newNews);
       setDashboardData(prev => ({ ...prev, news: newNews }));
     } catch (error) {
       console.error('Failed to update news:', error);
     }
-  };
+  }, []);
   
-  const handleUpdateEvents = async (newEvents) => {
+  const handleUpdateEvents = useCallback(async (newEvents) => {
     try {
       await liveDataService.updateEvents(newEvents);
       setDashboardData(prev => ({ ...prev, events: newEvents }));
     } catch (error) {
       console.error('Failed to update events:', error);
     }
-  };
+  }, []);
   
-  const handleUpdateUpdates = async (newUpdates) => {
+  const handleUpdateUpdates = useCallback(async (newUpdates) => {
     try {
       await liveDataService.updateUpdates(newUpdates);
       setDashboardData(prev => ({ ...prev, updates: newUpdates }));
     } catch (error) {
       console.error('Failed to update updates:', error);
     }
-  };
+  }, []);
   
-  const handleSubmitFeedback = async (feedback) => {
+  const handleSubmitFeedback = useCallback(async (feedback) => {
     try {
       const { error } = await supabase
         .from('company_feedback')
@@ -629,9 +624,9 @@ const AgencyDashboard = ({ userType, currentUser, onNavigateToProfile }) => {
         type: 'error'
       });
     }
-  };
+  }, [supabase, currentUser?.id, notify]);
 
-  const handleWorkspaceClick = async (workspaceName, workspaceType) => {
+  const handleWorkspaceClick = useCallback(async (workspaceName, workspaceType) => {
     if (user?.id) {
       try {
         await workspaceService.trackWorkspaceAccess(user.id, workspaceName, workspaceType);
@@ -639,10 +634,10 @@ const AgencyDashboard = ({ userType, currentUser, onNavigateToProfile }) => {
         console.error('Error tracking workspace access:', error);
       }
     }
-  };
+  }, [user?.id]);
   
   // Navigation using the app navigation hook
-  const handleDirectNavigation = (path) => {
+  const handleDirectNavigation = useCallback((path) => {
     if (path === '/form') {
       navigation.navigateToForm();
     } else if (path === '/reports-dashboard') {
@@ -672,9 +667,9 @@ const AgencyDashboard = ({ userType, currentUser, onNavigateToProfile }) => {
       // Fallback for unknown paths
       navigation.navigate(path);
     }
-  };
+  }, [navigation]);
   
-  const handleLeaveApplicationSubmit = async (formData) => {
+  const handleLeaveApplicationSubmit = useCallback(async (formData) => {
     try {
       const { data, error } = await supabase
         .from('leave_applications')
@@ -697,12 +692,12 @@ const AgencyDashboard = ({ userType, currentUser, onNavigateToProfile }) => {
       console.error('Error submitting leave application:', error);
       alert(agencyDashboard?.alerts?.leaveError || 'Error submitting leave application. Please try again.');
     }
-  };
+  }, [supabase, currentUser?.name, currentUser?.email, agencyDashboard?.alerts]);
   
   // All dashboard features are now public - no authentication required
   
   // Copy URL to clipboard helper
-  const copyToClipboard = (fullUrl, label) => {
+  const copyToClipboard = useCallback((fullUrl, label) => {
     navigator.clipboard.writeText(fullUrl).then(() => {
       notify({
         title: `${label} Link Copied!`,
@@ -723,7 +718,123 @@ const AgencyDashboard = ({ userType, currentUser, onNavigateToProfile }) => {
         type: 'success'
       });
     });
-  };
+  }, [notify]);
+  
+  // Define custom actions for header - must be before any conditional returns
+  const customActions = useMemo(() => {
+    const actions = [
+      // Public actions - always visible
+      {
+        label: "About Us",
+        icon: "ℹ️",
+        onClick: (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          navigation.navigateToAbout();
+        },
+        variant: "secondary",
+        tooltip: "Learn about our agency"
+      },
+      {
+        label: "Services",
+        icon: "🎯",
+        onClick: (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          navigation.navigateToServices();
+        },
+        variant: "secondary",
+        tooltip: "View our services"
+      }
+    ];
+
+    if (user) {
+      // Authenticated user actions
+      actions.push(
+        {
+          label: agencyDashboard?.navigation?.monthlyForm || "Monthly Form",
+          icon: "📋",
+          onClick: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navigation.navigateToForm();
+          },
+          variant: "primary",
+          tooltip: "Submit Monthly Form"
+        },
+        {
+          label: agencyDashboard?.navigation?.reports || "Reports",
+          icon: "📊",
+          onClick: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navigation.navigateToReports();
+          },
+          variant: "secondary",
+          tooltip: "View Reports"
+        },
+        {
+          label: agencyDashboard?.navigation?.tools || "Tools",
+          icon: "🛠️",
+          onClick: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navigation.navigateToTools();
+          },
+          variant: "secondary",
+          tooltip: "Access Tools"
+        },
+        {
+          label: agencyDashboard?.navigation?.leaveWfh || "Leave/WFH",
+          icon: "🏖️",
+          onClick: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowLeaveForm(true);
+          },
+          variant: "secondary",
+          tooltip: "Apply for Leave or Work from Home"
+        },
+        {
+          label: agencyDashboard?.navigation?.addClient || "Add Client",
+          icon: "👥",
+          onClick: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowClientForm(!showClientForm);
+          },
+          variant: "secondary",
+          tooltip: "Add New Client"
+        }
+      );
+    } else {
+      // Login action for unauthenticated users
+      actions.push({
+        label: "Login",
+        icon: "🔐",
+        onClick: (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          navigation.navigateToLogin();
+        },
+        variant: "primary",
+        tooltip: "Login to access full features"
+      });
+    }
+
+    return actions;
+  }, [user, agencyDashboard, navigation, showClientForm]);
+  
+  // Show loading state while config is loading
+  if (!agencyDashboard) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <LoadingSpinner size="xl" showText text="Loading dashboard..." />
+        </div>
+      </div>
+    );
+  }
   
   // Login prompts removed - all features are now public
 
@@ -735,87 +846,60 @@ const AgencyDashboard = ({ userType, currentUser, onNavigateToProfile }) => {
       {/* Header */}
       <DashboardHeader
         title={agencyDashboard?.title || "Agency Dashboard"}
-        subtitle={agencyDashboard?.welcomeMessage}
+        subtitle={user ? agencyDashboard?.welcomeMessage : "Welcome to our agency dashboard - explore our services and capabilities"}
         icon="🏢"
-        showNotifications={true}
-        showProfile={true}
-        customActions={[
-          {
-            label: agencyDashboard?.navigation?.monthlyForm || "Monthly Form",
-            icon: "📋",
-            onClick: (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              navigation.navigateToForm();
-            },
-            variant: "primary",
-            tooltip: "Submit Monthly Form"
-          },
-          {
-            label: agencyDashboard?.navigation?.reports || "Reports",
-            icon: "📊",
-            onClick: (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              navigation.navigateToReports();
-            },
-            variant: "secondary",
-            tooltip: "View Reports"
-          },
-          {
-            label: agencyDashboard?.navigation?.tools || "Tools",
-            icon: "🛠️",
-            onClick: (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              navigation.navigateToTools();
-            },
-            variant: "secondary",
-            tooltip: "Access Tools"
-          },
-          {
-            label: agencyDashboard?.navigation?.leaveWfh || "Leave/WFH",
-            icon: "🏖️",
-            onClick: (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setShowLeaveForm(true);
-            },
-            variant: "secondary",
-            tooltip: "Apply for Leave or Work from Home"
-          },
-          {
-            label: agencyDashboard?.navigation?.addClient || "Add Client",
-            icon: "👥",
-            onClick: (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setShowClientForm(!showClientForm);
-            },
-            variant: "secondary",
-            tooltip: "Add New Client"
-          }
-        ]}
+        showNotifications={!!user}
+        showProfile={!!user}
+        customActions={customActions}
       />
 
 
 
-      {/* Client Addition Form */}
+      {/* Client Addition Form - Protected Feature */}
       {showClientForm && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">{agencyDashboard?.sections?.addNewClient || "Add New Client"}</h3>
-              <button
-                onClick={() => setShowClientForm(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
+        <PermissionGuard 
+          requiredPermissions={['clients']} 
+          fallback={
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center">
+                <p className="text-gray-600">Please log in to add new clients.</p>
+                <button
+                  onClick={() => setShowClientForm(false)}
+                  className="mt-4 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                >
+                  Close
+                </button>
+              </div>
             </div>
-            <ClientAdditionForm compact={false} />
+          }
+          showError={false}
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">{agencyDashboard?.sections?.addNewClient || "Add New Client"}</h3>
+                <button
+                  onClick={() => setShowClientForm(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+              <ClientAdditionForm 
+                compact={false} 
+                onClientAdded={() => {
+                  setShowClientForm(false);
+                  notify({
+                    type: 'success',
+                    title: 'Client Added',
+                    message: 'New client has been successfully added to the system'
+                  });
+                }}
+                onCancel={() => setShowClientForm(false)}
+              />
+            </div>
           </div>
-        </div>
+        </PermissionGuard>
       )}
 
       {/* Monthly Form Prompt - shows in dashboard if user needs to submit */}
@@ -1055,61 +1139,7 @@ const AgencyDashboard = ({ userType, currentUser, onNavigateToProfile }) => {
                   </div>
                 </div>
               <div className="space-y-3">
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    navigation.navigateToOrganizationChart();
-                  }}
-                  className="group w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 rounded-xl transition-all duration-200 hover:shadow-sm transform hover:translate-x-1"
-                >
-                  <span className="text-base group-hover:scale-110 transition-transform">🏢</span>
-                  <span className="font-medium">{agencyDashboard?.quickAccess?.organizationChart || 'Organization Chart'}</span>
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    navigation.navigateToEmployeeDirectory();
-                  }}
-                  className="group w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 rounded-xl transition-all duration-200 hover:shadow-sm transform hover:translate-x-1"
-                >
-                  <span className="text-base group-hover:scale-110 transition-transform">👥</span>
-                  <span className="font-medium">{agencyDashboard?.quickAccess?.employeeDirectory || 'Employee Directory'}</span>
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    navigation.navigateToClientDirectory();
-                  }}
-                  className="group w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-purple-50 hover:to-violet-50 rounded-xl transition-all duration-200 hover:shadow-sm transform hover:translate-x-1"
-                >
-                  <span className="text-base group-hover:scale-110 transition-transform">🤝</span>
-                  <span className="font-medium">{agencyDashboard?.quickAccess?.clientDirectory || 'Client Directory'}</span>
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    navigation.navigateToPerformanceScoring();
-                  }}
-                  className="group w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-orange-50 hover:to-amber-50 rounded-xl transition-all duration-200 hover:shadow-sm transform hover:translate-x-1"
-                >
-                  <span className="text-base group-hover:scale-110 transition-transform">📈</span>
-                  <span className="font-medium">{agencyDashboard?.quickAccess?.performanceScoring || 'Performance Scoring'}</span>
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    navigation.navigateToPerformanceConcerns();
-                  }}
-                  className="group w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-red-50 hover:to-pink-50 rounded-xl transition-all duration-200 hover:shadow-sm transform hover:translate-x-1"
-                >
-                  <span className="text-base group-hover:scale-110 transition-transform">⚠️</span>
-                  <span className="font-medium">{agencyDashboard?.quickAccess?.performanceConcerns || 'Performance Concerns'}</span>
-                </button>
+                {/* Public navigation - always visible */}
                 <button
                   onClick={(e) => {
                     e.preventDefault();
@@ -1132,6 +1162,95 @@ const AgencyDashboard = ({ userType, currentUser, onNavigateToProfile }) => {
                   <span className="text-base group-hover:scale-110 transition-transform">📚</span>
                   <span className="font-medium">{agencyDashboard?.quickAccess?.companyGuidebook || 'Company Guidebook'}</span>
                 </button>
+                
+                {/* Protected navigation - requires authentication */}
+                <PermissionGuard 
+                  requiredPermission="employees" 
+                  fallback={
+                    <div className="group w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-400 bg-gray-50 rounded-xl cursor-not-allowed">
+                      <span className="text-base">🔒</span>
+                      <span className="font-medium">Login to access employee features</span>
+                    </div>
+                  }
+                >
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      navigation.navigateToOrganizationChart();
+                    }}
+                    className="group w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 rounded-xl transition-all duration-200 hover:shadow-sm transform hover:translate-x-1"
+                  >
+                    <span className="text-base group-hover:scale-110 transition-transform">🏢</span>
+                    <span className="font-medium">{agencyDashboard?.quickAccess?.organizationChart || 'Organization Chart'}</span>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      navigation.navigateToEmployeeDirectory();
+                    }}
+                    className="group w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 rounded-xl transition-all duration-200 hover:shadow-sm transform hover:translate-x-1"
+                  >
+                    <span className="text-base group-hover:scale-110 transition-transform">👥</span>
+                    <span className="font-medium">{agencyDashboard?.quickAccess?.employeeDirectory || 'Employee Directory'}</span>
+                  </button>
+                </PermissionGuard>
+                
+                <PermissionGuard 
+                  requiredPermission="clients" 
+                  fallback={
+                    <div className="group w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-400 bg-gray-50 rounded-xl cursor-not-allowed">
+                      <span className="text-base">🔒</span>
+                      <span className="font-medium">Login to access client features</span>
+                    </div>
+                  }
+                >
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      navigation.navigateToClientDirectory();
+                    }}
+                    className="group w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-purple-50 hover:to-violet-50 rounded-xl transition-all duration-200 hover:shadow-sm transform hover:translate-x-1"
+                  >
+                    <span className="text-base group-hover:scale-110 transition-transform">🤝</span>
+                    <span className="font-medium">{agencyDashboard?.quickAccess?.clientDirectory || 'Client Directory'}</span>
+                  </button>
+                </PermissionGuard>
+                
+                <PermissionGuard 
+                  requiredPermission="performance" 
+                  fallback={
+                    <div className="group w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-400 bg-gray-50 rounded-xl cursor-not-allowed">
+                      <span className="text-base">🔒</span>
+                      <span className="font-medium">Login to access performance features</span>
+                    </div>
+                  }
+                >
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      navigation.navigateToPerformanceScoring();
+                    }}
+                    className="group w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-orange-50 hover:to-amber-50 rounded-xl transition-all duration-200 hover:shadow-sm transform hover:translate-x-1"
+                  >
+                    <span className="text-base group-hover:scale-110 transition-transform">📈</span>
+                    <span className="font-medium">{agencyDashboard?.quickAccess?.performanceScoring || 'Performance Scoring'}</span>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      navigation.navigateToPerformanceConcerns();
+                    }}
+                    className="group w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-red-50 hover:to-pink-50 rounded-xl transition-all duration-200 hover:shadow-sm transform hover:translate-x-1"
+                  >
+                    <span className="text-base group-hover:scale-110 transition-transform">⚠️</span>
+                    <span className="font-medium">{agencyDashboard?.quickAccess?.performanceConcerns || 'Performance Concerns'}</span>
+                  </button>
+                </PermissionGuard>
               </div>
             </div>
 
@@ -1162,16 +1281,34 @@ const AgencyDashboard = ({ userType, currentUser, onNavigateToProfile }) => {
       {showLeaveForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <LeaveApplicationForm
-              onSubmit={handleLeaveApplicationSubmit}
-              onCancel={() => setShowLeaveForm(false)}
-            />
+            <PermissionGuard 
+              requiredPermissions={['hr_employees']} 
+              fallback={
+                <div className="p-6 text-center">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Authentication Required</h3>
+                  <p className="text-gray-600 mb-4">Please log in to submit leave applications.</p>
+                  <button
+                    onClick={() => setShowLeaveForm(false)}
+                    className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                  >
+                    Close
+                  </button>
+                </div>
+              }
+              showError={false}
+            >
+              <LeaveApplicationForm
+                onSubmit={handleLeaveApplicationSubmit}
+                onCancel={() => setShowLeaveForm(false)}
+              />
+            </PermissionGuard>
           </div>
         </div>
       )}
+
 
     </div>
   );
 };
 
-export default AgencyDashboard;
+export default React.memo(AgencyDashboard);

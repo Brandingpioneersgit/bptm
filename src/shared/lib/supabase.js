@@ -1,22 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Log all environment variables for debugging
-console.log('Environment variables in browser:', {
-  VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL ? '✅ Set' : '❌ Missing',
-  VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing',
-  VITE_ADMIN_ACCESS_TOKEN: import.meta.env.VITE_ADMIN_ACCESS_TOKEN ? '✅ Set' : '❌ Missing'
-});
+// Singleton pattern to ensure only one Supabase client instance
+let supabaseInstance = null;
+let adminSupabaseInstance = null;
 
+// Get environment variables
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const ADMIN_ACCESS_TOKEN = import.meta.env.VITE_ADMIN_ACCESS_TOKEN;
 
-// Log the actual values (first 10 chars only for security)
-console.log('Auth keys (first 10 chars):', {
-  SUPABASE_URL: SUPABASE_URL ? SUPABASE_URL.substring(0, 10) + '...' : 'undefined',
-  SUPABASE_ANON_KEY: SUPABASE_ANON_KEY ? SUPABASE_ANON_KEY.substring(0, 10) + '...' : 'undefined',
-  ADMIN_ACCESS_TOKEN: ADMIN_ACCESS_TOKEN ? ADMIN_ACCESS_TOKEN.substring(0, 10) + '...' : 'undefined'
-});
+// Log environment variables for debugging (only once)
+if (!supabaseInstance) {
+  console.log('🔧 Supabase Client Initialization:', {
+    SUPABASE_URL: SUPABASE_URL ? '✅ Set' : '❌ Missing',
+    SUPABASE_ANON_KEY: SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing',
+    ADMIN_ACCESS_TOKEN: ADMIN_ACCESS_TOKEN ? '✅ Set' : '❌ Missing'
+  });
+}
 
 // Check if we're using placeholder credentials
 const isPlaceholderConfig = 
@@ -26,23 +26,20 @@ const isPlaceholderConfig =
   (SUPABASE_ANON_KEY && SUPABASE_ANON_KEY.includes('placeholder') && 
    (!ADMIN_ACCESS_TOKEN || ADMIN_ACCESS_TOKEN.includes('placeholder')));
 
-console.log('🔍 Placeholder config check:', { isPlaceholderConfig });
+// Create regular Supabase client (singleton)
+function createSupabaseClient() {
+  if (supabaseInstance) {
+    return supabaseInstance;
+  }
 
-let supabase = null;
+  if (isPlaceholderConfig || !SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.log('🔧 Running in LOCAL MODE - Supabase credentials not configured');
+    return null;
+  }
 
-if (!isPlaceholderConfig && SUPABASE_URL) {
   try {
-    // Prefer admin token for authentication to bypass RLS policies
-    const authKey = ADMIN_ACCESS_TOKEN || SUPABASE_ANON_KEY;
-    console.log('🔑 Using auth key type:', ADMIN_ACCESS_TOKEN ? 'ADMIN_ACCESS_TOKEN' : 'SUPABASE_ANON_KEY');
-    console.log('🔑 Auth key starts with:', authKey ? authKey.substring(0, 10) + '...' : 'undefined');
-    
-    if (!authKey) {
-      console.error('❌ No valid authentication key available!');
-      throw new Error('No valid authentication key available');
-    }
-    
-    supabase = createClient(SUPABASE_URL, authKey, {
+    console.log('🔑 Creating Supabase client with ANON key');
+    supabaseInstance = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
@@ -62,13 +59,53 @@ if (!isPlaceholderConfig && SUPABASE_URL) {
         }
       }
     });
+    console.log('✅ Supabase client created successfully');
+    return supabaseInstance;
   } catch (error) {
-    console.error('Failed to create Supabase client:', error);
-    supabase = null;
+    console.error('❌ Failed to create Supabase client:', error);
+    return null;
   }
-} else {
-  console.log('🔧 Running in LOCAL MODE - Supabase credentials not configured');
 }
 
-export { supabase };
+// Create admin Supabase client (singleton)
+function createAdminSupabaseClient() {
+  if (adminSupabaseInstance) {
+    return adminSupabaseInstance;
+  }
+
+  if (!SUPABASE_URL || !ADMIN_ACCESS_TOKEN) {
+    console.log('🔧 Admin Supabase client not available - missing credentials');
+    return null;
+  }
+
+  try {
+    console.log('🔑 Creating Admin Supabase client');
+    adminSupabaseInstance = createClient(SUPABASE_URL, ADMIN_ACCESS_TOKEN, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true
+      },
+      db: {
+        schema: 'public'
+      },
+      global: {
+        headers: {
+          'x-client-info': 'bptm-dashboard-admin'
+        }
+      }
+    });
+    console.log('✅ Admin Supabase client created successfully');
+    return adminSupabaseInstance;
+  } catch (error) {
+    console.error('❌ Failed to create Admin Supabase client:', error);
+    return null;
+  }
+}
+
+// Initialize the default client
+const supabase = createSupabaseClient();
+const adminSupabase = createAdminSupabaseClient();
+
+// Export both clients
+export { supabase, adminSupabase, createSupabaseClient, createAdminSupabaseClient };
 export default supabase;

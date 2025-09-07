@@ -1,55 +1,332 @@
 {
-  "tech_stack": ["JavaScript", "React", "Vite", "Supabase", "TailwindCSS", "React Router", "Recharts", "Vitest"],
+  "tech_stack": [
+    "JavaScript",
+    "React 18",
+    "Node.js",
+    "Express.js",
+    "Vite",
+    "Supabase",
+    "PostgreSQL",
+    "Tailwind CSS",
+    "React Router",
+    "Headless UI",
+    "Heroicons",
+    "Recharts",
+    "React Big Calendar",
+    "Lucide React",
+    "jsPDF",
+    "XLSX",
+    "Moment.js",
+    "Date-fns",
+    "React Hot Toast",
+    "Vitest",
+    "Testing Library"
+  ],
   "features": [
     {
       "name": "Authentication System",
-      "description": "Unified authentication system using Supabase for user login, session management, and role-based access control",
-      "files": ["src/features/auth/UnifiedAuthContext.jsx", "src/features/auth/ProtectedRoute.jsx", "src/api/authApi.js", "src/shared/lib/supabase.js"]
+      "description": "Multi-role authentication system with name, phone number, and role-based login. Supports database users and local fallback authentication.",
+      "files": [
+        "src/api/authApi.js",
+        "src/features/auth/AuthService.js",
+        "src/features/auth/UnifiedAuthContext.jsx",
+        "src/features/auth/ProtectedRoute.jsx",
+        "api-server.js"
+      ],
+      "api_doc": {
+        "openapi": "3.0.0",
+        "info": {
+          "title": "Authentication API",
+          "version": "1.0.0"
+        },
+        "paths": {
+          "/api/auth/login": {
+            "post": {
+              "summary": "User login",
+              "requestBody": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "email": {"type": "string"},
+                        "password": {"type": "string"}
+                      }
+                    }
+                  }
+                }
+              },
+              "responses": {
+                "200": {
+                  "description": "Login successful",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "type": "object",
+                        "properties": {
+                          "token": {"type": "string"},
+                          "user": {"type": "object"}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/api/auth/logout": {
+            "post": {
+              "summary": "User logout",
+              "responses": {
+                "200": {"description": "Logout successful"}
+              }
+            }
+          }
+        }
+      }
     },
     {
-      "name": "Dashboard System",
-      "description": "Role-based dashboards for different user types including employees, managers, admins, and super admins",
-      "files": ["src/components/AgencyDashboard.jsx", "src/components/EmployeeDashboard.jsx", "src/components/ManagerDashboard.jsx", "src/components/SuperAdminDashboard.jsx", "src/components/SEOTeamDashboard.jsx", "src/components/AdsExecutiveDashboard.jsx"]
-    },
-    {
-      "name": "Performance Tracking",
-      "description": "KPI tracking and performance evaluation system for employees",
-      "files": ["src/components/PerformanceKPI.jsx", "src/components/PerformanceScoring.jsx", "src/components/LeaderboardView.jsx", "src/components/KPIDashboard.jsx"]
-    },
-    {
-      "name": "Client Management",
-      "description": "Client onboarding, tracking, and management system",
-      "files": ["src/components/ClientOnboardingForm.jsx", "src/components/ClientDirectory.jsx", "src/components/ClientManagementView.jsx", "src/components/ClientServicingDashboard.jsx"]
+      "name": "Role-Based Dashboard System",
+      "description": "Multiple dashboard interfaces for different user roles including Super Admin, HR, Manager, Employee, Intern, and Freelancer dashboards.",
+      "files": [
+        "src/components/AppShell.jsx",
+        "src/components/AgencyDashboard.jsx",
+        "src/components/ProfileDashboard.jsx",
+        "src/components/dashboards/SuperAdminDashboard.jsx",
+        "src/components/dashboards/HRDashboard.jsx",
+        "src/components/dashboards/ManagerDashboard.jsx",
+        "src/components/dashboards/EmployeeDashboard.jsx",
+        "src/components/dashboards/InternDashboard.jsx"
+      ]
     },
     {
       "name": "Employee Management",
-      "description": "Employee onboarding, directory, and management system",
-      "files": ["src/components/EmployeeDirectory.jsx", "src/components/EmployeeForm.jsx", "src/components/EmployeeOnboardingForm.jsx", "src/components/ManagerEditEmployee.jsx"]
+      "description": "Comprehensive employee management system with onboarding, performance tracking, and personal dashboards.",
+      "files": [
+        "src/components/EmployeePersonalDashboard.jsx",
+        "src/components/EmployeeOnboarding.jsx",
+        "src/components/EmployeeDirectory.jsx",
+        "src/services/employeeService.js"
+      ],
+      "api_doc": {
+        "paths": {
+          "/api/employees": {
+            "get": {
+              "summary": "Get all employees",
+              "responses": {
+                "200": {
+                  "description": "List of employees",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "type": "array",
+                        "items": {"type": "object"}
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "post": {
+              "summary": "Create new employee",
+              "requestBody": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "first_name": {"type": "string"},
+                        "last_name": {"type": "string"},
+                        "email": {"type": "string"},
+                        "role": {"type": "string"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     },
     {
-      "name": "SEO Module",
-      "description": "SEO team specific features including data entry, reporting, and appraisal",
-      "files": ["src/components/SEOModule.jsx", "src/components/SEODataEntryForm.jsx", "src/components/SEOAppraisalSystem.jsx", "src/components/SEOEmployeeDashboard.jsx"]
+      "name": "Client Management",
+      "description": "Client relationship management system with onboarding, project tracking, and client dashboards.",
+      "files": [
+        "src/components/ClientOnboarding.jsx",
+        "src/components/ClientDirectory.jsx",
+        "src/shared/components/ClientDropdown.jsx",
+        "src/services/clientService.js"
+      ],
+      "api_doc": {
+        "paths": {
+          "/api/clients": {
+            "get": {
+              "summary": "Get all clients",
+              "responses": {
+                "200": {
+                  "description": "List of clients"
+                }
+              }
+            },
+            "post": {
+              "summary": "Create new client",
+              "requestBody": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "name": {"type": "string"},
+                        "email": {"type": "string"},
+                        "company": {"type": "string"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     },
     {
-      "name": "Reporting System",
-      "description": "Various reporting dashboards and analytics features",
-      "files": ["src/components/MonthlyReportDashboard.jsx", "src/components/NewReportDashboard.jsx", "src/components/GrowthReportGenerator.jsx", "src/components/DashboardAnalytics.jsx"]
+      "name": "Form Management System",
+      "description": "Dynamic form system for monthly submissions, tactical forms, and various business processes.",
+      "files": [
+        "src/components/MonthlyFormPrompt.jsx",
+        "src/components/TacticalForm.jsx",
+        "src/components/InteractiveForms.jsx",
+        "src/components/FormTracking.jsx"
+      ]
+    },
+    {
+      "name": "Reporting and Analytics",
+      "description": "Comprehensive reporting system with monthly tactical reports, quarterly strategic reports, and performance analytics.",
+      "files": [
+        "src/utils/reportGenerator.js",
+        "src/services/financialService.js",
+        "src/components/shared/DashboardHeader.jsx"
+      ],
+      "api_doc": {
+        "paths": {
+          "/api/reports/monthly-tactical": {
+            "get": {
+              "summary": "Get monthly tactical report",
+              "responses": {
+                "200": {
+                  "description": "Monthly tactical report data"
+                }
+              }
+            }
+          },
+          "/api/reports/quarterly-strategic": {
+            "get": {
+              "summary": "Get quarterly strategic report",
+              "responses": {
+                "200": {
+                  "description": "Quarterly strategic report data"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Workspace Management",
+      "description": "Workspace and project management system with team collaboration features.",
+      "files": [
+        "src/shared/services/workspaceService.js",
+        "src/shared/services/configService.js",
+        "src/components/MasterTools.jsx"
+      ],
+      "api_doc": {
+        "paths": {
+          "/api/workspaces": {
+            "get": {
+              "summary": "Get all workspaces",
+              "responses": {
+                "200": {
+                  "description": "List of workspaces"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Live Data Services",
+      "description": "Real-time data synchronization and live updates system.",
+      "files": [
+        "src/shared/services/liveDataService.js",
+        "src/services/realTimeDataService.js",
+        "src/components/DataSyncContext.jsx"
+      ],
+      "api_doc": {
+        "paths": {
+          "/api/live-data": {
+            "get": {
+              "summary": "Get live data updates",
+              "responses": {
+                "200": {
+                  "description": "Live data with status and updates"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     {
       "name": "Arcade System",
-      "description": "Gamification system for employee engagement and rewards",
-      "files": ["src/components/ArcadeDashboard.jsx", "src/components/ArcadeEarnPoints.jsx", "src/components/ArcadeRedeemPoints.jsx", "src/components/ArcadeAdminPanel.jsx"]
+      "description": "Gamification system with points, rewards, and employee engagement features.",
+      "files": [
+        "src/components/ArcadeSystem.jsx",
+        "src/components/ArcadeEarnPoints.jsx",
+        "src/components/ArcadeRedeemPoints.jsx",
+        "src/components/ArcadeHistory.jsx",
+        "src/components/ArcadeAdmin.jsx"
+      ]
     },
     {
-      "name": "UI Components",
-      "description": "Shared UI components used throughout the application",
-      "files": ["src/components/ui/", "src/shared/components/", "src/components/AppShell.jsx"]
+      "name": "Permission and Access Control",
+      "description": "Role-based access control system with permission guards and route protection.",
+      "files": [
+        "src/components/PermissionGuard.jsx",
+        "src/components/useRBAC.jsx",
+        "src/features/auth/ProtectedRoute.jsx"
+      ]
     },
     {
-      "name": "API Services",
-      "description": "API services for interacting with the Supabase backend",
-      "files": ["src/api/authApi.js", "src/api/attendanceApi.js", "src/api/scoringApi.js", "src/api/seoApi.js", "src/services/"]
+      "name": "Navigation System",
+      "description": "Comprehensive navigation system with role-based routing and hash-based navigation.",
+      "files": [
+        "src/utils/navigation.js",
+        "src/components/Router.jsx",
+        "src/components/AppShell.jsx"
+      ]
+    },
+    {
+      "name": "Database Integration",
+      "description": "Supabase integration with PostgreSQL database, row-level security, and data synchronization.",
+      "files": [
+        "src/shared/lib/supabase.js",
+        "src/shared/lib/adminSupabase.js",
+        "src/components/SupabaseProvider.jsx",
+        "src/shared/utils/secureApiClient.js"
+      ]
+    },
+    {
+      "name": "UI Components and Design System",
+      "description": "Comprehensive UI component library with Tailwind CSS styling and responsive design.",
+      "files": [
+        "src/components/shared/DashboardHeader.jsx",
+        "src/components/shared/LoadingSpinner.jsx",
+        "src/components/shared/ErrorBoundary.jsx",
+        "src/shared/components/ClientDropdown.jsx"
+      ]
     }
   ]
 }

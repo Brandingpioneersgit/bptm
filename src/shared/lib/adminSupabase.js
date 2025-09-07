@@ -1,33 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
+// Import the centralized admin client to avoid multiple instances
+import { adminSupabase } from './supabase';
 
-// Get environment variables
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const ADMIN_ACCESS_TOKEN = import.meta.env.VITE_ADMIN_ACCESS_TOKEN;
-
-// Log environment variables for debugging
-console.log('adminSupabase.js - Environment variables:');
-console.log('SUPABASE_URL:', SUPABASE_URL ? '✅ Present' : '❌ Missing');
-console.log('ADMIN_ACCESS_TOKEN:', ADMIN_ACCESS_TOKEN ? '✅ Present' : '❌ Missing');
-
-// Create a Supabase client with admin token
-let adminSupabase = null;
-
-try {
-  if (SUPABASE_URL && ADMIN_ACCESS_TOKEN) {
-    console.log('Creating admin Supabase client...');
-    adminSupabase = createClient(SUPABASE_URL, ADMIN_ACCESS_TOKEN, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true
-      }
-    });
-    console.log('Admin Supabase client created successfully');
-  } else {
-    console.error('Missing Supabase credentials for admin client');
-  }
-} catch (error) {
-  console.error('Error creating admin Supabase client:', error);
-}
+// Re-export for backward compatibility
+console.log('📦 Using centralized admin Supabase client');
 
 // Test the connection
 if (adminSupabase) {

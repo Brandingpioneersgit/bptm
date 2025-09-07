@@ -1,17 +1,8 @@
 import React, { createContext, useContext } from 'react';
-import { createClient } from '@supabase/supabase-js';
+// Import the centralized Supabase client to avoid multiple instances
+import { supabase } from '../shared/lib/supabase';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-let supabase = null;
-
-if (supabaseUrl && supabaseAnonKey) {
-  supabase = createClient(supabaseUrl, supabaseAnonKey);
-  console.log('✅ Supabase client initialized');
-} else {
-  console.log('⚠️  Supabase environment variables not found - running in local mode');
-}
+console.log('📦 SupabaseProvider using centralized client');
 
 const SupabaseContext = createContext(supabase);
 

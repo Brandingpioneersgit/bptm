@@ -19,7 +19,7 @@ const TEAMS = [
   { value: 'Website', label: 'Website Team', description: 'Website development only' }
 ];
 
-export function ClientAdditionForm({ onClientAdded, onCancel, compact = false }) {
+export function ClientAdditionForm({ onClientAdded, onCancel, compact = false, inline = false }) {
   const supabase = useSupabase();
   const { notify } = useToast();
   const { user, role } = useUnifiedAuth();
@@ -461,6 +461,54 @@ export function ClientAdditionForm({ onClientAdded, onCancel, compact = false })
     </div>
   );
   
+  // Inline mode - render form directly without modal
+  if (inline) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Add New Client</h3>
+          {renderStepIndicator()}
+        </div>
+        
+        <div className="mb-6">
+          {currentStep === 1 && renderStep1()}
+          {currentStep === 2 && renderStep2()}
+          {currentStep === 3 && renderStep3()}
+        </div>
+        
+        <div className="flex justify-between">
+          <button
+            onClick={currentStep === 1 ? () => { resetForm(); if (onCancel) onCancel(); } : handlePrevStep}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            {currentStep === 1 ? 'Cancel' : 'Previous'}
+          </button>
+          
+          {currentStep < 3 ? (
+            <button
+              onClick={handleNextStep}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Next
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {loading && (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              )}
+              {loading ? 'Adding Client...' : 'Add Client'}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Modal mode - original behavior
   return (
     <>
       <button

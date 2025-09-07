@@ -17,23 +17,50 @@ export const useFetchSubmissions = () => {
       setLoading(true);
       setError(null);
       
-      const { data, error: fetchError } = await supabase
-        .from('submissions')
-        .select(`
-          *,
-          employees (
-            id,
-            name,
-            email,
-            role,
-            department
-          )
-        `)
-        .order('created_at', { ascending: false });
+      // Fetch submissions and employees separately to avoid foreign key issues
+      const [submissionsResult, employeesResult] = await Promise.all([
+        supabase
+          .from('submissions')
+          .select('*')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('employees')
+          .select('id, name, email, role, department, phone')
+      ]);
 
-      if (fetchError) {
-        throw fetchError;
+      if (submissionsResult.error) {
+        throw submissionsResult.error;
       }
+
+      if (employeesResult.error) {
+        console.warn('Could not fetch employees:', employeesResult.error.message);
+      }
+
+      // Manually join submissions with employees based on name and phone
+      const submissions = submissionsResult.data || [];
+      const employees = employeesResult.data || [];
+      
+      const enrichedSubmissions = submissions.map(submission => {
+        // Try to find matching employee by name and phone
+        const matchingEmployee = employees.find(emp => 
+          emp.name === submission.employee_name && 
+          emp.phone === submission.employee_phone
+        );
+        
+        return {
+          ...submission,
+          employees: matchingEmployee || {
+            id: null,
+            name: submission.employee_name,
+            email: null,
+            role: submission.role,
+            department: submission.department,
+            phone: submission.employee_phone
+          }
+        };
+      });
+
+      const data = enrichedSubmissions;
 
       setAllSubmissions(data || []);
       setSubmissions(data || []);
@@ -58,6 +85,27 @@ export const useFetchSubmissions = () => {
     if (!supabase) return null;
     
     try {
+      // Validate payment proof URLs before submission
+      if (submissionData.paymentStatus && submissionData.paymentProofUrl) {
+        const paymentValidationErrors = [];
+        Object.keys(submissionData.paymentStatus).forEach(clientId => {
+          const status = submissionData.paymentStatus[clientId];
+          const proofUrl = submissionData.paymentProofUrl[clientId] || '';
+          
+          if ((status === 'completed' || status === 'partial')) {
+            if (!proofUrl.trim()) {
+              paymentValidationErrors.push(`Client ${clientId}: Payment proof URL is required for ${status} status`);
+            } else if (!/https?:\/\/(drive|docs)\.google\.com\//i.test(proofUrl)) {
+              paymentValidationErrors.push(`Client ${clientId}: Payment proof must be a valid Google Drive URL`);
+            }
+          }
+        });
+        
+        if (paymentValidationErrors.length > 0) {
+          throw new Error(`Payment validation failed: ${paymentValidationErrors.join(', ')}`);
+        }
+      }
+      
       const { data, error: insertError } = await supabase
         .from('submissions')
         .insert([submissionData])
@@ -101,6 +149,27 @@ export const useFetchSubmissions = () => {
     if (!supabase) return null;
     
     try {
+      // Validate payment proof URLs before update
+      if (updates.paymentStatus && updates.paymentProofUrl) {
+        const paymentValidationErrors = [];
+        Object.keys(updates.paymentStatus).forEach(clientId => {
+          const status = updates.paymentStatus[clientId];
+          const proofUrl = updates.paymentProofUrl[clientId] || '';
+          
+          if ((status === 'completed' || status === 'partial')) {
+            if (!proofUrl.trim()) {
+              paymentValidationErrors.push(`Client ${clientId}: Payment proof URL is required for ${status} status`);
+            } else if (!/https?:\/\/(drive|docs)\.google\.com\//i.test(proofUrl)) {
+              paymentValidationErrors.push(`Client ${clientId}: Payment proof must be a valid Google Drive URL`);
+            }
+          }
+        });
+        
+        if (paymentValidationErrors.length > 0) {
+          throw new Error(`Payment validation failed: ${paymentValidationErrors.join(', ')}`);
+        }
+      }
+      
       const { data, error: updateError } = await supabase
         .from('submissions')
         .update(updates)

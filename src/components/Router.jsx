@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-route
 import { useUnifiedAuth } from "../features/auth/UnifiedAuthContext";
 import { LoadingSpinner } from "@/shared/components/LoadingStates";
 import AgencyDashboard from "@/components/AgencyDashboard";
+
+
 import Homepage from "@/components/Homepage";
 import { LoginPage } from "../features/auth/LoginPage";
 import PasswordSetup from "../features/auth/PasswordSetup";
@@ -35,18 +37,31 @@ function LoginPageWithRedirect() {
   const navigate = useNavigate();
   const { authState } = useUnifiedAuth();
   const { user, isLoading: loading } = authState;
+  const [redirectAttempted, setRedirectAttempted] = React.useState(false);
 
   useEffect(() => {
-    if (!loading && user) {
+    if (!loading && user && !redirectAttempted) {
       // User is already authenticated, redirect to homepage
+      setRedirectAttempted(true);
       navigate('/', { replace: true });
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, redirectAttempted]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner size="lg" />
+        <p className="text-gray-600 mt-4">Checking authentication...</p>
+      </div>
+    );
+  }
+
+  // If user is authenticated but redirect hasn't happened yet, show loading
+  if (user && !redirectAttempted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+        <p className="text-gray-600 mt-4">Redirecting...</p>
       </div>
     );
   }
@@ -103,11 +118,8 @@ export default function AppRouter() {
         {/* Public Routes */}
         <Route path="/" element={<Homepage />} />
         <Route path="/login" element={<LoginPageWithRedirect />} />
-        <Route path="/dashboard" element={
-          <ProtectedRoute allowedRoles={['SEO', 'Ads', 'Social Media', 'YouTube SEO', 'Web Developer', 'Graphic Designer', 'Freelancer', 'Intern', 'Operations Head', 'Manager', 'HR', 'Accountant', 'Sales', 'Super Admin']}>
-            <AgencyDashboard />
-          </ProtectedRoute>
-        } />
+        {/* Public Agency Dashboard - accessible without authentication */}
+        <Route path="/dashboard" element={<AgencyDashboard />} />
         
         {/* Default redirect for authenticated users */}
         <Route path="/auth-redirect" element={

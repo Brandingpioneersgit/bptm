@@ -221,6 +221,104 @@ export const getAlertClasses = (variant = 'info') => {
 };
 
 // Professional color scheme for charts and data visualization
+// Role-based color themes
+export const roleThemes = {
+  seo: {
+    primary: '#059669', // emerald-600
+    secondary: '#10b981', // emerald-500
+    accent: '#d1fae5', // emerald-100
+    gradient: 'from-emerald-500 to-emerald-600',
+    light: 'bg-emerald-50 text-emerald-800',
+    border: 'border-emerald-200'
+  },
+  ads: {
+    primary: '#dc2626', // red-600
+    secondary: '#ef4444', // red-500
+    accent: '#fee2e2', // red-100
+    gradient: 'from-red-500 to-red-600',
+    light: 'bg-red-50 text-red-800',
+    border: 'border-red-200'
+  },
+  hr: {
+    primary: '#7c3aed', // violet-600
+    secondary: '#8b5cf6', // violet-500
+    accent: '#ede9fe', // violet-100
+    gradient: 'from-violet-500 to-violet-600',
+    light: 'bg-violet-50 text-violet-800',
+    border: 'border-violet-200'
+  },
+  socialMedia: {
+    primary: '#0891b2', // cyan-600
+    secondary: '#06b6d4', // cyan-500
+    accent: '#cffafe', // cyan-100
+    gradient: 'from-cyan-500 to-cyan-600',
+    light: 'bg-cyan-50 text-cyan-800',
+    border: 'border-cyan-200'
+  },
+  web: {
+    primary: '#2563eb', // blue-600
+    secondary: '#3b82f6', // blue-500
+    accent: '#dbeafe', // blue-100
+    gradient: 'from-blue-500 to-blue-600',
+    light: 'bg-blue-50 text-blue-800',
+    border: 'border-blue-200'
+  },
+  operations: {
+    primary: '#ea580c', // orange-600
+    secondary: '#f97316', // orange-500
+    accent: '#fed7aa', // orange-100
+    gradient: 'from-orange-500 to-orange-600',
+    light: 'bg-orange-50 text-orange-800',
+    border: 'border-orange-200'
+  },
+  admin: {
+    primary: '#64748b', // slate-600
+    secondary: '#94a3b8', // slate-400
+    accent: '#f1f5f9', // slate-100
+    gradient: 'from-slate-500 to-slate-600',
+    light: 'bg-slate-50 text-slate-800',
+    border: 'border-slate-200'
+  }
+};
+
+// Utility functions for consistent theming
+export const getRoleTheme = (role) => {
+  return roleThemes[role] || roleThemes.admin;
+};
+
+export const getPageTheme = (page) => {
+  const pageRoleMap = {
+    'seo': 'seo',
+    'ads': 'ads',
+    'hr': 'hr',
+    'social': 'socialMedia',
+    'web': 'web',
+    'operations': 'operations',
+    'admin': 'admin',
+    'dashboard': 'admin'
+  };
+  return getRoleTheme(pageRoleMap[page]);
+};
+
+export const getConsistentClasses = (role, type = 'primary') => {
+  const theme = getRoleTheme(role);
+  
+  switch (type) {
+    case 'gradient':
+      return `bg-gradient-to-r ${theme.gradient}`;
+    case 'card':
+      return `bg-white border ${theme.border} rounded-lg shadow-sm`;
+    case 'badge':
+      return `${theme.light} px-2.5 py-0.5 rounded-full text-xs font-medium`;
+    case 'button':
+      return `bg-gradient-to-r ${theme.gradient} text-white hover:opacity-90 transition-opacity`;
+    case 'accent':
+      return theme.accent;
+    default:
+      return theme.primary;
+  }
+};
+
 export const chartColors = {
   primary: ['#64748b', '#94a3b8', '#cbd5e1', '#e2e8f0'],
   sequential: ['#f8fafc', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b', '#475569', '#334155'],

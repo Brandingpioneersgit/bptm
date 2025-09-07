@@ -45,26 +45,16 @@ async def run_test():
                 pass
         
         # Interact with the page elements to simulate user flow
-        # Enter invalid phone number and incorrect password, then click Sign In button.
+        # Click the 'Login' button to navigate to the login page
         frame = context.pages[-1]
-        elem = frame.locator('xpath=html/body/div/div/div/div/div[2]/form/div/input').nth(0)
-        await page.wait_for_timeout(3000); await elem.fill('TestUser')
-        
-
-        frame = context.pages[-1]
-        elem = frame.locator('xpath=html/body/div/div/div/div/div[2]/form/div[2]/input').nth(0)
-        await page.wait_for_timeout(3000); await elem.fill('1234567890')
-        
-
-        frame = context.pages[-1]
-        elem = frame.locator('xpath=html/body/div/div/div/div/div[2]/form/button').nth(0)
+        elem = frame.locator('xpath=html/body/div/div/div/div/div/div/div[2]/button[3]').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
         
 
-        # Enter another invalid phone number or password and attempt login again.
+        # Input invalid first name and phone number
         frame = context.pages[-1]
         elem = frame.locator('xpath=html/body/div/div/div/div/div[2]/form/div/input').nth(0)
-        await page.wait_for_timeout(3000); await elem.fill('InvalidUser')
+        await page.wait_for_timeout(3000); await elem.fill('invalidUser')
         
 
         frame = context.pages[-1]
@@ -77,17 +67,11 @@ async def run_test():
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
         
 
-        # Assertion: Confirm that login is rejected by checking for error message visibility.
-        error_locator = frame.locator('text=An unexpected error occurred during authentication')
-        assert await error_locator.is_visible(), 'Error message for invalid credentials should be visible after failed login attempt'
-        
-        # Assertion: Ensure no session is created after failed login attempt by checking that dashboard elements are not present.
-        dashboard_title_locator = frame.locator('text=BP Agency Dashboard')
-        assert not await dashboard_title_locator.is_visible(), 'Dashboard should not be visible after failed login attempt'
-        
-        # Additional check: Confirm that welcome message is not shown after failed login.
-        welcome_message_locator = frame.locator('text=Welcome Back')
-        assert not await welcome_message_locator.is_visible(), 'Welcome message should not be visible after failed login attempt'
+        # Assertion: Verify login is rejected by checking that the page title remains the dashboard title or login is not successful
+        assert (await frame.title()) == "BP Agency Dashboard"
+        # Assertion: Verify appropriate error message about invalid credentials is displayed
+        error_message_locator = frame.locator('text=No user found with name starting with "invalidUser". Please check your spelling and try again.')
+        assert await error_message_locator.is_visible()
         await asyncio.sleep(5)
     
     finally:

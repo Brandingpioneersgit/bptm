@@ -4,6 +4,16 @@
   "scope": "codebase",
   "localEndpoint": "http://localhost:5173",
   "backendAuthType": "basic token",
-  "backendUsername": "Admin Super",
-  "backendPassword": "9876543225"
+  "backendUsername": "Admin",
+  "backendPassword": "9876543225",
+  "executionArgs": {
+    "projectName": "bptm",
+    "projectPath": "/Users/taps/code/bptm",
+    "testIds": [],
+    "additionalInstruction": "Test all provided login credentials including Employee Category (Marketing Manager, Senior Developer, Finance Manager, Operations Manager, UI/UX Designer, Sales Manager, Customer Support, Data Analyst), Specialized Roles (SEO Specialist, Ads Specialist, Social Media, YouTube SEO, Web Developer, Graphic Designer), Management & Admin (Operations Head, Accountant, Sales Rep, HR Manager, Super Admin), Other Categories (Freelancer, Intern), and Quick Test Set accounts. Also test creating new employee and client accounts to verify login creation functionality. Focus on role-based access control, dashboard functionality, authentication flows, and permission systems across all user types.",
+    "envs": {
+      "API_KEY": "sk-user-S58Z7xeZKlmoDaCnKIi_1ATjIVwlRl4zx23MPz_-2YJar3XZv5OvB9uea4JRptw8da2Mc_8u8Rqhm4F6P7b1mes6qGvOfLFq_1SUKdBEy47aUjEvgKha28B1-64tELG-Txg"
+    }
+  },
+  "proxy": "http://cf2b22aa-0ab6-4401-8fc1-b7af36cbb9cf:q7tuK9Tfo82FmwiBEpyV5uymXq6pb1Sk@tun.testsprite.com:8080"
 }

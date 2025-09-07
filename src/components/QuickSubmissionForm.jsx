@@ -179,12 +179,35 @@ const QuickSubmissionForm = ({ type = 'feedback', onSubmit = null, compact = fal
         // If table doesn't exist, create a generic submission
         console.warn(`Table ${tableName} not found, using generic submissions`);
         
+        const genericSubmissionData = {
+          ...submissionData,
+          table_name: tableName
+        };
+        
+        // Validate payment proof URLs before fallback submission
+        if (genericSubmissionData.paymentStatus && genericSubmissionData.paymentProofUrl) {
+          const paymentValidationErrors = [];
+          Object.keys(genericSubmissionData.paymentStatus).forEach(clientId => {
+            const status = genericSubmissionData.paymentStatus[clientId];
+            const proofUrl = genericSubmissionData.paymentProofUrl[clientId] || '';
+            
+            if ((status === 'completed' || status === 'partial')) {
+              if (!proofUrl.trim()) {
+                paymentValidationErrors.push(`Client ${clientId}: Payment proof URL is required for ${status} status`);
+              } else if (!/https?:\/\/(drive|docs)\.google\.com\//i.test(proofUrl)) {
+                paymentValidationErrors.push(`Client ${clientId}: Payment proof must be a valid Google Drive URL`);
+              }
+            }
+          });
+          
+          if (paymentValidationErrors.length > 0) {
+            throw new Error(`Payment validation failed: ${paymentValidationErrors.join(', ')}`);
+          }
+        }
+        
         const { error: genericError } = await supabase
           .from('submissions')
-          .insert({
-            ...submissionData,
-            table_name: tableName
-          });
+          .insert(genericSubmissionData);
           
         if (genericError) throw genericError;
       }

@@ -29,13 +29,47 @@ const MonthlyFormPrompt = ({ showInDashboard = false }) => {
     try {
       setIsLoading(true);
       
-      // Check if user has submitted form for current month
-      const { data: submissions, error } = await supabase
+      // First try with month_key and is_submitted columns
+      let { data: submissions, error } = await supabase
         .from('monthly_form_submissions')
         .select('*')
         .eq('user_id', user.id)
         .eq('month_key', currentMonth)
         .eq('is_submitted', true);
+
+      // If month_key column doesn't exist, fall back to submission_month
+      if (error && error.message?.includes('month_key')) {
+        console.log('month_key column missing, using submission_month fallback');
+        
+        // Convert currentMonth (YYYY-MM) to submission_month format (YYYY-MM-01)
+        const submissionMonth = `${currentMonth}-01`;
+        
+        const fallbackQuery = await supabase
+          .from('monthly_form_submissions')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('submission_month', submissionMonth);
+          
+        submissions = fallbackQuery.data;
+        error = fallbackQuery.error;
+      }
+      
+      // If is_submitted column doesn't exist, check status instead
+      if (error && error.message?.includes('is_submitted')) {
+        console.log('is_submitted column missing, using status fallback');
+        
+        const submissionMonth = `${currentMonth}-01`;
+        
+        const statusQuery = await supabase
+          .from('monthly_form_submissions')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('submission_month', submissionMonth)
+          .in('status', ['submitted', 'reviewed', 'approved']);
+          
+        submissions = statusQuery.data;
+        error = statusQuery.error;
+      }
 
       if (error) {
         console.error('Error checking monthly submission:', error);

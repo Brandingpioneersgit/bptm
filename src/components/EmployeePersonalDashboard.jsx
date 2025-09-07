@@ -588,12 +588,12 @@ ${submission.manager_remarks ? `\nManager Feedback:\n${submission.manager_remark
           {showClientForm && (
             <div className="mt-4 border-t pt-4">
               <ClientAdditionForm 
-                employee={employee}
-                onSuccess={() => {
+                onClientAdded={() => {
                   setShowClientForm(false);
                   notify('Client added successfully!', 'success');
                 }}
                 onCancel={() => setShowClientForm(false)}
+                inline={true}
               />
             </div>
           )}
