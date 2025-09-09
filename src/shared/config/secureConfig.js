@@ -118,16 +118,9 @@ class SecureConfig {
    * Get secure admin token
    */
   getSecureAdminToken() {
-    // First try environment variable
-    const envToken = import.meta.env.VITE_ADMIN_ACCESS_TOKEN;
-    
-    if (envToken && envToken !== 'admin' && envToken.length >= 16) {
-      return envToken;
-    }
-
-    // If no secure token in env, generate one and warn
-    console.warn('No secure admin token found in environment. Using generated token.');
-    console.warn('Please set VITE_ADMIN_ACCESS_TOKEN to a secure value in production.');
+    // Admin tokens should not be used in client-side code for security reasons
+    // Generate a session token for client-side admin functionality
+    console.warn('Admin token not available in browser - using session-based authentication');
     
     // Generate a secure token for this session
     return AuthSecurity.generateSecureToken(32);

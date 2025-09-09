@@ -91,7 +91,7 @@ export default defineConfig(({ mode }) => {
       // Explicitly define environment variables to ensure they're available in the browser
       'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL || env.VITE_SUPABASE_URL),
       'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY),
-      'import.meta.env.VITE_ADMIN_ACCESS_TOKEN': JSON.stringify(process.env.VITE_ADMIN_ACCESS_TOKEN || env.VITE_ADMIN_ACCESS_TOKEN),
+      // VITE_ADMIN_ACCESS_TOKEN removed - should not be exposed in client-side build
     }
   }
 })

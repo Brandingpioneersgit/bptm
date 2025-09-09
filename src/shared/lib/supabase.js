@@ -7,24 +7,22 @@ let adminSupabaseInstance = null;
 // Get environment variables
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const ADMIN_ACCESS_TOKEN = import.meta.env.VITE_ADMIN_ACCESS_TOKEN;
+// ADMIN_ACCESS_TOKEN removed - should not be used in client-side code
 
 // Log environment variables for debugging (only once)
 if (!supabaseInstance) {
   console.log('🔧 Supabase Client Initialization:', {
     SUPABASE_URL: SUPABASE_URL ? '✅ Set' : '❌ Missing',
-    SUPABASE_ANON_KEY: SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing',
-    ADMIN_ACCESS_TOKEN: ADMIN_ACCESS_TOKEN ? '✅ Set' : '❌ Missing'
+    SUPABASE_ANON_KEY: SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing'
   });
 }
 
 // Check if we're using placeholder credentials
 const isPlaceholderConfig = 
   !SUPABASE_URL || 
-  (!SUPABASE_ANON_KEY && !ADMIN_ACCESS_TOKEN) || 
+  !SUPABASE_ANON_KEY || 
   SUPABASE_URL.includes('placeholder') || 
-  (SUPABASE_ANON_KEY && SUPABASE_ANON_KEY.includes('placeholder') && 
-   (!ADMIN_ACCESS_TOKEN || ADMIN_ACCESS_TOKEN.includes('placeholder')));
+  SUPABASE_ANON_KEY.includes('placeholder');
 
 // Create regular Supabase client (singleton)
 function createSupabaseClient() {
@@ -69,37 +67,9 @@ function createSupabaseClient() {
 
 // Create admin Supabase client (singleton)
 function createAdminSupabaseClient() {
-  if (adminSupabaseInstance) {
-    return adminSupabaseInstance;
-  }
-
-  if (!SUPABASE_URL || !ADMIN_ACCESS_TOKEN) {
-    console.log('🔧 Admin Supabase client not available - missing credentials');
-    return null;
-  }
-
-  try {
-    console.log('🔑 Creating Admin Supabase client');
-    adminSupabaseInstance = createClient(SUPABASE_URL, ADMIN_ACCESS_TOKEN, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true
-      },
-      db: {
-        schema: 'public'
-      },
-      global: {
-        headers: {
-          'x-client-info': 'bptm-dashboard-admin'
-        }
-      }
-    });
-    console.log('✅ Admin Supabase client created successfully');
-    return adminSupabaseInstance;
-  } catch (error) {
-    console.error('❌ Failed to create Admin Supabase client:', error);
-    return null;
-  }
+  // Admin client should not be used in client-side code for security reasons
+  console.warn('⚠️ Admin Supabase client not available in browser - use server-side API endpoints instead');
+  return null;
 }
 
 // Initialize the default client
