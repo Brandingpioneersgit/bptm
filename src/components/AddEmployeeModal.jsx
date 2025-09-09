@@ -54,8 +54,9 @@ const AddEmployeeModal = ({ onClose, onSuccess }) => {
     }
     
     // Phone validation
-    const phoneRegex = /^[+]?[0-9]{10,15}$/;
-    if (!phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
+    const phoneRegex = /^[6-9]\d{9}$/;
+    const cleanPhone = formData.phone.replace(/\D/g, '');
+    if (!phoneRegex.test(cleanPhone)) {
       showToast('Please enter a valid phone number', 'error');
       return false;
     }

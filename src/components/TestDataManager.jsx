@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../shared/lib/supabase';
 import { toast } from 'react-hot-toast';
+import { LoadingSpinner } from '@/shared/components/LoadingStates';
 
 const TestDataManager = ({ onBack }) => {
   const [employees, setEmployees] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   
   // Client form state
   const [clientForm, setClientForm] = useState({
@@ -43,8 +45,14 @@ const TestDataManager = ({ onBack }) => {
   });
 
   useEffect(() => {
-    fetchEmployees();
-    fetchClients();
+    const loadInitialData = async () => {
+      try {
+        await Promise.all([fetchEmployees(), fetchClients()]);
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+    loadInitialData();
   }, []);
 
   const fetchEmployees = async () => {
@@ -205,6 +213,14 @@ const TestDataManager = ({ onBack }) => {
       setLoading(false);
     }
   };
+
+  if (initialLoading) {
+    return (
+      <div className="p-6 max-w-6xl mx-auto">
+        <LoadingSpinner message="Loading test data manager..." />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-6xl mx-auto">

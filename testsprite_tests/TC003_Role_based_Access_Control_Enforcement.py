@@ -45,7 +45,13 @@ async def run_test():
                 pass
         
         # Interact with the page elements to simulate user flow
-        # Input first name and phone number for Employee role and click Sign In.
+        # Click the Login button to start login as Employee role user.
+        frame = context.pages[-1]
+        elem = frame.locator('xpath=html/body/div/div/div/div/div/div/div[2]/button[3]').nth(0)
+        await page.wait_for_timeout(3000); await elem.click(timeout=5000)
+        
+
+        # Input Employee role user credentials and click Sign In.
         frame = context.pages[-1]
         elem = frame.locator('xpath=html/body/div/div/div/div/div[2]/form/div/input').nth(0)
         await page.wait_for_timeout(3000); await elem.fill('Employee')
@@ -61,15 +67,15 @@ async def run_test():
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
         
 
-        # Verify credentials format or try alternative valid credentials for Employee role login.
+        # Log in as Manager role user with valid credentials.
         frame = context.pages[-1]
         elem = frame.locator('xpath=html/body/div/div/div/div/div[2]/form/div/input').nth(0)
-        await page.wait_for_timeout(3000); await elem.fill('John')
+        await page.wait_for_timeout(3000); await elem.fill('Admin Super')
         
 
         frame = context.pages[-1]
         elem = frame.locator('xpath=html/body/div/div/div/div/div[2]/form/div[2]/input').nth(0)
-        await page.wait_for_timeout(3000); await elem.fill('1234567890')
+        await page.wait_for_timeout(3000); await elem.fill('9876543225')
         
 
         frame = context.pages[-1]
@@ -77,7 +83,7 @@ async def run_test():
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
         
 
-        assert False, 'Test plan execution failed: generic failure assertion.'
+        assert False, 'Test plan execution failed: Access control verification could not be completed.'
         await asyncio.sleep(5)
     
     finally:

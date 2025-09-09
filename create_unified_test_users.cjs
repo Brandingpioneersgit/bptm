@@ -119,6 +119,54 @@ const testUsers = [
     permissions: { full_access: true },
     account_locked: false,
     login_attempts: 0
+  },
+  {
+    user_id: 'USR008',
+    name: 'HRUser',
+    email: 'hr@agency.com',
+    phone: '9876543226',
+    password_hash: 'test123',
+    role: 'HR',
+    user_category: 'admin',
+    department: 'Human Resources',
+    employee_id: 'HR001',
+    status: 'active',
+    dashboard_access: ['hr_dashboard', 'admin_dashboard', 'profile'],
+    permissions: { read: true, write: true, approve: true },
+    account_locked: false,
+    login_attempts: 0
+  },
+  {
+    user_id: 'USR009',
+    name: 'Manager',
+    email: 'manager@agency.com',
+    phone: '9876543227',
+    password_hash: 'test123',
+    role: 'Operations Head',
+    user_category: 'management',
+    department: 'Operations',
+    employee_id: 'MGR001',
+    status: 'active',
+    dashboard_access: ['operations_dashboard', 'management_dashboard', 'profile'],
+    permissions: { read: true, write: true, approve: true },
+    account_locked: false,
+    login_attempts: 0
+  },
+  {
+    user_id: 'USR010',
+    name: 'Employee',
+    email: 'employee@agency.com',
+    phone: '9876543228',
+    password_hash: 'test123',
+    role: 'SEO',
+    user_category: 'employee',
+    department: 'Marketing',
+    employee_id: 'EMP007',
+    status: 'active',
+    dashboard_access: ['employee_dashboard', 'seo_dashboard', 'profile'],
+    permissions: { read: true, write: true },
+    account_locked: false,
+    login_attempts: 0
   }
 ];
 
@@ -180,7 +228,10 @@ async function testAuthentication() {
     { firstName: 'Lisa', phone: '9876543213', expectedRole: 'YouTube SEO' },
     { firstName: 'David', phone: '9876543214', expectedRole: 'Web Developer' },
     { firstName: 'Emma', phone: '9876543215', expectedRole: 'Graphic Designer' },
-    { firstName: 'Admin', phone: '9876543225', expectedRole: 'Super Admin' }
+    { firstName: 'Admin', phone: '9876543225', expectedRole: 'Super Admin' },
+    { firstName: 'HRUser', phone: '9876543226', expectedRole: 'HR' },
+    { firstName: 'Manager', phone: '9876543227', expectedRole: 'Operations Head' },
+    { firstName: 'Employee', phone: '9876543228', expectedRole: 'SEO' }
   ];
   
   let passedTests = 0;

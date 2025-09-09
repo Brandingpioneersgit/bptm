@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { X, Search, Book, MessageCircle, FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import SupportTicketForm from '../../components/SupportTicketForm';
 
 const HelpModal = ({ isOpen, onClose }) => {
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState('faq');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedFAQ, setExpandedFAQ] = useState(null);
+  const [showTicketForm, setShowTicketForm] = useState(false);
 
   const faqData = [
     {
@@ -240,7 +242,13 @@ const HelpModal = ({ isOpen, onClose }) => {
                   <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
                     Get instant help from our support team
                   </p>
-                  <button className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 theme-transition">
+                  <button 
+                    onClick={() => {
+                      // TODO: Implement live chat functionality
+                      alert('Live chat feature coming soon!');
+                    }}
+                    className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 theme-transition"
+                  >
                     Start Chat
                   </button>
                 </div>
@@ -251,7 +259,10 @@ const HelpModal = ({ isOpen, onClose }) => {
                   <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
                     Create a support ticket for detailed assistance
                   </p>
-                  <button className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 theme-transition">
+                  <button 
+                    onClick={() => setShowTicketForm(true)}
+                    className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 theme-transition"
+                  >
                     Create Ticket
                   </button>
                 </div>
@@ -275,6 +286,12 @@ const HelpModal = ({ isOpen, onClose }) => {
           )}
         </div>
       </div>
+      
+      {/* Support Ticket Form */}
+      <SupportTicketForm 
+        isOpen={showTicketForm}
+        onClose={() => setShowTicketForm(false)}
+      />
     </div>
   );
 };

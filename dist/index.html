@@ -4,19 +4,216 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23000'/%3E%3Ctext x='32' y='40' text-anchor='middle' font-family='Arial' font-size='28' fill='%23fff'%3EBP%3C/text%3E%3C/svg%3E">
+  <style type="text/css">/* Brand Colors */
+:root {
+  --brand-primary: #2563eb; /* Blue-600 */
+  --brand-primary-light: #3b82f6; /* Blue-500 */
+  --brand-primary-dark: #1d4ed8; /* Blue-700 */
+  --brand-secondary: #64748b; /* Slate-500 */
+  --brand-accent: #06b6d4; /* Cyan-500 */
+  --brand-success: #10b981; /* Emerald-500 */
+  --brand-warning: #f59e0b; /* Amber-500 */
+  --brand-error: #ef4444; /* Red-500 */
+  --brand-surface: #ffffff;
+  --brand-surface-secondary: #f8fafc; /* Slate-50 */
+  --brand-text: #0f172a; /* Slate-900 */
+  --brand-text-secondary: #475569; /* Slate-600 */
+}
+/* Dark mode styles */
+html {
+  transition: colors 300ms;
+}
+html.dark {
+  color-scheme: dark;
+  --brand-surface: #0f172a; /* Slate-900 */
+  --brand-surface-secondary: #1e293b; /* Slate-800 */
+  --brand-text: #f1f5f9; /* Slate-100 */
+  --brand-text-secondary: #cbd5e1; /* Slate-300 */
+}
+html.light {
+  color-scheme: light;
+}
+body {
+  background-color: var(--brand-surface);
+  color: var(--brand-text);
+}
+/* News Ticker Animation */
+@keyframes scroll {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+.animate-scroll {
+  animation: scroll 30s linear infinite;
+}
+/* Custom scrollbar for dark mode */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--brand-primary) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: var(--brand-primary);
+  border-radius: 20px;
+  border: transparent;
+}
+/* Brand utility classes */
+.theme-transition {
+  transition: colors 300ms ease-in-out;
+}
+/* Brand Colors */
+.bg-brand-primary {
+  background-color: var(--brand-primary);
+}
+.bg-brand-primary-light {
+  background-color: var(--brand-primary-light);
+}
+.bg-brand-surface {
+  background-color: var(--brand-surface);
+}
+.bg-brand-surface-secondary {
+  background-color: var(--brand-surface-secondary);
+}
+.text-brand-primary {
+  color: var(--brand-primary);
+}
+.text-brand-text {
+  color: var(--brand-text);
+}
+.text-brand-text-secondary {
+  color: var(--brand-text-secondary);
+}
+.border-brand-primary {
+  border-color: var(--brand-primary);
+}
+/* Button Styles */
+.btn-brand-primary {
+  background-color: #2563eb;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: background-color 200ms;
+}
+.btn-brand-primary:hover {
+  background-color: #1d4ed8;
+}
+.btn-brand-secondary {
+  background-color: #e2e8f0;
+  color: #334155;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: background-color 200ms;
+}
+.btn-brand-secondary:hover {
+  background-color: #cbd5e1;
+}
+.btn-brand-outline {
+  border: 2px solid #2563eb;
+  color: #2563eb;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: all 200ms;
+}
+.btn-brand-outline:hover {
+  background-color: #2563eb;
+  color: white;
+}
+/* Card Styles */
+.card-brand {
+  background-color: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  transition: colors 300ms;
+}
+.dark .card-brand {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+.card-brand-elevated {
+  background-color: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  transition: colors 300ms;
+}
+.dark .card-brand-elevated {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+/* Legacy theme classes */
+.text-theme {
+  color: #0f172a;
+  transition: colors 300ms;
+}
+.dark .text-theme {
+  color: #f1f5f9;
+}
+.text-theme-secondary {
+  color: #475569;
+  transition: colors 300ms;
+}
+.dark .text-theme-secondary {
+  color: #cbd5e1;
+}
+.text-theme-muted {
+  color: #64748b;
+  transition: colors 300ms;
+}
+.dark .text-theme-muted {
+  color: #94a3b8;
+}
+.bg-theme {
+  background-color: #f8fafc;
+  transition: colors 300ms;
+}
+.dark .bg-theme {
+  background-color: #0f172a;
+}
+.bg-theme-secondary {
+  background-color: #f1f5f9;
+  transition: colors 300ms;
+}
+.dark .bg-theme-secondary {
+  background-color: #1e293b;
+}
+.border-theme {
+  border-color: #e2e8f0;
+  transition: colors 300ms;
+}
+.dark .border-theme {
+  border-color: #475569;
+}
+.shadow-theme {
+  box-shadow: 0 10px 15px -3px rgb(226 232 240 / 0.5);
+  transition: colors 300ms;
+}
+.dark .shadow-theme {
+  box-shadow: 0 10px 15px -3px rgb(15 23 42 / 0.5);
+}
+  </style>
   <title>BP Agency Dashboard</title>
-  <script type="module" crossorigin src="/assets/index-BsQVIfA8.js"></script>
+  <script type="module" crossorigin src="/assets/index-Bm0ijPLt.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/react-vendor-z5qVsTvS.js">
-  <link rel="modulepreload" crossorigin href="/assets/shared-ui-DksRfdM8.js">
-  <link rel="modulepreload" crossorigin href="/assets/clients-Dg_kG3rU.js">
-  <link rel="modulepreload" crossorigin href="/assets/supabase-vendor-D6KV1zBy.js">
-  <link rel="modulepreload" crossorigin href="/assets/auth-out34swX.js">
-  <link rel="modulepreload" crossorigin href="/assets/forms-F81hZsoD.js">
-  <link rel="modulepreload" crossorigin href="/assets/employees-C0R0oL0z.js">
-  <link rel="modulepreload" crossorigin href="/assets/manager-dashboard-BSBEKJka.js">
-  <link rel="modulepreload" crossorigin href="/assets/intern-dashboard-BZTnyMBX.js">
-  <link rel="modulepreload" crossorigin href="/assets/agency-dashboard-14GD8Ews.js">
-  <link rel="stylesheet" crossorigin href="/assets/index-C3xqTG2N.css">
+  <link rel="modulepreload" crossorigin href="/assets/auth-vNnhMft6.js">
+  <link rel="modulepreload" crossorigin href="/assets/supabase-vendor-DJqG3OLk.js">
+  <link rel="modulepreload" crossorigin href="/assets/manager-dashboard-BkEir6jh.js">
+  <link rel="modulepreload" crossorigin href="/assets/intern-dashboard-y3kAFmdK.js">
+  <link rel="modulepreload" crossorigin href="/assets/employee-dashboard--UUznbXa.js">
+  <link rel="modulepreload" crossorigin href="/assets/agency-dashboard-C2XGnqnO.js">
+  <link rel="modulepreload" crossorigin href="/assets/forms-GwN-MS0g.js">
+  <link rel="stylesheet" crossorigin href="/assets/index-MYazRMkz.css">
 </head>
 <body class="bg-gray-50">
   <div id="root"></div>

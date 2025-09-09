@@ -1,5 +1,6 @@
-import React, { Component } from 'react';
+import React, { Component, useState } from 'react';
 import { logger } from '../utils/logger';
+import SupportTicketForm from '../../components/SupportTicketForm';
 
 /**
  * Global Error Handler Component
@@ -11,7 +12,8 @@ class GlobalErrorHandler extends Component {
     this.state = {
       hasError: false,
       errorId: null,
-      isProduction: process.env.NODE_ENV === 'production'
+      isProduction: process.env.NODE_ENV === 'production',
+      showTicketForm: false
     };
   }
 
@@ -67,18 +69,7 @@ class GlobalErrorHandler extends Component {
   };
 
   handleReportIssue = () => {
-    const errorId = this.state.errorId;
-    const subject = encodeURIComponent(`Application Error Report - ID: ${errorId}`);
-    const body = encodeURIComponent(
-      `An error occurred in the application.\n\n` +
-      `Error ID: ${errorId}\n` +
-      `Time: ${new Date().toISOString()}\n` +
-      `Page: ${window.location.href}\n\n` +
-      `Please describe what you were doing when this error occurred:\n\n`
-    );
-    
-    // Open email client with pre-filled error report
-    window.location.href = `mailto:support@brandingpioneers.com?subject=${subject}&body=${body}`;
+    this.setState({ showTicketForm: true });
   };
 
   render() {
@@ -149,6 +140,18 @@ class GlobalErrorHandler extends Component {
               </div>
             </div>
           </div>
+          
+          {/* Support Ticket Form */}
+          <SupportTicketForm 
+            isOpen={this.state.showTicketForm}
+            onClose={() => this.setState({ showTicketForm: false })}
+            initialData={{
+              type: 'bug',
+              priority: 'high',
+              subject: `Application Error - ID: ${this.state.errorId}`,
+              description: `An error occurred in the application.\n\nError ID: ${this.state.errorId}\nTime: ${new Date().toISOString()}\nPage: ${window.location.href}\n\nPlease describe what you were doing when this error occurred:`
+            }}
+          />
         </div>
       );
     }

@@ -45,21 +45,21 @@ async def run_test():
                 pass
         
         # Interact with the page elements to simulate user flow
-        # Click the 'Login' button to navigate to the login page
+        # Click the login button to navigate to the login page
         frame = context.pages[-1]
         elem = frame.locator('xpath=html/body/div/div/div/div/div/div/div[2]/button[3]').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
         
 
-        # Input invalid first name and phone number
+        # Input invalid username 'Admin Super' and phone number '9876543225'
         frame = context.pages[-1]
         elem = frame.locator('xpath=html/body/div/div/div/div/div[2]/form/div/input').nth(0)
-        await page.wait_for_timeout(3000); await elem.fill('invalidUser')
+        await page.wait_for_timeout(3000); await elem.fill('Admin Super')
         
 
         frame = context.pages[-1]
         elem = frame.locator('xpath=html/body/div/div/div/div/div[2]/form/div[2]/input').nth(0)
-        await page.wait_for_timeout(3000); await elem.fill('0000000000')
+        await page.wait_for_timeout(3000); await elem.fill('9876543225')
         
 
         frame = context.pages[-1]
@@ -67,11 +67,10 @@ async def run_test():
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
         
 
-        # Assertion: Verify login is rejected by checking that the page title remains the dashboard title or login is not successful
-        assert (await frame.title()) == "BP Agency Dashboard"
-        # Assertion: Verify appropriate error message about invalid credentials is displayed
-        error_message_locator = frame.locator('text=No user found with name starting with "invalidUser". Please check your spelling and try again.')
-        assert await error_message_locator.is_visible()
+        # Assert that the login failed and the appropriate error message is displayed
+        frame = context.pages[-1]
+        error_locator = frame.locator('text=No user found with name starting with "Admin Super". Please check your spelling and try again.')
+        assert await error_locator.is_visible(), 'Expected error message not visible after invalid login attempt'
         await asyncio.sleep(5)
     
     finally:

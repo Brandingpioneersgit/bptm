@@ -177,7 +177,7 @@ export function LoginPage({ onLoginSuccess, onCancel }) {
                   disabled={isSubmitting}
                   inputMode="numeric"
                   autoComplete="tel"
-                  pattern="^(\+91[-\s]?)?[6-9][0-9]{9}$"
+                  pattern="^(\+91[\-\s]?)?[6-9][0-9]{9}$"
                   title="Enter 10 digits starting with 6-9, optionally prefixed with +91-, +91 , or +91 (e.g., 9876543210, +91-9876543210, or +91 9876543210)"
                   onInput={(e) => e.target.setCustomValidity('')}
                   onInvalid={(e) => e.target.setCustomValidity('Please enter 10 digits starting with 6-9, optionally prefixed with +91-, +91 , or +91 (e.g., 9876543210, +91-9876543210, or +91 9876543210)')}

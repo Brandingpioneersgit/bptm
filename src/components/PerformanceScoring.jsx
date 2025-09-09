@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSupabase } from './SupabaseProvider';
 import { useUnifiedAuth } from '../features/auth/UnifiedAuthContext';
 import { useEnhancedErrorHandling } from '@/shared/hooks/useEnhancedErrorHandling';
+import { LoadingSpinner } from '@/shared/components/LoadingStates';
 
 const PerformanceScoring = () => {
   const {
@@ -55,13 +56,19 @@ const PerformanceScoring = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [existingPerformance, setExistingPerformance] = useState([]);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      fetchEmployees();
-    } catch (error) {
-      setError(`Initialization error: ${error.message}`);
-    }
+    const loadInitialData = async () => {
+      try {
+        await fetchEmployees();
+      } catch (error) {
+        setError(`Initialization error: ${error.message}`);
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+    loadInitialData();
   }, []);
 
   useEffect(() => {
@@ -279,6 +286,14 @@ const PerformanceScoring = () => {
     };
     return colors[status] || 'text-gray-600 bg-gray-100';
   };
+
+  if (initialLoading) {
+    return (
+      <div className="max-w-6xl mx-auto p-6">
+        <LoadingSpinner message="Loading performance scoring system..." />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto p-6">

@@ -45,21 +45,21 @@ async def run_test():
                 pass
         
         # Interact with the page elements to simulate user flow
-        # Click the login button to navigate to the login page.
+        # Click the Login button to go to the login page
         frame = context.pages[-1]
         elem = frame.locator('xpath=html/body/div/div/div/div/div/div/div[2]/button[3]').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
         
 
-        # Input valid first name and phone number for the first user role and click Sign In.
+        # Input valid username 'Admin Super' and phone number '9876543225' and click Sign In
         frame = context.pages[-1]
         elem = frame.locator('xpath=html/body/div/div/div/div/div[2]/form/div/input').nth(0)
-        await page.wait_for_timeout(3000); await elem.fill('John')
+        await page.wait_for_timeout(3000); await elem.fill('Admin Super')
         
 
         frame = context.pages[-1]
         elem = frame.locator('xpath=html/body/div/div/div/div/div[2]/form/div[2]/input').nth(0)
-        await page.wait_for_timeout(3000); await elem.fill('9876543210')
+        await page.wait_for_timeout(3000); await elem.fill('9876543225')
         
 
         frame = context.pages[-1]
@@ -67,25 +67,7 @@ async def run_test():
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
         
 
-        # Log out from current session to prepare for next role login test.
-        frame = context.pages[-1]
-        elem = frame.locator('xpath=html/body/div/div/div/div/div/div/div[2]/button[8]').nth(0)
-        await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
-
-        # Attempt to find and click a logout or user menu button to log out and prepare for next role login test.
-        frame = context.pages[-1]
-        elem = frame.locator('xpath=html/body/div/div/div/div[3]/div[2]/div/div[2]/div[2]/div/button[2]').nth(0)
-        await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
-
-        # Locate and click the logout button or link in the user menu to log out.
-        frame = context.pages[-1]
-        elem = frame.locator('xpath=html/body/div/div/div/div/div/div/div[2]/button[2]').nth(0)
-        await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
-
-        assert False, 'Test plan execution failed: generic failure assertion.'
+        assert False, 'Test failed: Expected result unknown, forcing failure.'
         await asyncio.sleep(5)
     
     finally:

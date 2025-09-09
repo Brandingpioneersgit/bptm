@@ -11,10 +11,22 @@ const supabase = createClient(
 const testCredentials = [
   { email: 'john.seo@bptm.com', password: 'password123', expectedRole: 'SEO' },
   { email: 'sarah.marketing@bptm.com', password: 'password123', expectedRole: 'Operations Head' },
-  { email: 'admin@bptm.com', password: 'password123', expectedRole: 'Super Admin' },
+  { email: 'admin@agency.com', password: 'password123', expectedRole: 'Super Admin' }, // Fixed email
   { email: 'mike.dev@bptm.com', password: 'password123', expectedRole: 'Web Developer' },
   { email: 'david.web@bptm.com', password: 'password123', expectedRole: 'Web Developer' },
   { email: 'invalid@test.com', password: 'wrongpassword', expectedRole: null } // Should fail
+];
+
+// Test credentials for firstName + phone authentication (the actual auth method)
+const authTestCredentials = [
+  { firstName: 'John', phone: '+919876543210', expectedRole: 'SEO' },
+  { firstName: 'Sarah', phone: '+919876543211', expectedRole: 'Operations Head' },
+  { firstName: 'Admin', phone: '9876543225', expectedRole: 'Super Admin' },
+  { firstName: 'Mike', phone: '+919876543212', expectedRole: 'Web Developer' },
+  { firstName: 'HRUser', phone: '9876543226', expectedRole: 'HR' },
+  { firstName: 'Manager', phone: '9876543227', expectedRole: 'Operations Head' },
+  { firstName: 'Employee', phone: '9876543228', expectedRole: 'SEO' },
+  { firstName: 'Invalid', phone: '1234567890', expectedRole: null } // Should fail
 ];
 
 async function testDirectUserQuery() {
@@ -173,12 +185,98 @@ async function testSessionManagement() {
   }
 }
 
+// Test firstName + phone authentication (the actual auth method used by the app)
+async function testFirstNamePhoneAuth() {
+  console.log('\n🔐 Testing FirstName + Phone Authentication...');
+  console.log('=' .repeat(50));
+
+  for (const cred of authTestCredentials) {
+    console.log(`\n🧪 Testing: ${cred.firstName} + ${cred.phone}`);
+    
+    try {
+      // Step 1: Search for users with name starting with firstName
+      const { data: users, error } = await supabase
+        .from('unified_users')
+        .select('*')
+        .ilike('name', `${cred.firstName}%`)
+        .eq('status', 'active');
+
+      if (error) {
+        console.log(`❌ Query Error: ${error.message}`);
+        continue;
+      }
+
+      if (!users || users.length === 0) {
+        console.log(`❌ No users found with name starting with '${cred.firstName}'`);
+        continue;
+      }
+
+      console.log(`   Found ${users.length} potential matches`);
+
+      // Step 2: Find exact first name match
+      let matchingUser = users.find(user => {
+        const userFirstName = user.name.split(' ')[0].toLowerCase();
+        const inputFirstName = cred.firstName.toLowerCase();
+        return userFirstName === inputFirstName;
+      });
+
+      if (!matchingUser) {
+        // Try partial match
+        matchingUser = users.find(user => {
+          const userName = user.name.toLowerCase();
+          const inputName = cred.firstName.toLowerCase();
+          return userName.startsWith(inputName);
+        });
+      }
+
+      if (!matchingUser) {
+        console.log(`❌ No matching user found for '${cred.firstName}'`);
+        continue;
+      }
+
+      console.log(`   Matched user: ${matchingUser.name}`);
+
+      // Step 3: Validate phone number
+      const normalizePhone = (phone) => {
+        return phone.replace(/[\+\-\s]/g, '').replace(/^91/, '');
+      };
+
+      const userPhone = normalizePhone(matchingUser.phone);
+      const inputPhone = normalizePhone(cred.phone);
+
+      console.log(`   User phone: '${matchingUser.phone}' -> '${userPhone}'`);
+      console.log(`   Input phone: '${cred.phone}' -> '${inputPhone}'`);
+
+      const phoneMatch = userPhone === inputPhone;
+
+      if (phoneMatch) {
+        console.log(`✅ Authentication SUCCESS`);
+        console.log(`   - Name: ${matchingUser.name}`);
+        console.log(`   - Role: ${matchingUser.role}`);
+        console.log(`   - Email: ${matchingUser.email}`);
+        
+        if (cred.expectedRole && matchingUser.role === cred.expectedRole) {
+          console.log(`✅ Role matches expected: ${cred.expectedRole}`);
+        } else if (cred.expectedRole) {
+          console.log(`❌ Role mismatch. Expected: ${cred.expectedRole}, Got: ${matchingUser.role}`);
+        }
+      } else {
+        console.log(`❌ Phone number mismatch - authentication failed`);
+      }
+
+    } catch (err) {
+      console.log(`❌ Error testing ${cred.firstName}: ${err.message}`);
+    }
+  }
+}
+
 async function main() {
   console.log('🚀 Starting Authentication Flow Tests');
   console.log('Using Supabase URL:', process.env.VITE_SUPABASE_URL);
   console.log('Service Role Key configured:', !!process.env.VITE_ADMIN_ACCESS_TOKEN);
   console.log('Anon Key configured:', !!process.env.VITE_SUPABASE_ANON_KEY);
   
+  await testFirstNamePhoneAuth();
   await testDirectUserQuery();
   await testUnauthenticatedAccess();
   await testRoleBasedAccess();

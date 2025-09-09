@@ -153,72 +153,127 @@ const EmployeeOnboardingForm = () => {
   const [submitError, setSubmitError] = useState(null);
   
   const handleInputChange = (field, value) => {
-    if (field.includes('.')) {
-      const [parent, child, grandchild] = field.split('.');
-      setFormData(prev => ({
-        ...prev,
-        [parent]: {
-          ...prev[parent],
-          [child]: grandchild ? {
-            ...prev[parent][child],
-            [grandchild]: value
-          } : value
-        }
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [field]: value
-      }));
+    try {
+      if (field.includes('.')) {
+        const [parent, child, grandchild] = field.split('.');
+        setFormData(prev => {
+          // Ensure parent object exists
+          const parentObj = prev[parent] || {};
+          
+          if (grandchild) {
+            // Ensure child object exists for grandchild access
+            const childObj = parentObj[child] || {};
+            return {
+              ...prev,
+              [parent]: {
+                ...parentObj,
+                [child]: {
+                  ...childObj,
+                  [grandchild]: value
+                }
+              }
+            };
+          } else {
+            return {
+              ...prev,
+              [parent]: {
+                ...parentObj,
+                [child]: value
+              }
+            };
+          }
+        });
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          [field]: value
+        }));
+      }
+    } catch (error) {
+      console.error('Error updating form field:', field, error);
+      showToast('Error updating form field. Please try again.', 'error');
     }
   };
   
   const validateForm = () => {
-    const required = [
-      'employeeName',
-      'department', 
-      'employeeType',
-      'dateOfBirth',
-      'joiningDate',
-      'currentAddress',
-      'personalPhone',
-      'emailId'
-    ];
-    
-    for (const field of required) {
-      if (!formData[field]) {
-        showToast(`Please fill in ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`, 'error');
+    try {
+      const required = [
+        'employeeName',
+        'department', 
+        'employeeType',
+        'dateOfBirth',
+        'joiningDate',
+        'currentAddress',
+        'personalPhone',
+        'emailId'
+      ];
+      
+      // Check if formData exists and is an object
+      if (!formData || typeof formData !== 'object') {
+        showToast('Form data is corrupted. Please refresh the page.', 'error');
         return false;
       }
-    }
-    
-    // Role validation - ensure at least one role is selected
-    if (!formData.role || formData.role.length === 0) {
-      showToast('Please select at least one role', 'error');
+      
+      for (const field of required) {
+        const value = formData[field];
+        if (!value || (typeof value === 'string' && !value.trim())) {
+          const fieldName = field.replace(/([A-Z])/g, ' $1').toLowerCase();
+          showToast(`Please fill in ${fieldName}`, 'error');
+          return false;
+        }
+      }
+      
+      // Role validation - ensure at least one role is selected
+      if (!formData.role || !Array.isArray(formData.role) || formData.role.length === 0) {
+        showToast('Please select at least one role', 'error');
+        return false;
+      }
+      
+      // Email validation with null/undefined checks
+      const emailValue = formData.emailId;
+      if (!emailValue || typeof emailValue !== 'string') {
+        showToast('Please enter a valid email address', 'error');
+        return false;
+      }
+      
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailValue.trim())) {
+        showToast('Please enter a valid email address', 'error');
+        return false;
+      }
+      
+      // Phone validation with null/undefined checks
+      const phoneValue = formData.personalPhone;
+      if (!phoneValue || typeof phoneValue !== 'string') {
+        showToast('Please enter a valid phone number', 'error');
+        return false;
+      }
+      
+      const phoneRegex = /^[6-9]\d{9}$/;
+      const cleanPhone = phoneValue.replace(/\D/g, '');
+      if (!phoneRegex.test(cleanPhone)) {
+        showToast('Please enter a valid 10-digit Indian phone number', 'error');
+        return false;
+      }
+      
+      // Terms and Conditions validation with null checks
+       const termsData = formData.termsAndConditions;
+       if (!termsData || typeof termsData !== 'object' || !termsData.allTermsAccepted) {
+         showToast('Please accept all terms and conditions to proceed', 'error');
+         return false;
+       }
+       
+       return true;
+       
+    } catch (error) {
+      console.error('Form validation error:', error);
+      showToast('Validation error occurred. Please check your input and try again.', 'error');
       return false;
     }
-    
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.emailId)) {
-      showToast('Please enter a valid email address', 'error');
-      return false;
-    }
-    
-    // Phone validation - improved regex for Indian phone numbers
-    const phoneRegex = /^(\+91[\s\-]?)?[6-9]\d{9}$/;
-    if (!phoneRegex.test(formData.personalPhone.replace(/[\s\-]/g, ''))) {
-      showToast('Please enter a valid 10-digit Indian phone number', 'error');
-      return false;
-    }
-    
-    // Terms and Conditions validation
-    if (!formData.termsAndConditions.allTermsAccepted) {
-      showToast('Please accept all terms and conditions to proceed', 'error');
-      return false;
-    }
-    
-    // Validate individual terms based on employee type
+  };
+  
+  // Validate individual terms based on employee type
+  const validateIndividualTerms = () => {
     const isFullTime = formData.employeeType === 'Full-time';
     if (isFullTime) {
       if (!formData.termsAndConditions.ndaAccepted) {
@@ -396,8 +451,40 @@ const EmployeeOnboardingForm = () => {
       
     } catch (error) {
       console.error('Submission error:', error);
-      setSubmitError('An unexpected error occurred during submission. Please try again.');
-      showToast('An error occurred during submission', 'error');
+      
+      // Enhanced error handling with specific error messages
+      let errorMessage = 'An unexpected error occurred during submission. Please try again.';
+      let errorId = `ERR_${Date.now()}`;
+      
+      if (error?.message) {
+        if (error.message.includes('duplicate key') || error.message.includes('already exists')) {
+          errorMessage = 'An employee with this phone number or email already exists.';
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else if (error.message.includes('validation') || error.message.includes('invalid')) {
+          errorMessage = 'Please check your input data and try again.';
+        } else if (error.message.includes('permission') || error.message.includes('unauthorized')) {
+          errorMessage = 'You do not have permission to perform this action.';
+        } else {
+          errorMessage = `Submission failed: ${error.message}`;
+        }
+      }
+      
+      // Log detailed error for debugging
+      console.error('Detailed error info:', {
+        errorId,
+        message: error?.message,
+        stack: error?.stack,
+        formData: {
+          employeeName: formData?.employeeName,
+          department: formData?.department,
+          personalPhone: formData?.personalPhone,
+          emailId: formData?.emailId
+        }
+      });
+      
+      setSubmitError(`${errorMessage} (Error ID: ${errorId})`);
+      showToast(errorMessage, 'error');
     } finally {
       setIsSubmitting(false);
     }

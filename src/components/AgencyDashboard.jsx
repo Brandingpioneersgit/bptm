@@ -807,20 +807,8 @@ const AgencyDashboard = ({ userType, currentUser, onNavigateToProfile }) => {
           tooltip: "Add New Client"
         }
       );
-    } else {
-      // Login action for unauthenticated users
-      actions.push({
-        label: "Login",
-        icon: "🔐",
-        onClick: (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          navigation.navigateToLogin();
-        },
-        variant: "primary",
-        tooltip: "Login to access full features"
-      });
     }
+    // Removed duplicate login button - primary login is handled by AppShell component
 
     return actions;
   }, [user, agencyDashboard, navigation, showClientForm]);

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSupabase } from '../SupabaseProvider';
 import { useToast } from '@/shared/components/Toast';
+import { LoadingSpinner } from '@/shared/components/LoadingStates';
 import moment from 'moment';
 
 const HRProfile = ({ 
@@ -184,6 +185,19 @@ const HRProfile = ({
     if (values.length === 0) return 0;
     return Math.round(values.reduce((sum, val) => sum + val, 0) / values.length);
   };
+
+  // Show loading spinner while data is being fetched
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white rounded-xl border p-6">
+          <div className="flex justify-center items-center py-16">
+            <LoadingSpinner size="large" showText={true} text="Loading HR profile data..." />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Client Button Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-button {
+            background-color: #3b82f6;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background-color: #2563eb;
+        }
+        .test-button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+        .form-container {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f9fafb;
+            border-radius: 5px;
+        }
+        .form-container.show {
+            display: block;
+        }
+        .input-field {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+        }
+        .success {
+            color: #059669;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc2626;
+            font-weight: bold;
+        }
+        .log {
+            background-color: #f3f4f6;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Add Client Button Test</h1>
+        <p>This page tests the Add Client button functionality to identify any issues.</p>
+        
+        <div class="test-section">
+            <h3>Test 1: Basic Button Click</h3>
+            <p>Click the button below to test basic click functionality:</p>
+            <button id="basicTestBtn" class="test-button">Add Client (Basic Test)</button>
+            <div id="basicResult"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Test 2: Form Toggle</h3>
+            <p>This simulates the DeptClientsBlock Add Client button behavior:</p>
+            <button id="formToggleBtn" class="test-button">+ Add Client</button>
+            <div id="addClientForm" class="form-container">
+                <h4>Add New Client</h4>
+                <input type="text" class="input-field" placeholder="Client Name" id="clientName">
+                <input type="text" class="input-field" placeholder="Services" id="services">
+                <textarea class="input-field" placeholder="Deliverables" id="deliverables" rows="3"></textarea>
+                <div>
+                    <button id="saveClientBtn" class="test-button">Save Client</button>
+                    <button id="cancelBtn" class="test-button" style="background-color: #6b7280;">Cancel</button>
+                </div>
+            </div>
+            <div id="formResult"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Test 3: Event Handler Check</h3>
+            <p>Testing various event scenarios:</p>
+            <button id="eventTestBtn" class="test-button">Test Events</button>
+            <div id="eventResult"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Console Log</h3>
+            <div id="consoleLog" class="log"></div>
+            <button id="clearLogBtn" class="test-button" style="background-color: #6b7280;">Clear Log</button>
+        </div>
+    </div>
+    
+    <script>
+        // Console logging override
+        const originalLog = console.log;
+        const originalError = console.error;
+        const logContainer = document.getElementById('consoleLog');
+        
+        function addToLog(message, type = 'log') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<span style="color: #6b7280;">[${timestamp}]</span> <span style="color: ${type === 'error' ? '#dc2626' : '#374151'};">${message}</span>`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addToLog(args.join(' '), 'log');
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addToLog('ERROR: ' + args.join(' '), 'error');
+        };
+        
+        // Test 1: Basic Button Click
+        document.getElementById('basicTestBtn').addEventListener('click', function() {
+            console.log('Basic test button clicked');
+            const result = document.getElementById('basicResult');
+            result.innerHTML = '<span class="success">✅ Button click successful!</span>';
+            
+            // Test if the button can be disabled/enabled
+            this.disabled = true;
+            setTimeout(() => {
+                this.disabled = false;
+                console.log('Button re-enabled after 1 second');
+            }, 1000);
+        });
+        
+        // Test 2: Form Toggle (simulating DeptClientsBlock behavior)
+        let showAddForm = false;
+        const formToggleBtn = document.getElementById('formToggleBtn');
+        const addClientForm = document.getElementById('addClientForm');
+        
+        formToggleBtn.addEventListener('click', function() {
+            console.log('Form toggle button clicked, current state:', showAddForm);
+            showAddForm = !showAddForm;
+            
+            if (showAddForm) {
+                addClientForm.classList.add('show');
+                this.textContent = '✕ Cancel';
+                this.style.backgroundColor = '#6b7280';
+                console.log('Form opened');
+            } else {
+                addClientForm.classList.remove('show');
+                this.textContent = '+ Add Client';
+                this.style.backgroundColor = '#3b82f6';
+                console.log('Form closed');
+            }
+            
+            const result = document.getElementById('formResult');
+            result.innerHTML = `<span class="success">Form state: ${showAddForm ? 'Open' : 'Closed'}</span>`;
+        });
+        
+        // Save client button
+        document.getElementById('saveClientBtn').addEventListener('click', function() {
+            const clientName = document.getElementById('clientName').value;
+            const services = document.getElementById('services').value;
+            const deliverables = document.getElementById('deliverables').value;
+            
+            console.log('Save client clicked:', { clientName, services, deliverables });
+            
+            if (!clientName.trim()) {
+                console.error('Client name is required');
+                alert('Client name is required!');
+                return;
+            }
+            
+            // Simulate saving
+            console.log('Client saved successfully');
+            const result = document.getElementById('formResult');
+            result.innerHTML = `<span class="success">✅ Client "${clientName}" saved!</span>`;
+            
+            // Reset form
+            document.getElementById('clientName').value = '';
+            document.getElementById('services').value = '';
+            document.getElementById('deliverables').value = '';
+            
+            // Close form
+            showAddForm = false;
+            addClientForm.classList.remove('show');
+            formToggleBtn.textContent = '+ Add Client';
+            formToggleBtn.style.backgroundColor = '#3b82f6';
+        });
+        
+        // Cancel button
+        document.getElementById('cancelBtn').addEventListener('click', function() {
+            console.log('Cancel button clicked');
+            showAddForm = false;
+            addClientForm.classList.remove('show');
+            formToggleBtn.textContent = '+ Add Client';
+            formToggleBtn.style.backgroundColor = '#3b82f6';
+            
+            const result = document.getElementById('formResult');
+            result.innerHTML = '<span style="color: #6b7280;">Form cancelled</span>';
+        });
+        
+        // Test 3: Event Handler Check
+        document.getElementById('eventTestBtn').addEventListener('click', function() {
+            console.log('Event test started');
+            const result = document.getElementById('eventResult');
+            
+            try {
+                // Test various event scenarios
+                const tests = [
+                    { name: 'Click event', test: () => this.click !== undefined },
+                    { name: 'Event listener', test: () => typeof this.addEventListener === 'function' },
+                    { name: 'DOM manipulation', test: () => document.createElement('div') !== null },
+                    { name: 'CSS class manipulation', test: () => this.classList !== undefined },
+                    { name: 'Style manipulation', test: () => this.style !== undefined }
+                ];
+                
+                let results = [];
+                tests.forEach(test => {
+                    const passed = test.test();
+                    results.push(`${passed ? '✅' : '❌'} ${test.name}: ${passed ? 'PASS' : 'FAIL'}`);
+                    console.log(`${test.name}: ${passed ? 'PASS' : 'FAIL'}`);
+                });
+                
+                result.innerHTML = results.join('<br>');
+                
+            } catch (error) {
+                console.error('Event test failed:', error);
+                result.innerHTML = `<span class="error">❌ Test failed: ${error.message}</span>`;
+            }
+        });
+        
+        // Clear log button
+        document.getElementById('clearLogBtn').addEventListener('click', function() {
+            logContainer.innerHTML = '';
+            console.log('Log cleared');
+        });
+        
+        // Initial log
+        console.log('Add Client Button Test page loaded successfully');
+        console.log('All event listeners attached');
+        
+        // Test for common issues
+        setTimeout(() => {
+            console.log('Running initial diagnostics...');
+            
+            // Check if buttons are properly rendered
+            const buttons = document.querySelectorAll('.test-button');
+            console.log(`Found ${buttons.length} test buttons`);
+            
+            // Check if event listeners are working
+            buttons.forEach((btn, index) => {
+                if (btn.onclick || btn.addEventListener) {
+                    console.log(`Button ${index + 1}: Event handling available`);
+                } else {
+                    console.error(`Button ${index + 1}: No event handling found`);
+                }
+            });
+            
+            console.log('Initial diagnostics complete');
+        }, 100);
+    </script>
+</body>
+</html>

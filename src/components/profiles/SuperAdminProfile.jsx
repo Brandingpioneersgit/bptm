@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSupabase } from '../SupabaseProvider';
 import { useToast } from '@/shared/components/Toast';
+import { LoadingSpinner } from '@/shared/components/LoadingStates';
 import moment from 'moment';
 
 const SuperAdminProfile = ({ 
@@ -19,7 +20,7 @@ const SuperAdminProfile = ({
   
   const [adminData, setAdminData] = useState({});
   const [editFormData, setEditFormData] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [systemMetrics, setSystemMetrics] = useState({});
   const [userManagementData, setUserManagementData] = useState([]);
   const [departmentData, setDepartmentData] = useState([]);
@@ -362,6 +363,14 @@ const SuperAdminProfile = ({
     { id: 'analytics', label: 'Analytics', icon: '📈' },
     { id: 'security', label: 'Security', icon: '🔒' }
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

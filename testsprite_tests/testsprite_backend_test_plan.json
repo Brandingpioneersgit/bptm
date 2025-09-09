@@ -2,51 +2,51 @@
   {
     "id": "TC001",
     "title": "user login functionality",
-    "description": "Test the /api/auth/login endpoint to verify that users can successfully log in with valid email and password credentials, and receive a valid token and user object in response."
+    "description": "Verify that the user can successfully log in with valid email and password credentials and receives a 200 status code. Also verify that invalid credentials return a 401 status code."
   },
   {
     "id": "TC002",
     "title": "user logout functionality",
-    "description": "Test the /api/auth/logout endpoint to ensure that users can successfully log out and receive a confirmation of logout."
+    "description": "Verify that the user can successfully log out and receives a 200 status code confirming logout."
   },
   {
     "id": "TC003",
-    "title": "get all employees endpoint",
-    "description": "Test the /api/employees GET endpoint to verify that it returns a list of all employees with correct data structure and status code 200."
+    "title": "super admin dashboard data retrieval",
+    "description": "Verify that the Super Admin can retrieve their dashboard data successfully with a 200 status code."
   },
   {
     "id": "TC004",
-    "title": "create new employee endpoint",
-    "description": "Test the /api/employees POST endpoint to ensure new employees can be created with valid first name, last name, email, and role, and that the response confirms creation."
+    "title": "admin dashboard data retrieval",
+    "description": "Verify that the Admin can retrieve their dashboard data successfully with a 200 status code."
   },
   {
     "id": "TC005",
-    "title": "get all clients endpoint",
-    "description": "Test the /api/clients GET endpoint to verify that it returns a list of all clients with correct data and status code 200."
+    "title": "manager dashboard data retrieval",
+    "description": "Verify that the Manager can retrieve their dashboard data successfully with a 200 status code."
   },
   {
     "id": "TC006",
-    "title": "create new client endpoint",
-    "description": "Test the /api/clients POST endpoint to ensure new clients can be created with valid name, email, and company details, and that the response confirms creation."
+    "title": "employee dashboard data retrieval",
+    "description": "Verify that the Employee can retrieve their dashboard data successfully with a 200 status code."
   },
   {
     "id": "TC007",
-    "title": "get monthly tactical report endpoint",
-    "description": "Test the /api/reports/monthly-tactical GET endpoint to verify that it returns the monthly tactical report data correctly with status code 200."
+    "title": "get all clients",
+    "description": "Verify that the API returns a list of all clients with a 200 status code."
   },
   {
     "id": "TC008",
-    "title": "get quarterly strategic report endpoint",
-    "description": "Test the /api/reports/quarterly-strategic GET endpoint to ensure it returns the quarterly strategic report data correctly with status code 200."
+    "title": "create new client",
+    "description": "Verify that a new client can be created successfully by posting valid client data and receiving a 201 status code."
   },
   {
     "id": "TC009",
-    "title": "get all workspaces endpoint",
-    "description": "Test the /api/workspaces GET endpoint to verify that it returns a list of all workspaces with correct data and status code 200."
+    "title": "client onboarding process",
+    "description": "Verify that the client onboarding process completes successfully and returns a 200 status code."
   },
   {
     "id": "TC010",
-    "title": "get live data updates endpoint",
-    "description": "Test the /api/live-data GET endpoint to ensure it returns live data updates with status and update information correctly with status code 200."
+    "title": "get all employees",
+    "description": "Verify that the API returns a list of all employees with a 200 status code."
   }
 ]

@@ -92,9 +92,11 @@ export const ValidationRules = {
   phone: (value, message = 'Invalid phone number') => {
     if (!value) return null;
     
-    // Allow various phone formats
-    const phoneRegex = /^[\+]?[1-9][\d\s\-\(\)]{8,}$/;
-    const cleanValue = value.replace(/[\s\-\(\)]/g, '');
+    // Clean the phone number by removing all non-digit characters
+    const cleanValue = value.replace(/\D/g, '');
+    
+    // Validate Indian phone numbers: 10 digits starting with 6-9
+    const phoneRegex = /^[6-9]\d{9}$/;
     return phoneRegex.test(cleanValue) ? null : message;
   },
   

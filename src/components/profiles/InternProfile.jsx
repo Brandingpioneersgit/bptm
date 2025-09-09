@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSupabase } from '../SupabaseProvider';
 import { useToast } from '@/shared/components/Toast';
+import { LoadingSpinner } from '@/shared/components/LoadingStates';
 import moment from 'moment';
 import { INTERN_PROFILE_CONFIG } from '../../shared/config/uiConfig';
 
@@ -20,7 +21,7 @@ const InternProfile = ({
   
   const [internData, setInternData] = useState(null);
   const [editFormData, setEditFormData] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [learningGoals, setLearningGoals] = useState([]);
   const [mentorFeedback, setMentorFeedback] = useState([]);
   
@@ -211,6 +212,15 @@ const InternProfile = ({
     if (score >= 60) return 'bg-yellow-500';
     return 'bg-red-500';
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <LoadingSpinner size="lg" />
+        <span className="ml-3 text-gray-600">Loading intern profile data...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

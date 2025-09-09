@@ -53,6 +53,24 @@ INSERT INTO public.unified_users (
 ('USR007', 'Admin Super', 'admin@agency.com', '9876543225', 'test123', 'Super Admin', 'super_admin', 
  'Administration', 'ADM001', '2024-01-01', 'full_time', ARRAY['System Administration', 'Full Stack Development'], 
  'active', ARRAY['all_dashboards', 'admin_dashboard', 'profile'], '{"full_access": true}',
+ false, 0),
+
+-- HR User
+('USR008', 'HRUser', 'hr@agency.com', '9876543226', 'test123', 'HR Manager', 'hr', 
+ 'Human Resources', 'HR001', '2024-01-01', 'full_time', ARRAY['Employee Management', 'Recruitment'], 
+ 'active', ARRAY['hr_dashboard', 'employee_dashboard'], '{"read": true, "write": true, "hr_access": true}',
+ false, 0),
+
+-- Manager
+('USR009', 'Manager', 'manager@agency.com', '9876543227', 'test123', 'Team Manager', 'manager', 
+ 'Management', 'MGR001', '2024-01-01', 'full_time', ARRAY['Team Leadership', 'Project Management'], 
+ 'active', ARRAY['manager_dashboard', 'employee_dashboard'], '{"read": true, "write": true, "manage_team": true}',
+ false, 0),
+
+-- Employee
+('USR010', 'Employee', 'employee@agency.com', '9876543228', 'test123', 'General Employee', 'employee', 
+ 'General', 'EMP007', '2024-01-01', 'full_time', ARRAY['General Tasks'], 
+ 'active', ARRAY['employee_dashboard'], '{"read": true, "write": false}',
  false, 0);
 
 -- Re-enable RLS
@@ -118,6 +136,24 @@ SELECT 'Admin Super Test:' as test_name,
        CASE WHEN EXISTS(
            SELECT 1 FROM public.unified_users 
            WHERE name ILIKE 'Admin%' AND phone = '9876543225' AND status = 'active'
+       ) THEN '✅ PASS' ELSE '❌ FAIL' END as result;
+
+SELECT 'HRUser Test:' as test_name,
+       CASE WHEN EXISTS(
+           SELECT 1 FROM public.unified_users 
+           WHERE name ILIKE 'HRUser%' AND phone = '9876543226' AND status = 'active'
+       ) THEN '✅ PASS' ELSE '❌ FAIL' END as result;
+
+SELECT 'Manager Test:' as test_name,
+       CASE WHEN EXISTS(
+           SELECT 1 FROM public.unified_users 
+           WHERE name ILIKE 'Manager%' AND phone = '9876543227' AND status = 'active'
+       ) THEN '✅ PASS' ELSE '❌ FAIL' END as result;
+
+SELECT 'Employee Test:' as test_name,
+       CASE WHEN EXISTS(
+           SELECT 1 FROM public.unified_users 
+           WHERE name ILIKE 'Employee%' AND phone = '9876543228' AND status = 'active'
        ) THEN '✅ PASS' ELSE '❌ FAIL' END as result;
 
 -- Summary

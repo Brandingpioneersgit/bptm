@@ -137,15 +137,51 @@ const testUsers = [
   },
   {
     user_id: 'USR010',
-    name: 'Admin Super Admin',
-    email: 'admin@bptm.com',
-    phone: '+919876543219',
-    password_hash: 'password123',
-    role: 'Super Admin', // Valid role from schema
+    name: 'Admin Super',
+    email: 'admin@agency.com',
+    phone: '9876543225',
+    password_hash: 'test123',
+    role: 'Super Admin',
     user_category: 'super_admin',
     department: 'Administration',
     status: 'active',
     dashboard_access: ['super_admin_dashboard', 'all_dashboards']
+  },
+  {
+    user_id: 'USR011',
+    name: 'HRUser',
+    email: 'hr@agency.com',
+    phone: '9876543226',
+    password_hash: 'test123',
+    role: 'HR',
+    user_category: 'admin',
+    department: 'Human Resources',
+    status: 'active',
+    dashboard_access: ['hr_dashboard', 'admin_dashboard']
+  },
+  {
+    user_id: 'USR012',
+    name: 'Manager',
+    email: 'manager@agency.com',
+    phone: '9876543227',
+    password_hash: 'test123',
+    role: 'Operations Head',
+    user_category: 'management',
+    department: 'Management',
+    status: 'active',
+    dashboard_access: ['operations_dashboard', 'management_dashboard']
+  },
+  {
+    user_id: 'USR013',
+    name: 'Employee',
+    email: 'employee@agency.com',
+    phone: '9876543228',
+    password_hash: 'test123',
+    role: 'SEO',
+    user_category: 'employee',
+    department: 'Marketing',
+    status: 'active',
+    dashboard_access: ['seo_dashboard', 'employee_dashboard']
   }
 ];
 

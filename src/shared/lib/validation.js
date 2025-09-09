@@ -36,14 +36,11 @@ export function validateField(fieldName, value, context = {}) {
         if (cleanPhone.length === 0) {
           return ValidationResult.error('Please enter a valid phone number', 'error');
         }
-        if (cleanPhone.length < 10) {
-          return ValidationResult.error(`Phone number incomplete (${cleanPhone.length}/10 digits)`, 'error');
+        if (cleanPhone.length !== 10) {
+          return ValidationResult.error(`Phone number must be exactly 10 digits (current: ${cleanPhone.length})`, 'error');
         }
-        if (cleanPhone.length > 10) {
-          return ValidationResult.error('Phone number too long (max 10 digits)', 'error');
-        }
-        if (!/^[6-9]/.test(cleanPhone)) {
-          return ValidationResult.warning('Phone number should start with 6, 7, 8, or 9 for Indian mobile numbers.');
+        if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+          return ValidationResult.error('Phone number must be a valid Indian mobile number (10 digits starting with 6, 7, 8, or 9)', 'error');
         }
         return ValidationResult.success();
         

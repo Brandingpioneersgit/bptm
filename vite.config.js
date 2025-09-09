@@ -74,23 +74,13 @@ export default defineConfig(({ mode }) => {
               './src/components/EmployeeForm.jsx',
               './src/components/EmployeeForm/NewEmployeeForm.jsx'
             ],
-            'charts': [
-              './src/components/charts/BarChart.jsx',
-              './src/components/charts/LineChart.jsx',
-              './src/components/charts/PieChart.jsx'
-            ],
-            'tables': [
-              './src/components/tables/DataTable.jsx',
-              './src/components/tables/SortableTable.jsx'
-            ],
+
+
             'auth': [
               './src/features/auth/UnifiedAuthContext.jsx',
               './src/features/auth/LoginForm.jsx'
             ],
-            'utils': [
-              './src/utils/formatters.js',
-              './src/utils/validators.js'
-            ]
+
           }
         }
       },

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSupabase } from '../SupabaseProvider';
 import { useToast } from '@/shared/components/Toast';
+import { LoadingSpinner } from '@/shared/components/LoadingStates';
 import moment from 'moment';
 
 const OperationsHeadProfile = ({ 
@@ -21,7 +22,7 @@ const OperationsHeadProfile = ({
   const [operationsMetrics, setOperationsMetrics] = useState({});
   // Edit modal state removed - using navigation instead
   const [editFormData, setEditFormData] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   
   // New KPI-related state variables
   const [operationsKPIs, setOperationsKPIs] = useState({
@@ -155,6 +156,15 @@ const OperationsHeadProfile = ({
     { id: 'analytics', label: 'Analytics', icon: '📈' },
     { id: 'profile', label: 'Profile', icon: '👤' }
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <LoadingSpinner size="lg" />
+        <span className="ml-3 text-gray-600">Loading operations profile data...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

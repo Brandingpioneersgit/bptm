@@ -127,7 +127,7 @@ export class MonthlyReportService {
       // Fetch users and submissions in parallel
       const [users, monthlySubmissions, legacySubmissions] = await Promise.all([
         this.fetchUsers(),
-        this.fetchMonthlySubmissions(year, month),
+        this.fetchMonthlySubmissions(monthKey),
         this.fetchLegacySubmissions(monthKey)
       ]);
 

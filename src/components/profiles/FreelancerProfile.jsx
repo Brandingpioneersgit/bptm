@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSupabase } from '../SupabaseProvider';
 import { useToast } from '@/shared/components/Toast';
+import { LoadingSpinner } from '@/shared/components/LoadingStates';
 import moment from 'moment';
 
 const FreelancerProfile = ({ 
@@ -229,6 +230,19 @@ const FreelancerProfile = ({
     if (score >= 60) return 'bg-yellow-500';
     return 'bg-red-500';
   };
+
+  // Show loading spinner while data is being fetched
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white rounded-xl border p-6">
+          <div className="flex justify-center items-center py-16">
+            <LoadingSpinner size="large" showText={true} text="Loading freelancer profile data..." />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -6,7 +6,7 @@
 -- Used for client project management and tracking
 CREATE TABLE IF NOT EXISTS public.client_projects (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
+    client_id UUID, -- REFERENCES clients(id) ON DELETE CASCADE, -- Commented out until clients table exists
     project_name VARCHAR(255) NOT NULL,
     project_type VARCHAR(100),
     status VARCHAR(50) DEFAULT 'active',
@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS public.system_updates (
 -- Used for tracking client payments and billing
 CREATE TABLE IF NOT EXISTS public.client_payments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
+    client_id UUID, -- REFERENCES clients(id) ON DELETE CASCADE, -- Commented out until clients table exists
     project_id UUID REFERENCES client_projects(id) ON DELETE SET NULL,
     invoice_number VARCHAR(100) UNIQUE,
     amount DECIMAL(12,2) NOT NULL,
@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS public.web_projects (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     project_name VARCHAR(255) NOT NULL,
     client_name VARCHAR(255),
-    client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
+    client_id UUID, -- REFERENCES clients(id) ON DELETE SET NULL, -- Commented out until clients table exists
     project_type VARCHAR(100), -- website, webapp, ecommerce, landing_page
     technology_stack TEXT[], -- react, node, php, wordpress, etc
     status VARCHAR(50) DEFAULT 'planning', -- planning, development, testing, deployed, maintenance
@@ -151,7 +151,7 @@ CREATE TABLE IF NOT EXISTS public.web_projects (
 -- Used for managing recurring client relationships and contracts
 CREATE TABLE IF NOT EXISTS public.recurring_clients (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
+    client_id UUID, -- REFERENCES clients(id) ON DELETE CASCADE, -- Commented out until clients table exists
     service_type VARCHAR(100) NOT NULL, -- SEO, Ads, Social Media, Web Development, etc
     contract_type VARCHAR(50) DEFAULT 'monthly', -- monthly, quarterly, yearly
     status VARCHAR(50) DEFAULT 'active', -- active, paused, cancelled, expired
@@ -199,6 +199,16 @@ ALTER TABLE web_projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recurring_clients ENABLE ROW LEVEL SECURITY;
 
 -- Create basic RLS policies (allow all for authenticated users - adjust as needed)
+-- Drop existing policies first to avoid conflicts
+DROP POLICY IF EXISTS "Allow all operations for authenticated users" ON client_projects;
+DROP POLICY IF EXISTS "Allow all operations for authenticated users" ON announcements;
+DROP POLICY IF EXISTS "Allow all operations for authenticated users" ON events;
+DROP POLICY IF EXISTS "Allow all operations for authenticated users" ON system_updates;
+DROP POLICY IF EXISTS "Allow all operations for authenticated users" ON client_payments;
+DROP POLICY IF EXISTS "Allow all operations for authenticated users" ON web_projects;
+DROP POLICY IF EXISTS "Allow all operations for authenticated users" ON recurring_clients;
+
+-- Create new policies
 CREATE POLICY "Allow all operations for authenticated users" ON client_projects FOR ALL USING (true);
 CREATE POLICY "Allow all operations for authenticated users" ON announcements FOR ALL USING (true);
 CREATE POLICY "Allow all operations for authenticated users" ON events FOR ALL USING (true);

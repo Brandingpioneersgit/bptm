@@ -1,44 +1,40 @@
 {
   "tech_stack": [
     "JavaScript",
-    "React 18",
+    "React 18.2.0",
+    "Vite 5.0.0",
     "Node.js",
-    "Express.js",
-    "Vite",
+    "Express 4.18.2",
     "Supabase",
     "PostgreSQL",
-    "Tailwind CSS",
-    "React Router",
+    "Tailwind CSS 3.4.0",
+    "React Router DOM 7.8.2",
     "Headless UI",
     "Heroicons",
+    "Lucide React",
     "Recharts",
     "React Big Calendar",
-    "Lucide React",
-    "jsPDF",
-    "XLSX",
     "Moment.js",
     "Date-fns",
-    "React Hot Toast",
+    "CORS",
+    "Dotenv",
     "Vitest",
-    "Testing Library"
+    "PostCSS",
+    "Autoprefixer"
   ],
   "features": [
     {
       "name": "Authentication System",
-      "description": "Multi-role authentication system with name, phone number, and role-based login. Supports database users and local fallback authentication.",
+      "description": "Unified authentication with role-based access control, session management, and user login/logout functionality",
       "files": [
-        "src/api/authApi.js",
-        "src/features/auth/AuthService.js",
         "src/features/auth/UnifiedAuthContext.jsx",
-        "src/features/auth/ProtectedRoute.jsx",
+        "src/features/auth/LoginForm.jsx",
+        "src/features/auth/AuthService.js",
+        "src/api/authApi.js",
         "api-server.js"
       ],
       "api_doc": {
         "openapi": "3.0.0",
-        "info": {
-          "title": "Authentication API",
-          "version": "1.0.0"
-        },
         "paths": {
           "/api/auth/login": {
             "post": {
@@ -57,20 +53,8 @@
                 }
               },
               "responses": {
-                "200": {
-                  "description": "Login successful",
-                  "content": {
-                    "application/json": {
-                      "schema": {
-                        "type": "object",
-                        "properties": {
-                          "token": {"type": "string"},
-                          "user": {"type": "object"}
-                        }
-                      }
-                    }
-                  }
-                }
+                "200": {"description": "Login successful"},
+                "401": {"description": "Invalid credentials"}
               }
             }
           },
@@ -86,63 +70,48 @@
       }
     },
     {
-      "name": "Role-Based Dashboard System",
-      "description": "Multiple dashboard interfaces for different user roles including Super Admin, HR, Manager, Employee, Intern, and Freelancer dashboards.",
+      "name": "Dashboard Management",
+      "description": "Role-based dashboards for different user types including Super Admin, Manager, Employee, Intern, and Freelancer dashboards",
       "files": [
-        "src/components/AppShell.jsx",
-        "src/components/AgencyDashboard.jsx",
-        "src/components/ProfileDashboard.jsx",
-        "src/components/dashboards/SuperAdminDashboard.jsx",
-        "src/components/dashboards/HRDashboard.jsx",
-        "src/components/dashboards/ManagerDashboard.jsx",
-        "src/components/dashboards/EmployeeDashboard.jsx",
-        "src/components/dashboards/InternDashboard.jsx"
-      ]
-    },
-    {
-      "name": "Employee Management",
-      "description": "Comprehensive employee management system with onboarding, performance tracking, and personal dashboards.",
-      "files": [
+        "src/components/ManagerDashboard.jsx",
         "src/components/EmployeePersonalDashboard.jsx",
-        "src/components/EmployeeOnboarding.jsx",
-        "src/components/EmployeeDirectory.jsx",
-        "src/services/employeeService.js"
+        "src/components/InternDashboard.jsx",
+        "src/components/AgencyDashboard.jsx",
+        "src/components/dashboards/DesignDashboard.jsx",
+        "src/components/SEOModule.jsx"
       ],
       "api_doc": {
+        "openapi": "3.0.0",
         "paths": {
-          "/api/employees": {
+          "/api/super-admin/dashboard": {
             "get": {
-              "summary": "Get all employees",
+              "summary": "Get Super Admin dashboard data",
               "responses": {
-                "200": {
-                  "description": "List of employees",
-                  "content": {
-                    "application/json": {
-                      "schema": {
-                        "type": "array",
-                        "items": {"type": "object"}
-                      }
-                    }
-                  }
-                }
+                "200": {"description": "Dashboard data retrieved"}
               }
-            },
-            "post": {
-              "summary": "Create new employee",
-              "requestBody": {
-                "content": {
-                  "application/json": {
-                    "schema": {
-                      "type": "object",
-                      "properties": {
-                        "first_name": {"type": "string"},
-                        "last_name": {"type": "string"},
-                        "email": {"type": "string"},
-                        "role": {"type": "string"}
-                      }
-                    }
-                  }
-                }
+            }
+          },
+          "/api/admin/dashboard": {
+            "get": {
+              "summary": "Get Admin dashboard data",
+              "responses": {
+                "200": {"description": "Dashboard data retrieved"}
+              }
+            }
+          },
+          "/api/manager/dashboard": {
+            "get": {
+              "summary": "Get Manager dashboard data",
+              "responses": {
+                "200": {"description": "Dashboard data retrieved"}
+              }
+            }
+          },
+          "/api/employee/dashboard": {
+            "get": {
+              "summary": "Get Employee dashboard data",
+              "responses": {
+                "200": {"description": "Dashboard data retrieved"}
               }
             }
           }
@@ -151,22 +120,23 @@
     },
     {
       "name": "Client Management",
-      "description": "Client relationship management system with onboarding, project tracking, and client dashboards.",
+      "description": "Complete client lifecycle management including client creation, onboarding, project tracking, and client directory",
       "files": [
-        "src/components/ClientOnboarding.jsx",
+        "src/features/clients/components/ClientManagementView.jsx",
+        "src/features/clients/components/ClientAdditionForm.jsx",
+        "src/features/clients/components/ClientDashboardView.jsx",
         "src/components/ClientDirectory.jsx",
-        "src/shared/components/ClientDropdown.jsx",
-        "src/services/clientService.js"
+        "src/components/ClientOnboardingForm.jsx",
+        "src/components/ClientProjects.jsx"
       ],
       "api_doc": {
+        "openapi": "3.0.0",
         "paths": {
           "/api/clients": {
             "get": {
               "summary": "Get all clients",
               "responses": {
-                "200": {
-                  "description": "List of clients"
-                }
+                "200": {"description": "List of clients retrieved"}
               }
             },
             "post": {
@@ -179,11 +149,22 @@
                       "properties": {
                         "name": {"type": "string"},
                         "email": {"type": "string"},
-                        "company": {"type": "string"}
+                        "services": {"type": "array"}
                       }
                     }
                   }
                 }
+              },
+              "responses": {
+                "201": {"description": "Client created successfully"}
+              }
+            }
+          },
+          "/api/client/onboarding": {
+            "post": {
+              "summary": "Client onboarding process",
+              "responses": {
+                "200": {"description": "Onboarding completed"}
               }
             }
           }
@@ -191,42 +172,58 @@
       }
     },
     {
-      "name": "Form Management System",
-      "description": "Dynamic form system for monthly submissions, tactical forms, and various business processes.",
+      "name": "Employee Management",
+      "description": "Employee lifecycle management including signup, onboarding, performance tracking, and employee directory",
       "files": [
-        "src/components/MonthlyFormPrompt.jsx",
-        "src/components/TacticalForm.jsx",
-        "src/components/InteractiveForms.jsx",
-        "src/components/FormTracking.jsx"
-      ]
-    },
-    {
-      "name": "Reporting and Analytics",
-      "description": "Comprehensive reporting system with monthly tactical reports, quarterly strategic reports, and performance analytics.",
-      "files": [
-        "src/utils/reportGenerator.js",
-        "src/services/financialService.js",
-        "src/components/shared/DashboardHeader.jsx"
+        "src/features/employees/components/EmployeeSignupNavigation.jsx",
+        "src/features/employees/components/ManagerIncentiveReporting.jsx",
+        "src/components/EmployeeForm.jsx",
+        "src/components/EmployeeForm/NewEmployeeForm.jsx"
       ],
       "api_doc": {
+        "openapi": "3.0.0",
+        "paths": {
+          "/api/employees": {
+            "get": {
+              "summary": "Get all employees",
+              "responses": {
+                "200": {"description": "List of employees retrieved"}
+              }
+            },
+            "post": {
+              "summary": "Create new employee",
+              "responses": {
+                "201": {"description": "Employee created successfully"}
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Reporting System",
+      "description": "Comprehensive reporting system with monthly tactical reports, quarterly strategic reports, and performance analytics",
+      "files": [
+        "src/components/NewReportDashboard.jsx",
+        "src/utils/reportGenerator.js",
+        "api-server.js"
+      ],
+      "api_doc": {
+        "openapi": "3.0.0",
         "paths": {
           "/api/reports/monthly-tactical": {
             "get": {
-              "summary": "Get monthly tactical report",
+              "summary": "Get monthly tactical reports",
               "responses": {
-                "200": {
-                  "description": "Monthly tactical report data"
-                }
+                "200": {"description": "Monthly reports retrieved"}
               }
             }
           },
           "/api/reports/quarterly-strategic": {
             "get": {
-              "summary": "Get quarterly strategic report",
+              "summary": "Get quarterly strategic reports",
               "responses": {
-                "200": {
-                  "description": "Quarterly strategic report data"
-                }
+                "200": {"description": "Quarterly reports retrieved"}
               }
             }
           }
@@ -235,21 +232,19 @@
     },
     {
       "name": "Workspace Management",
-      "description": "Workspace and project management system with team collaboration features.",
+      "description": "Project workspace system for team collaboration and project tracking",
       "files": [
-        "src/shared/services/workspaceService.js",
-        "src/shared/services/configService.js",
-        "src/components/MasterTools.jsx"
+        "src/components/ProjectWorkspaceSystem.jsx",
+        "src/shared/services/workspaceService.js"
       ],
       "api_doc": {
+        "openapi": "3.0.0",
         "paths": {
           "/api/workspaces": {
             "get": {
               "summary": "Get all workspaces",
               "responses": {
-                "200": {
-                  "description": "List of workspaces"
-                }
+                "200": {"description": "List of workspaces retrieved"}
               }
             }
           }
@@ -257,22 +252,49 @@
       }
     },
     {
-      "name": "Live Data Services",
-      "description": "Real-time data synchronization and live updates system.",
+      "name": "Payment Management",
+      "description": "Payment tracking and financial management system",
       "files": [
-        "src/shared/services/liveDataService.js",
-        "src/services/realTimeDataService.js",
-        "src/components/DataSyncContext.jsx"
+        "api-server.js"
       ],
       "api_doc": {
+        "openapi": "3.0.0",
         "paths": {
-          "/api/live-data": {
+          "/api/accounts/payments": {
             "get": {
-              "summary": "Get live data updates",
+              "summary": "Get payment accounts",
               "responses": {
-                "200": {
-                  "description": "Live data with status and updates"
+                "200": {"description": "Payment accounts retrieved"}
+              }
+            }
+          },
+          "/api/payments/{payment_id}": {
+            "get": {
+              "summary": "Get specific payment",
+              "parameters": [
+                {
+                  "name": "payment_id",
+                  "in": "path",
+                  "required": true,
+                  "schema": {"type": "string"}
                 }
+              ],
+              "responses": {
+                "200": {"description": "Payment details retrieved"}
+              }
+            },
+            "put": {
+              "summary": "Update payment",
+              "parameters": [
+                {
+                  "name": "payment_id",
+                  "in": "path",
+                  "required": true,
+                  "schema": {"type": "string"}
+                }
+              ],
+              "responses": {
+                "200": {"description": "Payment updated successfully"}
               }
             }
           }
@@ -280,53 +302,121 @@
       }
     },
     {
-      "name": "Arcade System",
-      "description": "Gamification system with points, rewards, and employee engagement features.",
+      "name": "Sales Management",
+      "description": "Sales lead management and tracking system",
       "files": [
-        "src/components/ArcadeSystem.jsx",
-        "src/components/ArcadeEarnPoints.jsx",
-        "src/components/ArcadeRedeemPoints.jsx",
-        "src/components/ArcadeHistory.jsx",
-        "src/components/ArcadeAdmin.jsx"
-      ]
+        "api-server.js"
+      ],
+      "api_doc": {
+        "openapi": "3.0.0",
+        "paths": {
+          "/api/sales/leads": {
+            "get": {
+              "summary": "Get sales leads",
+              "responses": {
+                "200": {"description": "Sales leads retrieved"}
+              }
+            },
+            "post": {
+              "summary": "Create sales lead",
+              "responses": {
+                "201": {"description": "Sales lead created"}
+              }
+            }
+          }
+        }
+      }
     },
     {
-      "name": "Permission and Access Control",
-      "description": "Role-based access control system with permission guards and route protection.",
+      "name": "Notification System",
+      "description": "Real-time notification system with read/unread status tracking",
       "files": [
-        "src/components/PermissionGuard.jsx",
-        "src/components/useRBAC.jsx",
-        "src/features/auth/ProtectedRoute.jsx"
-      ]
+        "src/components/notifications/NotificationCenter.jsx",
+        "src/components/NotificationSystem.jsx",
+        "api-server.js"
+      ],
+      "api_doc": {
+        "openapi": "3.0.0",
+        "paths": {
+          "/api/notifications": {
+            "get": {
+              "summary": "Get notifications",
+              "responses": {
+                "200": {"description": "Notifications retrieved"}
+              }
+            }
+          },
+          "/api/notifications/{id}/read": {
+            "put": {
+              "summary": "Mark notification as read",
+              "parameters": [
+                {
+                  "name": "id",
+                  "in": "path",
+                  "required": true,
+                  "schema": {"type": "string"}
+                }
+              ],
+              "responses": {
+                "200": {"description": "Notification marked as read"}
+              }
+            }
+          }
+        }
+      }
     },
     {
-      "name": "Navigation System",
-      "description": "Comprehensive navigation system with role-based routing and hash-based navigation.",
+      "name": "System Administration",
+      "description": "System health monitoring, user management, and audit logging",
       "files": [
-        "src/utils/navigation.js",
-        "src/components/Router.jsx",
-        "src/components/AppShell.jsx"
-      ]
-    },
-    {
-      "name": "Database Integration",
-      "description": "Supabase integration with PostgreSQL database, row-level security, and data synchronization.",
-      "files": [
-        "src/shared/lib/supabase.js",
-        "src/shared/lib/adminSupabase.js",
-        "src/components/SupabaseProvider.jsx",
-        "src/shared/utils/secureApiClient.js"
-      ]
-    },
-    {
-      "name": "UI Components and Design System",
-      "description": "Comprehensive UI component library with Tailwind CSS styling and responsive design.",
-      "files": [
-        "src/components/shared/DashboardHeader.jsx",
-        "src/components/shared/LoadingSpinner.jsx",
-        "src/components/shared/ErrorBoundary.jsx",
-        "src/shared/components/ClientDropdown.jsx"
-      ]
+        "api-server.js",
+        "src/components/MasterToolsPage.jsx"
+      ],
+      "api_doc": {
+        "openapi": "3.0.0",
+        "paths": {
+          "/health": {
+            "get": {
+              "summary": "Health check endpoint",
+              "responses": {
+                "200": {"description": "System is healthy"}
+              }
+            }
+          },
+          "/api/check-users": {
+            "get": {
+              "summary": "Check existing users",
+              "responses": {
+                "200": {"description": "User information retrieved"}
+              }
+            }
+          },
+          "/api/seed-users": {
+            "post": {
+              "summary": "Seed test users (development only)",
+              "responses": {
+                "200": {"description": "Test users created"}
+              }
+            }
+          },
+          "/api/audit/logs": {
+            "get": {
+              "summary": "Get audit logs",
+              "responses": {
+                "200": {"description": "Audit logs retrieved"}
+              }
+            }
+          },
+          "/api/live-data": {
+            "get": {
+              "summary": "Get live system data",
+              "responses": {
+                "200": {"description": "Live data retrieved"}
+              }
+            }
+          }
+        }
+      }
     }
   ]
 }

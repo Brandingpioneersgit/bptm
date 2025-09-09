@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUnifiedAuth } from '@/features/auth/UnifiedAuthContext';
 import { useToast } from '@/shared/components/Toast';
 import { useDataSync } from '@/components/DataSyncContext';
+import { LoadingSpinner } from '@/shared/components/LoadingStates';
 import { DEPARTMENTS } from '@/shared/lib/constants';
 
 // Profile Edit Page Component
@@ -12,6 +13,7 @@ const ProfileEditPage = () => {
   const { notify } = useToast();
   const { updateEmployee } = useDataSync();
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -112,6 +114,7 @@ const ProfileEditPage = () => {
           language: user.preferences?.language || 'en'
         }
       });
+      setInitialLoading(false);
     }
   }, [user]);
 
@@ -174,6 +177,19 @@ const ProfileEditPage = () => {
   const handleCancel = () => {
     navigate(-1);
   };
+
+  // Show loading spinner while initial data is loading
+  if (initialLoading) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-4xl mx-auto">
+          <div className="flex justify-center items-center py-16">
+            <LoadingSpinner size="large" showText={true} text="Loading profile data..." />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8 px-4">

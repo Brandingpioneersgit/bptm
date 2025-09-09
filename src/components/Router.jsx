@@ -14,11 +14,23 @@ import { ClientDashboardView } from "@/features/clients/components/ClientDashboa
 import ManagerDashboard from "@/components/ManagerDashboard";
 import SuperAdminDashboard from "@/components/SuperAdminDashboard";
 import EmployeeOnboardingForm from "@/components/EmployeeOnboardingForm";
+import ClientOnboardingForm from "@/components/ClientOnboardingForm";
 import EmployeeForm from "@/components/EmployeeForm";
 import LeaveApplicationForm from "@/components/LeaveApplicationForm";
 import { ClientAdditionForm } from "@/features/clients/components/ClientAdditionForm";
 import FormTrackingDashboard from "@/components/FormTrackingDashboard";
 import MonthlyReportDashboard from "@/components/MonthlyReportDashboard";
+import DirectoryPage from "@/pages/DirectoryPage";
+import PerformanceScoringPage from "@/pages/PerformanceScoringPage";
+import ProfileEditPage from "@/features/profile/ProfileEditPage";
+import ArcadeHistory from "@/components/ArcadeHistory";
+import ArcadeEarnPoints from "@/components/ArcadeEarnPoints";
+import ArcadeRedeemPoints from "@/components/ArcadeRedeemPoints";
+import ManagerIncentiveReporting from "@/features/employees/components/ManagerIncentiveReporting";
+import InteractiveKPIForm from "@/components/InteractiveKPIForm";
+import EmployeeIncentiveForm from "@/components/EmployeeIncentiveForm";
+import HRIncentiveApproval from "@/features/employees/components/HRIncentiveApproval";
+import OrganizationChart from "@/components/OrganizationChart";
 
 // Note: Using PlaceholderPage for components that don't exist yet
 
@@ -136,7 +148,7 @@ export default function AppRouter() {
         } />
         <Route path="/password-setup" element={<PasswordSetup />} />
         <Route path="/employee-onboarding" element={<EmployeeOnboardingForm />} />
-        <Route path="/client-onboarding" element={<EmployeeOnboardingForm />} />
+        <Route path="/client-onboarding" element={<ClientOnboardingForm />} />
         <Route path="/policies" element={<PlaceholderPage title="Company Policies" />} />
         
         {/* Form Routes */}
@@ -150,32 +162,32 @@ export default function AppRouter() {
         <Route path="/monthly-reports" element={<MonthlyReportDashboard />} />
         
         {/* Directory Routes */}
-        <Route path="/employee-directory" element={<PlaceholderPage title="Employee Directory" />} />
-        <Route path="/client-directory" element={<PlaceholderPage title="Client Directory" />} />
-        <Route path="/organization-chart" element={<PlaceholderPage title="Organization Chart" />} />
+        <Route path="/employee-directory" element={<DirectoryPage />} />
+        <Route path="/client-directory" element={<DirectoryPage />} />
+        <Route path="/organization-chart" element={<OrganizationChart />} />
         
         {/* Performance Routes */}
-        <Route path="/performance-scoring" element={<PlaceholderPage title="Performance Scoring" />} />
+        <Route path="/performance-scoring" element={<PerformanceScoringPage />} />
         <Route path="/performance-concerns" element={<PlaceholderPage title="Performance Concerns" />} />
         
         {/* Arcade Routes */}
         <Route path="/arcade" element={<PlaceholderPage title="Arcade" />} />
-        <Route path="/arcade-earn" element={<PlaceholderPage title="Arcade - Earn Points" />} />
-        <Route path="/arcade-redeem" element={<PlaceholderPage title="Arcade - Redeem Points" />} />
-        <Route path="/arcade-history" element={<PlaceholderPage title="Arcade - History" />} />
+        <Route path="/arcade-earn" element={<ArcadeEarnPoints />} />
+        <Route path="/arcade-redeem" element={<ArcadeRedeemPoints />} />
+        <Route path="/arcade-history" element={<ArcadeHistory />} />
         <Route path="/arcade-admin" element={<PlaceholderPage title="Arcade - Admin" />} />
         
         {/* Profile Routes */}
         <Route path="/profile" element={<PlaceholderPage title="Profile" />} />
-        <Route path="/profile-settings" element={<PlaceholderPage title="Profile Settings" />} />
+        <Route path="/profile-settings" element={<ProfileEditPage />} />
         
         {/* Incentive Routes */}
-        <Route path="/employee-incentives" element={<PlaceholderPage title="Employee Incentives" />} />
-        <Route path="/hr-incentive-approval" element={<PlaceholderPage title="HR Incentive Approval" />} />
-        <Route path="/manager-incentive-reporting" element={<PlaceholderPage title="Manager Incentive Reporting" />} />
+        <Route path="/employee-incentives" element={<EmployeeIncentiveForm />} />
+        <Route path="/hr-incentive-approval" element={<HRIncentiveApproval />} />
+        <Route path="/manager-incentive-reporting" element={<ManagerIncentiveReporting />} />
         
         {/* Forms Routes */}
-        <Route path="/interactive-forms" element={<PlaceholderPage title="Interactive Forms" />} />
+        <Route path="/interactive-forms" element={<InteractiveKPIForm />} />
         <Route path="/form-tracking" element={<FormTrackingDashboard />} />
         
         {/* Protected Routes with Role-based Access Control */}
