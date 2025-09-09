@@ -1,0 +1,13 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Secrets scanning configuration
+  SECRETS_SCAN_OMIT_KEYS = "VITE_ADMIN_ACCESS_TOKEN"
+
+# Alternative approach - you can also use SECRETS_SCAN_OMIT_PATHS if needed
+# SECRETS_SCAN_OMIT_PATHS = "dist/assets/*.js"
+
+# Or disable secrets scanning entirely (not recommended for production)
+# SECRETS_SCAN_ENABLED = "false"
