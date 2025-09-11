@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button { padding: 10px 20px; margin: 5px; }
+        input { padding: 8px; margin: 5px; width: 200px; }
+    </style>
+</head>
+<body>
+    <h1>BP Agency Dashboard - Login Test</h1>
+    
+    <div>
+        <h2>Test Credentials</h2>
+        <div>
+            <label>First Name: <input type="text" id="firstName" value="Marketing"></label><br>
+            <label>Phone: <input type="text" id="phone" value="9876543210"></label><br>
+            <button onclick="testLogin()">Test Login</button>
+            <button onclick="testSuperAdmin()">Test Super Admin</button>
+        </div>
+    </div>
+    
+    <div id="results"></div>
+    
+    <script type="module">
+        import { createClient } from 'https://cdn.skypack.dev/@supabase/supabase-js';
+        
+        // Supabase configuration
+        const SUPABASE_URL = 'https://igwgryykglsetfvomhdj.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlnd2dyeXlrZ2xzZXRmdm9taGRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ3NTcxMDgsImV4cCI6MjA3MDMzMzEwOH0.yL1hK263qf9msp7K4vUtF4Lvb7x7yxPcyvgkPiLokqA';
+        
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            results.appendChild(div);
+            console.log(`${type.toUpperCase()}: ${message}`);
+        }
+        
+        async function testDatabaseConnection() {
+            addResult('🔍 Testing database connection...', 'info');
+            
+            try {
+                const { data, error } = await supabase
+                    .from('unified_users')
+                    .select('name, phone, role')
+                    .limit(3);
+                    
+                if (error) {
+                    addResult(`❌ Database connection failed: ${error.message}`, 'error');
+                    return false;
+                } else {
+                    addResult(`✅ Database connected. Found ${data.length} users`, 'success');
+                    data.forEach(user => {
+                        addResult(`  - ${user.name} (${user.phone}) - ${user.role}`, 'info');
+                    });
+                    return true;
+                }
+            } catch (err) {
+                addResult(`❌ Database connection error: ${err.message}`, 'error');
+                return false;
+            }
+        }
+        
+        async function authenticateUser(firstName, phoneNumber) {
+            addResult(`🔐 Authenticating: ${firstName} + ${phoneNumber}`, 'info');
+            
+            try {
+                // Normalize inputs
+                const normalizedFirstName = firstName.trim();
+                const normalizedPhone = phoneNumber.trim();
+                
+                addResult(`📝 Normalized: ${normalizedFirstName} + ${normalizedPhone}`, 'info');
+                
+                // Search for users with names containing the first name
+                addResult(`🔍 Searching for users with name containing "${normalizedFirstName}"...`, 'info');
+                
+                const { data: users, error: searchError } = await supabase
+                    .from('unified_users')
+                    .select('*')
+                    .ilike('name', `%${normalizedFirstName}%`)
+                    .eq('status', 'active');
+
+                if (searchError) {
+                    addResult(`❌ Database search error: ${searchError.message}`, 'error');
+                    return { success: false, error: searchError.message };
+                }
+                
+                addResult(`📊 Query returned ${users?.length || 0} users`, 'info');
+                
+                if (users && users.length > 0) {
+                    users.forEach(user => {
+                        addResult(`  Found: ${user.name} (${user.phone}) - ${user.role}`, 'info');
+                    });
+                }
+
+                if (!users || users.length === 0) {
+                    addResult(`❌ No users found matching pattern: ${normalizedFirstName}`, 'error');
+                    return { success: false, error: `No user found with name containing "${normalizedFirstName}"` };
+                }
+
+                // Find exact match by extracting first name from full name
+                addResult('🔍 Looking for exact first name match...', 'info');
+                
+                let matchingUser = users.find(user => {
+                    const userFirstName = user.name.split(' ')[0].toLowerCase();
+                    const inputFirstName = normalizedFirstName.toLowerCase();
+                    const isMatch = userFirstName === inputFirstName;
+                    addResult(`  Comparing '${userFirstName}' with '${inputFirstName}' = ${isMatch}`, 'info');
+                    return isMatch;
+                });
+                
+                if (!matchingUser) {
+                    addResult('🔍 No exact match found, trying partial match...', 'info');
+                    matchingUser = users.find(user => {
+                        const userName = user.name.toLowerCase();
+                        const inputName = normalizedFirstName.toLowerCase();
+                        const isPartialMatch = userName.startsWith(inputName);
+                        addResult(`  Partial comparing '${userName}' with '${inputName}' = ${isPartialMatch}`, 'info');
+                        return isPartialMatch;
+                    });
+                }
+
+                if (!matchingUser) {
+                    addResult('❌ No matching user found', 'error');
+                    return { success: false, error: 'No matching user found' };
+                }
+                
+                addResult(`✅ Found matching user: ${matchingUser.name}`, 'success');
+
+                // Validate phone number
+                const userPhone = normalizePhoneNumber(matchingUser.phone);
+                const inputPhone = normalizePhoneNumber(normalizedPhone);
+                
+                addResult(`📞 Phone validation: user="${userPhone}", input="${inputPhone}", match=${userPhone === inputPhone}`, 'info');
+
+                if (userPhone !== inputPhone) {
+                    addResult(`❌ Phone number mismatch: expected ${userPhone}, provided ${inputPhone}`, 'error');
+                    return { success: false, error: 'Incorrect phone number' };
+                }
+                
+                addResult('✅ Phone number validated successfully', 'success');
+                addResult(`🎉 Authentication successful for ${matchingUser.name}!`, 'success');
+                
+                return {
+                    success: true,
+                    user: {
+                        id: matchingUser.id,
+                        name: matchingUser.name,
+                        firstName: matchingUser.name.split(' ')[0],
+                        phone: matchingUser.phone,
+                        email: matchingUser.email,
+                        role: matchingUser.role,
+                        user_category: matchingUser.user_category,
+                        department: matchingUser.department
+                    }
+                };
+
+            } catch (error) {
+                addResult(`❌ Authentication error: ${error.message}`, 'error');
+                return { success: false, error: error.message };
+            }
+        }
+        
+        function normalizePhoneNumber(phone) {
+            if (!phone) return '';
+            
+            return phone
+                .replace(/^\+91-?/, '') // Remove +91 country code
+                .replace(/[\s\-\(\)]/g, '') // Remove spaces, dashes, parentheses
+                .replace(/^0/, ''); // Remove leading zero if present
+        }
+        
+        window.testLogin = async function() {
+            const firstName = document.getElementById('firstName').value;
+            const phone = document.getElementById('phone').value;
+            
+            addResult('='.repeat(50), 'info');
+            addResult('🚀 Starting login test...', 'info');
+            
+            // First test database connection
+            const connected = await testDatabaseConnection();
+            if (!connected) {
+                addResult('❌ Cannot proceed without database connection', 'error');
+                return;
+            }
+            
+            // Then test authentication
+            const result = await authenticateUser(firstName, phone);
+            
+            if (result.success) {
+                addResult(`🎉 LOGIN SUCCESS! Welcome ${result.user.name}`, 'success');
+                addResult(`Role: ${result.user.role}, Department: ${result.user.department}`, 'success');
+            } else {
+                addResult(`❌ LOGIN FAILED: ${result.error}`, 'error');
+            }
+        };
+        
+        window.testSuperAdmin = async function() {
+            document.getElementById('firstName').value = 'Super';
+            document.getElementById('phone').value = '9876543211';
+            await testLogin();
+        };
+        
+        // Auto-run initial test
+        setTimeout(() => {
+            addResult('🔄 Auto-running initial test...', 'info');
+            testLogin();
+        }, 1000);
+    </script>
+</body>
+</html>
