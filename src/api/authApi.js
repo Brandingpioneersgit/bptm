@@ -47,7 +47,7 @@ export async function authenticateUser(firstName, phoneNumber) {
       const { data, error: searchError } = await supabase
         .from('unified_users')
         .select('*')
-        .or(`name.ilike.%${normalizedFirstName}%,name.ilike.${normalizedFirstName}%`) // Search for first name in full name
+        .ilike('name', `%${normalizedFirstName}%`) // Search for first name anywhere in full name
         .eq('status', 'active');
 
       if (searchError) {
