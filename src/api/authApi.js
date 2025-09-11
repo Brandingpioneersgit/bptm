@@ -38,15 +38,16 @@ export async function authenticateUser(firstName, phoneNumber) {
     
     console.log('🔐 API: Normalized inputs:', { firstName: normalizedFirstName, phone: normalizedPhone });
 
-    // First, get all users with names starting with the first name (case-insensitive)
-    console.log(`🔍 API: Executing query: .from('unified_users').select('*').ilike('name', '${normalizedFirstName}%').eq('status', 'active')`);
+    // First, get all users with names containing the first name (case-insensitive)
+    // This handles cases where first name is part of full name like "Marketing" in "Marketing Manager"
+    console.log(`🔍 API: Executing query: .from('unified_users').select('*').ilike('name', '%${normalizedFirstName}%').eq('status', 'active')`);
     
     let users;
     try {
       const { data, error: searchError } = await supabase
         .from('unified_users')
         .select('*')
-        .ilike('name', `${normalizedFirstName}%`) // Case-insensitive search starting with first name
+        .or(`name.ilike.%${normalizedFirstName}%,name.ilike.${normalizedFirstName}%`) // Search for first name in full name
         .eq('status', 'active');
 
       if (searchError) {
