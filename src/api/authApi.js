@@ -15,15 +15,6 @@ import { supabase } from '@/shared/lib/supabase';
 export async function authenticateUser(firstName, phoneNumber) {
   try {
     console.log('🔐 API: Authenticating user:', { firstName, phoneNumber });
-    console.log('🔑 API: Supabase client available:', supabase ? '✅ Yes' : '❌ No');
-    
-    if (!supabase) {
-      console.error('❌ API: Supabase client is not initialized');
-      return {
-        success: false,
-        error: 'Database connection error. Please try again later.'
-      };
-    }
     
     if (!firstName || !phoneNumber) {
       return {
@@ -34,157 +25,50 @@ export async function authenticateUser(firstName, phoneNumber) {
 
     // Normalize inputs
     const normalizedFirstName = firstName.trim();
-    const normalizedPhone = phoneNumber.trim();
+    const normalizedPhone = normalizePhoneNumber(phoneNumber.trim());
     
     console.log('🔐 API: Normalized inputs:', { firstName: normalizedFirstName, phone: normalizedPhone });
 
-    // First, get all users with names containing the first name (case-insensitive)
-    // This handles cases where first name is part of full name like "Marketing" in "Marketing Manager"
-    console.log(`🔍 API: Executing query: .from('unified_users').select('*').ilike('name', '%${normalizedFirstName}%').eq('status', 'active')`);
-    
-    let users;
-    try {
-      const { data, error: searchError } = await supabase
-        .from('unified_users')
-        .select('*')
-        .ilike('name', `%${normalizedFirstName}%`) // Search for first name anywhere in full name
-        .eq('status', 'active');
-
-      if (searchError) {
-        console.error('❌ API: Database search error:', searchError);
-        return {
-          success: false,
-          error: 'Database error occurred during authentication'
-        };
-      }
-      
-      users = data;
-      console.log(`🔍 API: Query returned ${users?.length || 0} users`);
-      if (users) {
-        console.log('🔍 API: User IDs returned:', users.map(u => u.id).join(', '));
-      }
-    } catch (queryError) {
-      console.error('❌ API: Error executing query:', queryError);
-      return {
-        success: false,
-        error: 'Database error occurred during authentication'
-      };
-    }
-
-    if (!users || users.length === 0) {
-      console.log('❌ API: No users found matching pattern:', normalizedFirstName);
-      return {
-        success: false,
-        error: `No user found with name starting with "${normalizedFirstName}". Please check your spelling and try again.`
-      };
-    }
-
-    // Find exact match by extracting first name from full name
-    console.log('🔍 API: Looking for exact first name match...');
-    
-    // First try exact match (case-insensitive)
-    let matchingUser = users.find(user => {
-      const userFirstName = user.name.split(' ')[0].toLowerCase();
-      const inputFirstName = normalizedFirstName.toLowerCase();
-      const isMatch = userFirstName === inputFirstName;
-      console.log(`🔍 API: Comparing '${userFirstName}' with '${inputFirstName}' = ${isMatch}`);
-      return isMatch;
-    });
-    
-    // If no exact match, try to match with the first part of the name
-    // This handles cases like "john" matching "John SEO"
-    if (!matchingUser) {
-      console.log('🔍 API: No exact match found, trying partial match...');
-      matchingUser = users.find(user => {
-        const userName = user.name.toLowerCase();
-        const inputName = normalizedFirstName.toLowerCase();
-        // Check if the user's name starts with the input name
-        const isPartialMatch = userName.startsWith(inputName);
-        console.log(`🔍 API: Partial comparing '${userName}' with '${inputName}' = ${isPartialMatch}`);
-        return isPartialMatch;
-      });
-    }
-
-    if (!matchingUser) {
-      console.log('❌ API: No matching user found');
-      return {
-        success: false,
-        error: `No user found matching "${normalizedFirstName}". Please try your exact first name as shown in your profile (e.g., "John" for "John SEO").`
-      };
-    }
-    
-    console.log('✅ API: Found matching user:', matchingUser.name);
-
-    // Validate phone number
-    const userPhone = normalizePhoneNumber(matchingUser.phone);
-    const inputPhone = normalizePhoneNumber(normalizedPhone);
-    
-    console.log('🔍 API: Phone validation:', { 
-      original: { user: matchingUser.phone, input: normalizedPhone },
-      normalized: { user: userPhone, input: inputPhone },
-      match: userPhone === inputPhone
+    // Use the backend API for authentication instead of direct Supabase
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        firstName: normalizedFirstName,
+        phone: normalizedPhone,
+        type: 'phone_auth'
+      })
     });
 
-    if (userPhone !== inputPhone) {
-      console.log('❌ API: Phone number mismatch:', { expected: userPhone, provided: inputPhone });
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('❌ API: Authentication failed:', errorData);
       return {
         success: false,
-        error: 'Incorrect phone number. Please try again.'
+        error: errorData.error || 'Authentication failed'
       };
     }
-    
-    console.log('✅ API: Phone number validated successfully');
+
+    const authResult = await response.json();
+    console.log('✅ API: Authentication successful:', authResult.user?.name);
 
     // Generate session token
-    console.log('🔍 API: Generating session token...');
-    const sessionToken = generateSessionToken(matchingUser.id);
+    const sessionToken = generateSessionToken(authResult.user.id);
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
     // Create session data
     const sessionData = {
       sessionId: sessionToken,
-      userId: matchingUser.id,
+      userId: authResult.user.id,
       expiresAt: expiresAt.toISOString(),
       createdAt: new Date().toISOString()
     };
-    
-    console.log('🔍 API: Session data created');
-
-    // Store session in database
-    try {
-      console.log('🔍 API: Storing session in database...');
-      await supabase
-        .from('user_sessions')
-        .insert({
-          user_id: matchingUser.id,
-          session_token: sessionToken,
-          expires_at: expiresAt.toISOString()
-        });
-      console.log('✅ API: Session stored in database');
-    } catch (sessionError) {
-      console.warn('⚠️ API: Could not store session in database:', sessionError);
-      // Continue anyway - session will be stored in localStorage
-    }
-
-    // Prepare user data for return
-    const userData = {
-      id: matchingUser.id,
-      name: matchingUser.name,
-      firstName: matchingUser.name.split(' ')[0],
-      phone: matchingUser.phone,
-      email: matchingUser.email,
-      role: matchingUser.role,
-      user_category: matchingUser.user_category,
-      department: matchingUser.department,
-      permissions: matchingUser.permissions || {},
-      dashboard_access: matchingUser.dashboard_access || []
-    };
-    
-    console.log('✅ API: Authentication successful for:', matchingUser.name);
 
     return {
       success: true,
-      user: userData,
+      user: authResult.user,
       token: sessionToken,
       sessionData
     };
