@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Direct Login Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .form-group { margin: 10px 0; }
+        label { display: block; margin-bottom: 5px; }
+        input { padding: 8px; width: 200px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
+        .result { margin-top: 20px; padding: 10px; background: #f8f9fa; border: 1px solid #ddd; }
+        .success { background: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>Direct Authentication Test</h1>
+    
+    <div class="form-group">
+        <label for="firstName">First Name:</label>
+        <input type="text" id="firstName" value="Super">
+    </div>
+    
+    <div class="form-group">
+        <label for="phone">Phone:</label>
+        <input type="text" id="phone" value="9876543210">
+    </div>
+    
+    <button onclick="testLogin()">Test Login</button>
+    
+    <div id="result" class="result" style="display: none;"></div>
+
+    <script>
+        async function testLogin() {
+            const firstName = document.getElementById('firstName').value;
+            const phone = document.getElementById('phone').value;
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                console.log('Testing login with:', { firstName, phone });
+                
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        firstName: firstName,
+                        phone: phone,
+                        type: 'phone_auth'
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Login successful:', result);
+                    
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <h3>✅ Login Successful!</h3>
+                        <p><strong>User:</strong> ${result.user.name}</p>
+                        <p><strong>Role:</strong> ${result.user.role}</p>
+                        <p><strong>Token:</strong> ${result.token}</p>
+                        <p><strong>Dashboard Access:</strong> ${result.user.dashboard_access.join(', ')}</p>
+                    `;
+                    resultDiv.style.display = 'block';
+                    
+                    // Store session data like the real app does
+                    const sessionData = {
+                        sessionId: result.token,
+                        userId: result.user.id,
+                        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+                    };
+                    localStorage.setItem('unified_auth_session', JSON.stringify(sessionData));
+                    localStorage.setItem('unified_auth_user', JSON.stringify(result.user));
+                    
+                    // Try to redirect to dashboard
+                    setTimeout(() => {
+                        window.location.href = '/super-admin';
+                    }, 2000);
+                    
+                } else {
+                    const error = await response.json();
+                    console.error('Login failed:', error);
+                    
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <h3>❌ Login Failed</h3>
+                        <p><strong>Error:</strong> ${error.error}</p>
+                    `;
+                    resultDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h3>❌ Network Error</h3>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                `;
+                resultDiv.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>
