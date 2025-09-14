@@ -28,11 +28,72 @@ app.use(express.json());
 // Auth API endpoints
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password, username } = req.body;
+    const { email, password, username, firstName, phone, type } = req.body;
     
     console.log('Request body:', JSON.stringify(req.body));
-    console.log('Email:', email, 'Username:', username, 'Password:', password);
     
+    // Handle phone authentication
+    if (type === 'phone_auth' && firstName && phone) {
+      console.log('Phone authentication attempt for:', firstName, phone);
+      
+      // Normalize phone number
+      const normalizedPhone = phone.replace(/^\+91-?/, '').replace(/[\s\-\(\)]/g, '').replace(/^0/, '');
+      
+      // Search for users by first name and phone
+      const { data: users, error: searchError } = await serviceSupabase
+        .from('unified_users')
+        .select('*')
+        .ilike('name', `%${firstName}%`)
+        .eq('status', 'active');
+        
+      if (searchError || !users || users.length === 0) {
+        console.log('No users found matching name:', firstName);
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+      
+      // Find matching user by first name and phone
+      const matchingUser = users.find(user => {
+        const userFirstName = user.name.split(' ')[0].toLowerCase();
+        const inputFirstName = firstName.toLowerCase();
+        const userPhone = user.phone?.replace(/^\+91-?/, '').replace(/[\s\-\(\)]/g, '').replace(/^0/, '');
+        
+        console.log('Comparing:', {
+          userFirstName,
+          inputFirstName,
+          userPhone,
+          normalizedPhone,
+          nameMatch: userFirstName === inputFirstName,
+          phoneMatch: userPhone === normalizedPhone
+        });
+        
+        return userFirstName === inputFirstName && userPhone === normalizedPhone;
+      });
+      
+      if (!matchingUser) {
+        console.log('No matching user found for phone auth');
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+      
+      console.log('Phone auth successful for:', matchingUser.name);
+      
+      return res.json({
+        token: `bearer_${matchingUser.id}`,
+        user: {
+          id: matchingUser.id,
+          name: matchingUser.name,
+          firstName: matchingUser.name.split(' ')[0],
+          email: matchingUser.email,
+          phone: matchingUser.phone,
+          role: matchingUser.role,
+          user_category: matchingUser.user_category,
+          department: matchingUser.department,
+          permissions: matchingUser.permissions || {},
+          dashboard_access: matchingUser.dashboard_access || []
+        }
+      });
+    }
+    
+    // Handle email/username authentication (existing code)
     const loginIdentifier = email || username;
     console.log('Login attempt for:', loginIdentifier);
     
