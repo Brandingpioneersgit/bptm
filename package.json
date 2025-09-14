@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run api\" \"vite\"",
+    "dev": "concurrently \"npm run api\" \"vite --host\"",
     "api": "node api-server.js",
-    "frontend": "vite",
+    "frontend": "vite --host",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",
