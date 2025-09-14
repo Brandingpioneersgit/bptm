@@ -205,7 +205,7 @@ export function LoginPage({ onLoginSuccess, onCancel }) {
                 {isSubmitting ? (
                   <LoadingSpinner size="sm" color="white" />
                 ) : (
-                  'Sign In'
+                  'Log In'
                 )}
               </button>
             </form>
