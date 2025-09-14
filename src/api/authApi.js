@@ -139,30 +139,54 @@ export async function validateSession(token) {
     // Extract user ID from token
     const [userId] = token.split('_');
     
-    // Check if session exists in database
-    const { data: session, error } = await supabase
-      .from('user_sessions')
-      .select('*')
-      .eq('session_token', token)
-      .eq('user_id', userId)
-      .single();
-
-    if (error || !session) {
-      return { valid: false, error: 'Invalid session' };
+    // For fallback users (super_admin_001, admin_001, etc.), skip database validation
+    const fallbackUserIds = ['super_admin_001', 'admin_001', 'manager_001', 'employee_001'];
+    if (fallbackUserIds.includes(userId)) {
+      // For fallback users, validate based on token format and expiry
+      const tokenParts = token.split('_');
+      if (tokenParts.length >= 3) {
+        const timestamp = parseInt(tokenParts[2]);
+        const tokenAge = Date.now() - timestamp;
+        const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+        
+        if (tokenAge < maxAge) {
+          return { valid: true, session: { user_id: userId, expires_at: new Date(timestamp + maxAge).toISOString() } };
+        } else {
+          return { valid: false, error: 'Session expired' };
+        }
+      }
+      return { valid: false, error: 'Invalid token format' };
     }
-
-    // Check if session is expired
-    if (new Date(session.expires_at) < new Date()) {
-      // Clean up expired session
-      await supabase
+    
+    // For database users, try database validation
+    try {
+      const { data: session, error } = await supabase
         .from('user_sessions')
-        .delete()
-        .eq('session_token', token);
-      
-      return { valid: false, error: 'Session expired' };
-    }
+        .select('*')
+        .eq('session_token', token)
+        .eq('user_id', userId)
+        .single();
 
-    return { valid: true, session };
+      if (error || !session) {
+        return { valid: false, error: 'Invalid session' };
+      }
+
+      // Check if session is expired
+      if (new Date(session.expires_at) < new Date()) {
+        // Clean up expired session
+        await supabase
+          .from('user_sessions')
+          .delete()
+          .eq('session_token', token);
+        
+        return { valid: false, error: 'Session expired' };
+      }
+
+      return { valid: true, session };
+    } catch (dbError) {
+      console.log('Database session validation failed, treating as invalid session');
+      return { valid: false, error: 'Database unavailable' };
+    }
   } catch (error) {
     console.error('Session validation error:', error);
     return { valid: false, error: 'Session validation failed' };
