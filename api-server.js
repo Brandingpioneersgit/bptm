@@ -333,7 +333,7 @@ app.get('/api/check-users', async (req, res) => {
     // Query existing users and their roles
     const { data: users, error } = await serviceSupabase
       .from('unified_users')
-      .select('role, email, name, password_hash')
+      .select('role, email, name, phone, password_hash')
       .limit(10);
 
     if (error) {
