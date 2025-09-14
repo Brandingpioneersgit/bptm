@@ -53,9 +53,10 @@ function LoginPageWithRedirect() {
 
   useEffect(() => {
     if (!loading && user && !redirectAttempted) {
-      // User is already authenticated, redirect to homepage
+      // User is already authenticated, redirect to appropriate dashboard
       setRedirectAttempted(true);
-      navigate('/', { replace: true });
+      const dashboardPath = getDashboardPath(user.role);
+      navigate(dashboardPath, { replace: true });
     }
   }, [user, loading, navigate, redirectAttempted]);
 
